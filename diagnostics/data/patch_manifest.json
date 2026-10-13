@@ -1,0 +1,948 @@
+{
+  "schema": 1,
+  "source_name": "RE7 Third-Person OTS RT 8.02",
+  "source_sha256": "4154ee807842eb17f51b84272c98c3fdf153082c252f176446aa0cd61fd0686d",
+  "scope": "four main blocks (71) plus optional Fullbright (7); not all CT features",
+  "patches": [
+    {
+      "name": "CAM_AFTER_1000_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 7F 34 F3 0F 59",
+      "delta": 0,
+      "expected": "F3 0F 10 7F 34",
+      "ct_aob_line": 1024,
+      "ct_site_line": 1057,
+      "ct_restore_line": 4193
+    },
+    {
+      "name": "CUTSCENE_AUTOLOOK",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "15 C6 42 1C 01 48 8B 41 50",
+      "delta": 1,
+      "expected": "C6 42 1C 01 48 8B 41 50",
+      "ct_aob_line": 1063,
+      "ct_site_line": 1250,
+      "ct_restore_line": 4195
+    },
+    {
+      "name": "PLAYER_TRANS_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "D2 FD FF C6 47 7C 00 45 84 FF 0F 84 AD 00 00 00 48 8B 45 10 8B 80 D0 03 00 00",
+      "delta": 16,
+      "expected": "48 8B 45 10 8B 80 D0 03 00 00",
+      "ct_aob_line": 1257,
+      "ct_site_line": 1275,
+      "ct_restore_line": 4197
+    },
+    {
+      "name": "TRANS_GUN_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "08 00 00 4D 33 C1 48 83 79 10 00 4C 89 81 D0 03 00 00",
+      "delta": 11,
+      "expected": "4C 89 81 D0 03 00 00",
+      "ct_aob_line": 1282,
+      "ct_site_line": 1302,
+      "ct_restore_line": 4199
+    },
+    {
+      "name": "HEAD_Y_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "20 F3 0F 11 43 34",
+      "delta": 1,
+      "expected": "F3 0F 11 43 34 F3 0F 11 4B 38 F3 0F 11 53 3C F3 44 0F 11 4B 30",
+      "ct_aob_line": 1309,
+      "ct_site_line": 1667,
+      "ct_restore_line": 4201
+    },
+    {
+      "name": "INTERACTABLE_FLAG_ON",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "02 C6 82 88 00 00 00 01",
+      "delta": 1,
+      "expected": "C6 82 88 00 00 00 01",
+      "ct_aob_line": 1674,
+      "ct_site_line": 1684,
+      "ct_restore_line": 4203
+    },
+    {
+      "name": "INTERACTABLE_FLAG_OFF",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "C6 80 88 00 00 00 00 48 83",
+      "delta": 0,
+      "expected": "C6 80 88 00 00 00 00",
+      "ct_aob_line": 1691,
+      "ct_site_line": 1701,
+      "ct_restore_line": 4205
+    },
+    {
+      "name": "GET_SECONDARY_INTERACTABLE_R13_ADDRESS",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "48 8B 48 18 48 8B 43 50 48 39 70 18 0F 85 C4",
+      "delta": 0,
+      "expected": "48 8B 48 18 48 8B 43 50",
+      "ct_aob_line": 1708,
+      "ct_site_line": 1722,
+      "ct_restore_line": 4207
+    },
+    {
+      "name": "TP_INTERACTABLE_COORDS",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 45 30 F3 0F 11 43 3C F3 0F 11 4B 34 F3 0F 11 53 38 44 8B",
+      "delta": -5,
+      "expected": "F3 0F 11 43 30 F3 0F 10 45 30 F3 0F 11 43 3C F3 0F 11 4B 34 F3 0F 11 53 38",
+      "ct_aob_line": 1729,
+      "ct_site_line": 2041,
+      "ct_restore_line": 4209
+    },
+    {
+      "name": "FPROMPT_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "80 BA 90 00 00 00 00 0F 84 EB",
+      "delta": 0,
+      "expected": "80 BA 90 00 00 00 00",
+      "ct_aob_line": 2048,
+      "ct_site_line": 2060,
+      "ct_restore_line": 4211
+    },
+    {
+      "name": "TIMER_AOB",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 83 D4 02 00 00",
+      "delta": 0,
+      "expected": "F3 0F 10 83 D4 02 00 00",
+      "ct_aob_line": 2067,
+      "ct_site_line": 2118,
+      "ct_restore_line": 4213
+    },
+    {
+      "name": "CHARACTER_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "44 3B 87 E8 01 00 00",
+      "delta": 0,
+      "expected": "44 3B 87 E8 01 00 00",
+      "ct_aob_line": 2125,
+      "ct_site_line": 2242,
+      "ct_restore_line": 4215
+    },
+    {
+      "name": "LADDER_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "C6 40 53 01 48 8B 41 50 48 83 78 18 00 0F",
+      "delta": 0,
+      "expected": "C6 40 53 01 48 8B 41 50",
+      "ct_aob_line": 2249,
+      "ct_site_line": 2263,
+      "ct_restore_line": 4217
+    },
+    {
+      "name": "FOV_AUTOOLDCAM_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 80 B4 00 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 80 B4 00 00 00",
+      "ct_aob_line": 2270,
+      "ct_site_line": 2288,
+      "ct_restore_line": 4219
+    },
+    {
+      "name": "DOF_DISTANCE_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "FD FF FF F3 0F 10 41 18",
+      "delta": 3,
+      "expected": "F3 0F 10 41 18",
+      "ct_aob_line": 2295,
+      "ct_site_line": 2358,
+      "ct_restore_line": 4221
+    },
+    {
+      "name": "DOF_CUTSCENE_BLUR_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 45 0F 10 8F C8 01 00 00",
+      "delta": 0,
+      "expected": "F3 45 0F 10 8F C8 01 00 00",
+      "ct_aob_line": 2364,
+      "ct_site_line": 2382,
+      "ct_restore_line": 4223
+    },
+    {
+      "name": "CAM_BOXES_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "41 0F 11 8F 18 01 00 00 0F",
+      "delta": 0,
+      "expected": "41 0F 11 8F 18 01 00 00",
+      "ct_aob_line": 2389,
+      "ct_site_line": 2433,
+      "ct_restore_line": 4225
+    },
+    {
+      "name": "RUN_FLAG_OFF",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "89 87 A8 00 00 00 EB 0A",
+      "delta": 0,
+      "expected": "89 87 A8 00 00 00",
+      "ct_aob_line": 2440,
+      "ct_site_line": 2450,
+      "ct_restore_line": 4227
+    },
+    {
+      "name": "RUN_FLAG_ON",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "C7 87 A8 00 00 00 01 00 00 00 48",
+      "delta": 0,
+      "expected": "C7 87 A8 00 00 00 01 00 00 00",
+      "ct_aob_line": 2457,
+      "ct_site_line": 2467,
+      "ct_restore_line": 4229
+    },
+    {
+      "name": "MENU_FOV_BYTE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "66 0F 6E 40 18 0F 5B C0 0F",
+      "delta": 0,
+      "expected": "66 0F 6E 40 18",
+      "ct_aob_line": 2474,
+      "ct_site_line": 2492,
+      "ct_restore_line": 4231
+    },
+    {
+      "name": "TRUE_FOV_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 47 38 F3 0F 59 05 * * * * 0F",
+      "delta": 0,
+      "expected": "F3 0F 10 47 38",
+      "ct_aob_line": 2498,
+      "ct_site_line": 2850,
+      "ct_restore_line": 4233
+    },
+    {
+      "name": "HELD_WEAPON_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "44 3B 83 B0 03 00 00",
+      "delta": 0,
+      "expected": "44 3B 83 B0 03 00 00",
+      "ct_aob_line": 2856,
+      "ct_site_line": 3023,
+      "ct_restore_line": 4235
+    },
+    {
+      "name": "GUN_BLOCK_DIS_CALC",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 8F 78 01 00 00 0F 5A C9",
+      "delta": 0,
+      "expected": "F3 0F 10 8F 78 01 00 00",
+      "ct_aob_line": 3030,
+      "ct_site_line": 3047,
+      "ct_restore_line": 4237
+    },
+    {
+      "name": "CROUCH_FLAG_READ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "20 44 8B 8B 44 01 00 00",
+      "delta": 1,
+      "expected": "44 8B 8B 44 01 00 00",
+      "ct_aob_line": 3054,
+      "ct_site_line": 3067,
+      "ct_restore_line": 4239
+    },
+    {
+      "name": "NAH_GUN_BLOCK_DIS_CALC",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 8E 78 01 00 00 0F",
+      "delta": 0,
+      "expected": "F3 0F 10 8E 78 01 00 00",
+      "ct_aob_line": 3074,
+      "ct_site_line": 3091,
+      "ct_restore_line": 4241
+    },
+    {
+      "name": "TIMESCALE_MULTIPLIER",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 59 83 48 03 00 00",
+      "delta": 0,
+      "expected": "F3 0F 59 83 48 03 00 00",
+      "ct_aob_line": 3098,
+      "ct_site_line": 3706,
+      "ct_restore_line": 4243
+    },
+    {
+      "name": "LOADED_AREA",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "8B 48 54 83 F9 03",
+      "delta": 0,
+      "expected": "8B 48 54 83 F9 03",
+      "ct_aob_line": 3713,
+      "ct_site_line": 3757,
+      "ct_restore_line": 4245
+    },
+    {
+      "name": "REFRAMEWORK_FOV_WRITE_POINT",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 52 38 C3 CC 48",
+      "delta": 0,
+      "expected": "F3 0F 11 52 38",
+      "ct_aob_line": 3764,
+      "ct_site_line": 3774,
+      "ct_restore_line": 4247
+    },
+    {
+      "name": "TIMESCALE_FRAMERATE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 83 54 03 00 00 44",
+      "delta": 0,
+      "expected": "F3 0F 11 83 54 03 00 00",
+      "ct_aob_line": 3780,
+      "ct_site_line": 3803,
+      "ct_restore_line": 4249
+    },
+    {
+      "name": "BETTER_TIMER",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 47 50 F3 0F 10 5F",
+      "delta": 0,
+      "expected": "F3 0F 10 47 50",
+      "ct_aob_line": 3810,
+      "ct_site_line": 3823,
+      "ct_restore_line": 4251
+    },
+    {
+      "name": "XINPUT_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "89 43 04 8B 83 A0 00 00 00 89 83 A4 00 00 00 48 8B 01 FF 90 48",
+      "delta": 0,
+      "expected": "89 43 04 8B 83 A0 00 00 00",
+      "ct_aob_line": 3829,
+      "ct_site_line": 3873,
+      "ct_restore_line": 4253
+    },
+    {
+      "name": "XINPUT_FLOATS",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "44 3B 48 1C 0F 83 B2 01 00 00",
+      "delta": 0,
+      "expected": "44 3B 48 1C 0F 83 B2 01 00 00",
+      "ct_aob_line": 3880,
+      "ct_site_line": 3956,
+      "ct_restore_line": 4255
+    },
+    {
+      "name": "CAM_SOUND_COORDS_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "26 2E FF 8B 08 89 0C DE 8B 48 04",
+      "delta": 5,
+      "expected": "89 0C DE 8B 48 04 89 4C DE 04 8B 40 08 89 44 DE 08",
+      "ct_aob_line": 3963,
+      "ct_site_line": 4000,
+      "ct_restore_line": 4257
+    },
+    {
+      "name": "NAH_CRIT_HP_EFFECT_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "80 BB F1 00 00 00 00 0F 95 C0 41",
+      "delta": 0,
+      "expected": "80 BB F1 00 00 00 00",
+      "ct_aob_line": 4007,
+      "ct_site_line": 4027,
+      "ct_restore_line": 4259
+    },
+    {
+      "name": "INVENTORY_HIGHLIGHTED_ITEM_ID",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "48 8B 53 70 48 85 D2 74 0A 48 39 4A",
+      "delta": 0,
+      "expected": "48 8B 53 70 48 85 D2",
+      "ct_aob_line": 4034,
+      "ct_site_line": 4065,
+      "ct_restore_line": 4261
+    },
+    {
+      "name": "NO_GUN_ACCESS_FLOAT",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 10 83 AC 00 00 00 0F 5A C9",
+      "delta": 0,
+      "expected": "F3 0F 10 83 AC 00 00 00",
+      "ct_aob_line": 4072,
+      "ct_site_line": 4087,
+      "ct_restore_line": 4263
+    },
+    {
+      "name": "EXAMINE_DOF_WRITE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 BF 80 05 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 BF 80 05 00 00",
+      "ct_aob_line": 4094,
+      "ct_site_line": 4122,
+      "ct_restore_line": 4265
+    },
+    {
+      "name": "GRAB_FLAG_WHEN_ACTIVE_CMP",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "80 BA A8 00 00 00 00 0F 84 ** ** ** ** 48 8B 82 F8 00 00 00",
+      "delta": 0,
+      "expected": "80 BA A8 00 00 00 00",
+      "ct_aob_line": 4129,
+      "ct_site_line": 4144,
+      "ct_restore_line": 4267
+    },
+    {
+      "name": "TRUE_FOV_REFERENCE",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 B3 A8 02 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 B3 A8 02 00 00",
+      "ct_aob_line": 4151,
+      "ct_site_line": 4166,
+      "ct_restore_line": 4269
+    },
+    {
+      "name": "FOV_WRITE_MAIN",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 40 38 48 83 79 18 00 0F 85 ** ** ** ** 48 85 C0 0F 84 ** ** ** ** 48 83 78 10 00 75 ** 45 33 C0 48 8B CB 41 8D 50 46 E8 ** ** ** ** 49 8B CF EB ** 48 8B 48 10 48 8B 43 50 48 83 78 18 00 0F 85 ** ** ** ** 48 85 C9 0F 84 ** ** ** ** 48 83 79 18 00 75 ** 45 33 C0 48 8B CB 41 8D 50 46 E8 ** ** ** ** 49 8B CF EB ** 48 8B 49 18 48 8B 43 50 48 83 78 18 00 0F 85 ** ** ** ** 48 85 C9 0F 84 ** ** ** ** 48 8D 95 E0 04 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 40 38",
+      "ct_aob_line": 4173,
+      "ct_site_line": 4174,
+      "ct_restore_line": 4271
+    },
+    {
+      "name": "FOV_WRITE_NAH",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 40 38 48 83 79 18 00 0F 85 ** ** ** ** 48 85 C0 0F 84 ** ** ** ** 48 83 78 10 00 75 ** 45 33 C0 48 8B CB 41 8D 50 46 E8 ** ** ** ** 49 8B CF EB ** 48 8B 48 10 48 8B 43 50 48 83 78 18 00 0F 85 ** ** ** ** 48 85 C9 0F 84 ** ** ** ** 48 83 79 18 00 75 ** 45 33 C0 48 8B CB 41 8D 50 46 E8 ** ** ** ** 49 8B CF EB ** 48 8B 49 18 48 8B 43 50 48 83 78 18 00 0F 85 ** ** ** ** 48 85 C9 0F 84 ** ** ** ** 48 8D 95 A0 04 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 40 38",
+      "ct_aob_line": 4179,
+      "ct_site_line": 4180,
+      "ct_restore_line": 4273
+    },
+    {
+      "name": "FOV_WRITE_EOZ",
+      "group": "main",
+      "entry_id": "1337098144",
+      "pattern": "F3 0F 11 42 38 48 83 78 18 00 0F 85 ** ** ** ** 48 8B CB",
+      "delta": 0,
+      "expected": "F3 0F 11 42 38",
+      "ct_aob_line": 4185,
+      "ct_site_line": 4186,
+      "ct_restore_line": 4275
+    },
+    {
+      "name": "FIRING_COOR_WRITES",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "B0 02 00 00 F3 0F 11 87 30 05 00 00",
+      "delta": 4,
+      "expected": "F3 0F 11 87 30 05 00 00 F3 0F 11 8F 34 05 00 00 F3 0F 11 97 38 05 00 00",
+      "ct_aob_line": 5510,
+      "ct_site_line": 5537,
+      "ct_restore_line": 7083
+    },
+    {
+      "name": "CAM_WRITES",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "F3 0F 11 53 38 44 38",
+      "delta": -26,
+      "expected": "F3 44 0F 11 7B 24 F3 0F 11 43 30 F3 0F 10 45 30 F3 0F 11 43 3C F3 0F 11 4B 34 F3 0F 11 53 38",
+      "ct_aob_line": 5544,
+      "ct_site_line": 6363,
+      "ct_restore_line": 7085
+    },
+    {
+      "name": "NAH_AIM_POS_WRITE",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "60 02 00 00 F3 0F 11 87 30 05 00 00",
+      "delta": 4,
+      "expected": "F3 0F 11 87 30 05 00 00 F3 0F 11 8F 34 05 00 00 F3 0F 11 97 38 05 00 00",
+      "ct_aob_line": 6370,
+      "ct_site_line": 6397,
+      "ct_restore_line": 7087
+    },
+    {
+      "name": "EOZ_AIM_POS_WRITE",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "89 8F 30 05 00 00",
+      "delta": 0,
+      "expected": "89 8F 30 05 00 00 8B 48 04 89 8F 34 05 00 00 48 8D 8D D0 05 00 00 8B 40 08 89 87 38 05 00 00",
+      "ct_aob_line": 6404,
+      "ct_site_line": 6437,
+      "ct_restore_line": 7089
+    },
+    {
+      "name": "DOF_ORIGIN_ANGLE_WRITES",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "ED FE 8B 08 89 8F 60 05 00 00",
+      "delta": 4,
+      "expected": "89 8F 60 05 00 00 8B 48 04 89 8F 64 05 00 00 8B 40 08 89 87 68 05 00 00",
+      "ct_aob_line": 6444,
+      "ct_site_line": 7034,
+      "ct_restore_line": 7091
+    },
+    {
+      "name": "EOZ_DOF_ORIGIN_ANGLE_WRITES",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "FE FE 8B 08 89 8F 60 05 00 00",
+      "delta": 4,
+      "expected": "89 8F 60 05 00 00 8B 48 04 89 8F 64 05 00 00 8B 40 08 89 87 68 05 00 00",
+      "ct_aob_line": 7041,
+      "ct_site_line": 7056,
+      "ct_restore_line": 7093
+    },
+    {
+      "name": "NAH_DOF_ORIGIN_ANGLE_WRITES",
+      "group": "camera_aim_collision",
+      "entry_id": "1337098150",
+      "pattern": "F3 0F 11 87 60 05 00 00 F3 0F 11",
+      "delta": 0,
+      "expected": "F3 0F 11 87 60 05 00 00 F3 0F 11 8F 64 05 00 00 F3 0F 11 97 68 05 00 00",
+      "ct_aob_line": 7063,
+      "ct_site_line": 7076,
+      "ct_restore_line": 7095
+    },
+    {
+      "name": "TELESCOPE_FLAG",
+      "group": "auto_disable",
+      "entry_id": "1337098170",
+      "pattern": "0F B6 43 60 85 C0 0F 95 C2 E8 56 B9",
+      "delta": 0,
+      "expected": "0F B6 43 60 85 C0",
+      "ct_aob_line": 7462,
+      "ct_site_line": 7484,
+      "ct_restore_line": 8663
+    },
+    {
+      "name": "GUARD_FLOAT",
+      "group": "auto_disable",
+      "entry_id": "1337098170",
+      "pattern": "F3 0F 11 B3 80 01 00 00",
+      "delta": 0,
+      "expected": "F3 0F 11 B3 80 01 00 00",
+      "ct_aob_line": 7491,
+      "ct_site_line": 7522,
+      "ct_restore_line": 8665
+    },
+    {
+      "name": "AFTER_ADAPTIVE_DIFF",
+      "group": "auto_disable",
+      "entry_id": "1337098170",
+      "pattern": "8A FC 00 00 00 0F 57 C0 F3 0F 5F C8",
+      "delta": 5,
+      "expected": "0F 57 C0 F3 0F 5F C8",
+      "ct_aob_line": 7529,
+      "ct_site_line": 8649,
+      "ct_restore_line": 8667
+    },
+    {
+      "name": "FLASHLIGHT_WRITE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "40 88 69 60 48 8B 47 50",
+      "delta": 0,
+      "expected": "40 88 69 60 48 8B 47 50",
+      "ct_aob_line": 9158,
+      "ct_site_line": 9187,
+      "ct_restore_line": 10253
+    },
+    {
+      "name": "FLASHLIGHT_STEADY_XMM",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "66 0F 5A D2 0F C6 D2 00",
+      "delta": 0,
+      "expected": "66 0F 5A D2 0F C6 D2 00",
+      "ct_aob_line": 9194,
+      "ct_site_line": 9218,
+      "ct_restore_line": 10255
+    },
+    {
+      "name": "SCREEN_BLOOD_WRITE_FOLLOW",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F3 0F 10 47 48 B8",
+      "delta": 0,
+      "expected": "F3 0F 10 47 48",
+      "ct_aob_line": 9225,
+      "ct_site_line": 9268,
+      "ct_restore_line": 10257
+    },
+    {
+      "name": "NAH_OXYGEN_REF",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F3 0F 10 53 18 0F",
+      "delta": 0,
+      "expected": "F3 0F 10 53 18",
+      "ct_aob_line": 9274,
+      "ct_site_line": 9285,
+      "ct_restore_line": 10259
+    },
+    {
+      "name": "NAH_HUD_WRITE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "44 88 67 20 4C 8B 64 24 38",
+      "delta": 0,
+      "expected": "44 88 67 20 4C 8B 64 24 38",
+      "ct_aob_line": 9291,
+      "ct_site_line": 9622,
+      "ct_restore_line": 10261
+    },
+    {
+      "name": "NAH_DOT_FORCE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "8B 69 18 41 8D 46 CF",
+      "delta": 0,
+      "expected": "8B 69 18 41 8D 46 CF",
+      "ct_aob_line": 9629,
+      "ct_site_line": 9658,
+      "ct_restore_line": 10263
+    },
+    {
+      "name": "VIGNETTE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "8B 80 0C 02 00 00 C3",
+      "delta": 0,
+      "expected": "8B 80 0C 02 00 00",
+      "ct_aob_line": 9665,
+      "ct_site_line": 9685,
+      "ct_restore_line": 10265
+    },
+    {
+      "name": "PSYCHO_TIMER",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F3 0F 10 83 40 02 00 00 0F 5A C0 F3",
+      "delta": 0,
+      "expected": "F3 0F 10 83 40 02 00 00",
+      "ct_aob_line": 9692,
+      "ct_site_line": 9702,
+      "ct_restore_line": 10267
+    },
+    {
+      "name": "CLOSE_DISTORTION",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "48 8B 41 18 0F 28 D1",
+      "delta": 0,
+      "expected": "48 8B 41 18 0F 28 D1",
+      "ct_aob_line": 9709,
+      "ct_site_line": 9755,
+      "ct_restore_line": 10269
+    },
+    {
+      "name": "FLASHLIGHT_ALT_WRITE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F2 0F 11 06 41 0F 28 C0 89",
+      "delta": 0,
+      "expected": "F2 0F 11 06 41 0F 28 C0 89 46 08",
+      "ct_aob_line": 9762,
+      "ct_site_line": 9869,
+      "ct_restore_line": 10271
+    },
+    {
+      "name": "FLASHLIGHT_COLORS_FLOAT_READS",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F3 0F 59 00 0F 28 CA",
+      "delta": 0,
+      "expected": "F3 0F 59 00 0F 28 CA F3 0F 59 48 04 45 0F 57 DB F3 0F 59 50 08",
+      "ct_aob_line": 9876,
+      "ct_site_line": 9973,
+      "ct_restore_line": 10273
+    },
+    {
+      "name": "FLASH_BEAM_WIDTH",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "F3 0F 11 87 AC 00 00 00 F3 41",
+      "delta": 0,
+      "expected": "F3 0F 11 87 AC 00 00 00",
+      "ct_aob_line": 9980,
+      "ct_site_line": 10008,
+      "ct_restore_line": 10275
+    },
+    {
+      "name": "FLASHLIGHT_SHADOWS_Z_WRITE",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "89 8F C8 00 00 00 80",
+      "delta": 0,
+      "expected": "89 8F C8 00 00 00",
+      "ct_aob_line": 10015,
+      "ct_site_line": 10041,
+      "ct_restore_line": 10277
+    },
+    {
+      "name": "HURT_FILTER_READ",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "44 8B 46 18 44 3B 47 64",
+      "delta": 0,
+      "expected": "44 8B 46 18 44 3B 47 64",
+      "ct_aob_line": 10048,
+      "ct_site_line": 10109,
+      "ct_restore_line": 10279
+    },
+    {
+      "name": "FLASHBACK_FILTER_READ",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "8B 47 64 39 41 14",
+      "delta": 0,
+      "expected": "8B 47 64 39 41 14",
+      "ct_aob_line": 10116,
+      "ct_site_line": 10138,
+      "ct_restore_line": 10281
+    },
+    {
+      "name": "FLASHBACK_FILTER_READ_2",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "8B 41 28 3B 41 38",
+      "delta": 0,
+      "expected": "8B 41 28 3B 41 38",
+      "ct_aob_line": 10145,
+      "ct_site_line": 10167,
+      "ct_restore_line": 10283
+    },
+    {
+      "name": "HEAD_BOB_FLAG_CMP",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "38 48 2C 0F 84 B1 02 00 00",
+      "delta": 0,
+      "expected": "38 48 2C 0F 84 B1 02 00 00",
+      "ct_aob_line": 10174,
+      "ct_site_line": 10192,
+      "ct_restore_line": 10285
+    },
+    {
+      "name": "OLD_HOUSE_BRIGHTNESS_READ",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "41 8B 86 28 02 00 00 89",
+      "delta": 0,
+      "expected": "41 8B 86 28 02 00 00",
+      "ct_aob_line": 10199,
+      "ct_site_line": 10222,
+      "ct_restore_line": 10287
+    },
+    {
+      "name": "NAH_OXYGEN_HUD_SWITCH",
+      "group": "other",
+      "entry_id": "1337098210",
+      "pattern": "44 89 B3 70 01 00 00 48 8B 47 50 48 8B 15 ** ** ** **",
+      "delta": 0,
+      "expected": "44 89 B3 70 01 00 00",
+      "ct_aob_line": 10229,
+      "ct_site_line": 10241,
+      "ct_restore_line": 10289
+    },
+    {
+      "name": "LIGHT_SOURCE_DIAMETER_READ",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "44 0F 10 B0 80 00 00 00",
+      "delta": 0,
+      "expected": "44 0F 10 B0 80 00 00 00 8B 88 D0 00 00 00 44 0F 10 B8 90 00 00 00 89 4C 24 5C 44 0F 10 A0 A0 00 00 00 44 0F 10 98 B0 00 00 00",
+      "ct_aob_line": 15622,
+      "ct_site_line": 15729,
+      "ct_restore_line": 15896
+    },
+    {
+      "name": "LIGHT_RADIUS_MULSS_READ",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "F3 0F 59 43 0C F3 0F 59",
+      "delta": 0,
+      "expected": "F3 0F 59 43 0C",
+      "ct_aob_line": 15736,
+      "ct_site_line": 15754,
+      "ct_restore_line": 15898
+    },
+    {
+      "name": "LIGHT_RADIUS_MOVSS_READ",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "F3 0F 10 43 0C F3 44 0F 59",
+      "delta": 0,
+      "expected": "F3 0F 10 43 0C",
+      "ct_aob_line": 15760,
+      "ct_site_line": 15778,
+      "ct_restore_line": 15900
+    },
+    {
+      "name": "EXAMINE_LIGHT_CMP_1",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "80 7E 13 01 0F 85 F2 00 00 00",
+      "delta": 0,
+      "expected": "80 7E 13 01 0F 85 F2 00 00 00",
+      "ct_aob_line": 15784,
+      "ct_site_line": 15808,
+      "ct_restore_line": 15902
+    },
+    {
+      "name": "EXAMINE_LIGHT_CMP_2",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "80 7B 13 01 75 10 48 8B 0F E8 6D",
+      "delta": 0,
+      "expected": "80 7B 13 01 75 10",
+      "ct_aob_line": 15815,
+      "ct_site_line": 15839,
+      "ct_restore_line": 15904
+    },
+    {
+      "name": "GLOBAL_BRIGHTNESS",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "41 0F 10 86 80 01 00 00",
+      "delta": 0,
+      "expected": "41 0F 10 86 80 01 00 00",
+      "ct_aob_line": 15846,
+      "ct_site_line": 15868,
+      "ct_restore_line": 15906
+    },
+    {
+      "name": "G_BRIGHTNESS_2",
+      "group": "fullbright",
+      "entry_id": "1337098315",
+      "pattern": "F3 45 0F 10 96 D0 01 00 00",
+      "delta": 0,
+      "expected": "F3 45 0F 10 96 D0 01 00 00",
+      "ct_aob_line": 15875,
+      "ct_site_line": 15886,
+      "ct_restore_line": 15908
+    }
+  ],
+  "fixed_rvas": [
+    {
+      "rva": 24830745,
+      "kind": "branch",
+      "ct_line": 10189
+    },
+    {
+      "rva": 37629509,
+      "kind": "branch",
+      "ct_line": 3953
+    },
+    {
+      "rva": 48561038,
+      "kind": "branch",
+      "ct_line": 15805
+    },
+    {
+      "rva": 48579611,
+      "kind": "branch",
+      "ct_line": 15836
+    },
+    {
+      "rva": 150651776,
+      "kind": "slot",
+      "ct_line": 1203
+    },
+    {
+      "rva": 150669032,
+      "kind": "slot",
+      "ct_line": 1228
+    },
+    {
+      "rva": 150670024,
+      "kind": "slot",
+      "ct_line": 9342
+    },
+    {
+      "rva": 150673120,
+      "kind": "slot",
+      "ct_line": 1910
+    },
+    {
+      "rva": 150673392,
+      "kind": "slot",
+      "ct_line": 1265
+    },
+    {
+      "rva": 150678432,
+      "kind": "slot",
+      "ct_line": 1872
+    },
+    {
+      "rva": 150689656,
+      "kind": "slot",
+      "ct_line": 9329
+    },
+    {
+      "rva": 150700056,
+      "kind": "slot",
+      "ct_line": 1182
+    },
+    {
+      "rva": 150713872,
+      "kind": "slot",
+      "ct_line": 1122
+    },
+    {
+      "rva": 150895384,
+      "kind": "slot",
+      "ct_line": 1175
+    },
+    {
+      "rva": 150932504,
+      "kind": "slot",
+      "ct_line": 9351
+    },
+    {
+      "rva": 150939720,
+      "kind": "slot",
+      "ct_line": 15791
+    }
+  ]
+}

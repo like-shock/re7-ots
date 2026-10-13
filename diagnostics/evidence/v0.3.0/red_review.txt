@@ -1,0 +1,104 @@
+test_windows_explore_abi_and_read_only_native_imports (test_explore_binary.ExploreBinaryTests.test_windows_explore_abi_and_read_only_native_imports) ... ok
+test_aim_inventory_interaction_and_focus_restore_then_recover (test_explore_lua.ExploreAdapterTests.test_aim_inventory_interaction_and_focus_restore_then_recover) ... ok
+test_default_off_enable_follow_and_restore_without_drift (test_explore_lua.ExploreAdapterTests.test_default_off_enable_follow_and_restore_without_drift) ... ok
+test_missing_update_callback_never_applies (test_explore_lua.ExploreAdapterTests.test_missing_update_callback_never_applies) ... ok
+test_partial_failed_apply_recovers_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_apply_recovers_measured_mutation) ... FAIL
+test_partial_failed_restore_retries_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_restore_retries_measured_mutation) ... FAIL
+test_registration_failure_stays_blocked_and_reset_restores (test_explore_lua.ExploreAdapterTests.test_registration_failure_stays_blocked_and_reset_restores) ... ok
+test_relative_external_writer_cannot_accumulate_offset (test_explore_lua.ExploreAdapterTests.test_relative_external_writer_cannot_accumulate_offset) ... FAIL
+test_reload_camera_replacement_and_external_write_not_clobbered (test_explore_lua.ExploreAdapterTests.test_reload_camera_replacement_and_external_write_not_clobbered) ... ok
+test_restore_failure_and_ignored_setter_are_visible (test_explore_lua.ExploreAdapterTests.test_restore_failure_and_ignored_setter_are_visible) ... ok
+test_setter_exception_after_mutation_restores_and_latches_off (test_explore_lua.ExploreAdapterTests.test_setter_exception_after_mutation_restores_and_latches_off) ... ok
+test_stale_malformed_missing_camera_and_log_failure (test_explore_lua.ExploreAdapterTests.test_stale_malformed_missing_camera_and_log_failure) ... ok
+test_aim_inventory_interaction_focus_invalid_suspend (test_explore_lua.ExploreCoreTests.test_aim_inventory_interaction_focus_invalid_suspend) ... ok
+test_camera_offset_axes_no_accumulation_and_numeric_bounds (test_explore_lua.ExploreCoreTests.test_camera_offset_axes_no_accumulation_and_numeric_bounds) ... ok
+test_replay_malformed_and_generation_recovery (test_explore_lua.ExploreCoreTests.test_replay_malformed_and_generation_recovery) ... ok
+test_stable_heartbeat_and_stale_reset (test_explore_lua.ExploreCoreTests.test_stable_heartbeat_and_stale_reset) ... ok
+test_terminal_phase_without_new_sample_is_reported (test_explore_lua.ExploreCoreTests.test_terminal_phase_without_new_sample_is_reported) ... ok
+test_failed_write_or_oversized_line_closes (test_explore_lua.ExploreJournalTests.test_failed_write_or_oversized_line_closes) ... ok
+test_rotation_keeps_two_files_under_cap (test_explore_lua.ExploreJournalTests.test_rotation_keeps_two_files_under_cap) ... ok
+test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) ...
+  test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='write') ... FAIL
+  test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='rename') ... FAIL
+  test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='rename_once') ... FAIL
+  test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='initial_rename_once') ... FAIL
+
+======================================================================
+FAIL: test_partial_failed_apply_recovers_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_apply_recovers_measured_mutation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 105, in test_partial_failed_apply_recovers_measured_mutation
+    self.adapter("""start();phase='update';callbacks.UpdateBehavior();partial_set=true;phase='lock';callbacks.LockScene();phase='frame'
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 78, in adapter
+    run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/lua_runner.py", line 19, in run_lua
+    if rc:raise AssertionError(lua.lua_tolstring(state,-1,None).decode())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [string "..."]:478: partial application must restore base
+
+======================================================================
+FAIL: test_partial_failed_restore_retries_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_restore_retries_measured_mutation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 109, in test_partial_failed_restore_retries_measured_mutation
+    self.adapter("""start();partial_restore=true;step();for i=1,10 do step() end
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 78, in adapter
+    run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/lua_runner.py", line 19, in run_lua
+    if rc:raise AssertionError(lua.lua_tolstring(state,-1,None).decode())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [string "..."]:478: partial restoration must finish at base
+
+======================================================================
+FAIL: test_relative_external_writer_cannot_accumulate_offset (test_explore_lua.ExploreAdapterTests.test_relative_external_writer_cannot_accumulate_offset)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 113, in test_relative_external_writer_cannot_accumulate_offset
+    self.adapter("""start();for i=1,10 do position[2]=position[2]+0.01;step();assert(position[3]<=4.002,'residual Z must not become a new base') end
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_lua.py", line 78, in adapter
+    run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/lua_runner.py", line 19, in run_lua
+    if rc:raise AssertionError(lua.lua_tolstring(state,-1,None).decode())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [string "..."]:477: residual Z must not become a new base
+
+======================================================================
+FAIL: test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='write')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_plugin.py", line 11, in test_automatic_monitor_and_failures
+    self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+AssertionError: -6 != 0 : explore_host: tests/explore_host.c:42: main: Assertion `fixed_reads==12&&moves==0&&sleeps==3' failed.
+
+
+======================================================================
+FAIL: test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='rename')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_plugin.py", line 11, in test_automatic_monitor_and_failures
+    self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+AssertionError: -6 != 0 : explore_host: tests/explore_host.c:42: main: Assertion `fixed_reads==12&&moves==0&&sleeps==3' failed.
+
+
+======================================================================
+FAIL: test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='rename_once')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_plugin.py", line 11, in test_automatic_monitor_and_failures
+    self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+AssertionError: -6 != 0 : explore_host: tests/explore_host.c:43: main: Assertion `rename_failures>=1&&moves>=3' failed.
+
+
+======================================================================
+FAIL: test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) (name='initial_rename_once')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e5292e514c77/work/RE7_OTS_Work_Handoff/diagnostics/tests/test_explore_plugin.py", line 11, in test_automatic_monitor_and_failures
+    self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+AssertionError: -6 != 0 : explore_host: tests/explore_host.c:43: main: Assertion `rename_failures>=1&&moves>=3' failed.
+
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.279s
+
+FAILED (failures=7)

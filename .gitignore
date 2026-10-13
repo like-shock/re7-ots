@@ -1,0 +1,15 @@
+**/build/
+**/__pycache__/
+*.pyc
+.worktrees/
+dist/
+releases/
+logs/
+*.jsonl
+reference/
+*.zip
+*.rar
+*.7z
+*.dll
+*.exe
+*.pak

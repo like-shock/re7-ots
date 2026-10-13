@@ -1,0 +1,16 @@
+# SDD ledger — plan: docs/EXPLORE_PLAN.md
+
+Baseline: existing suite 28/28, C core 30/30, observer 12 scenarios passed before edits.
+Pre-flight: Task1 status schema/version/phase and field names are consumed by Task2 ingest and Task3 journal. Task2 Core/Journal interfaces consumed by generated Task3 adapter. Consistent with spec.
+Ruling: use the existing isolated archive workspace, with no git-only task helper/commit steps — no repository is present. Save complete source and evidence in versioned archives; cost if wrong: no fine-grained git rollback.
+Ruling: ship a bounded camera-following prototype, not CT feature parity — model/collision/DLC machinery lacks validated standalone interfaces. Cost: wall clipping or incomplete body remains possible; disclosed in UI and guide.
+Ruling: existing user approval authorizes concrete integrated prototype development; no repeated specification approval gate. Implementation remains local and release is supplied for user installation.
+
+Task 1: native monitor implemented after absent-implementation RED; 10 synthetic OS scenarios passed. Native wrapper shares observer core and copied existing small serialization/hash routines; prior native wrappers preserved.
+Task 2: pure core and bounded journal implemented after missing-module RED. Tested heartbeat freshness, malformed/replayed values, generations, aim/inventory/interaction/focus, coordinate/quaternion math and bounded rotating files. Corrected floating-point comparison tolerance at time boundaries.
+Task 3: adapter implemented after integration tests failed for absent adapter. F6 default OFF, UI offsets, single autorun bundling, compare-and-restore, setter failure cleanup, automatic log and persisted offsets. Readiness already gathered while OFF is reused; camera identity requires its own warmup. Fault injection was moved to the actual apply callback after warmup so it tests partial setter mutation rather than waiting state.
+Follow-up: terminal native phases do not increment sample sequence. Added failing regression, then preserved unsupported/limit status without treating it as replay. No control enable is permitted in terminal phases.
+
+Final review: one fresh independent reviewer found three Important issues and no deferred Minor items. RED regressions reproduced transient native publication termination, partial apply/restore rollback loss, and relative external-writer accumulation. Fixed in one pass; see EXPLORE_REVIEW.md. GREEN Explore tests 20/20, full rebuilt suite 48/48 plus core30 and observer12. New native wrapper covers 12 synthetic OS scenarios. Generated release Lua executed enable/500-frame/OFF/log lifecycle; deterministic rebuild hashes match.
+Packaging ruling: the prior v0.2.1 ZIP in local deliverables lacks its central directory. Build the new source archive from the complete working tree, preserving references/credits and old source; do not reuse the damaged archive container. New archives require CRC and payload verification after closing.
+Task 4: installer/source assembled with Korean play guide, attribution, build instructions, review record and hashes. Installer contains only the new DLL/Lua plus docs; source includes prior source/reference records and excludes historical binary installers. ZIP CRC and exact payload checks pass.

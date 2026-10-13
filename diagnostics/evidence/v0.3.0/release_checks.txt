@@ -1,0 +1,4 @@
+Deterministic rebuild PASS
+2576e27533380368a52e53db2f21d1893395d42507f78ef33eb5aa83df1cdde7  build/RE7_OTS_Explore.dll
+ca6cb6522f3ec7b1bd3d29e5fd6b33b5a63ec059d3984e5662a8dca09b3c16d1  build/re7_ots_explore.lua
+Generated release Lua: enable, 500-frame follow, OFF restore, automatic log PASS

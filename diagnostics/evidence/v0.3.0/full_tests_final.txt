@@ -1,0 +1,57 @@
+core: 30 checks, 0 failures
+observer: 12 scenarios PASS (safe reads, mutation, reload, semantics, immutable fixture)
+Built: build/RE7_OTS_Diagnostics.dll
+test_pe_exports_imports_and_unwind_data (test_binary.BinaryTests.test_pe_exports_imports_and_unwind_data) ... ok
+test_windows_explore_abi_and_read_only_native_imports (test_explore_binary.ExploreBinaryTests.test_windows_explore_abi_and_read_only_native_imports) ... ok
+test_aim_inventory_interaction_and_focus_restore_then_recover (test_explore_lua.ExploreAdapterTests.test_aim_inventory_interaction_and_focus_restore_then_recover) ... ok
+test_default_off_enable_follow_and_restore_without_drift (test_explore_lua.ExploreAdapterTests.test_default_off_enable_follow_and_restore_without_drift) ... ok
+test_missing_update_callback_never_applies (test_explore_lua.ExploreAdapterTests.test_missing_update_callback_never_applies) ... ok
+test_partial_failed_apply_recovers_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_apply_recovers_measured_mutation) ... ok
+test_partial_failed_restore_retries_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_restore_retries_measured_mutation) ... ok
+test_registration_failure_stays_blocked_and_reset_restores (test_explore_lua.ExploreAdapterTests.test_registration_failure_stays_blocked_and_reset_restores) ... ok
+test_relative_external_writer_cannot_accumulate_offset (test_explore_lua.ExploreAdapterTests.test_relative_external_writer_cannot_accumulate_offset) ... ok
+test_reload_camera_replacement_and_external_write_not_clobbered (test_explore_lua.ExploreAdapterTests.test_reload_camera_replacement_and_external_write_not_clobbered) ... ok
+test_restore_failure_and_ignored_setter_are_visible (test_explore_lua.ExploreAdapterTests.test_restore_failure_and_ignored_setter_are_visible) ... ok
+test_setter_exception_after_mutation_restores_and_latches_off (test_explore_lua.ExploreAdapterTests.test_setter_exception_after_mutation_restores_and_latches_off) ... ok
+test_stale_malformed_missing_camera_and_log_failure (test_explore_lua.ExploreAdapterTests.test_stale_malformed_missing_camera_and_log_failure) ... ok
+test_aim_inventory_interaction_focus_invalid_suspend (test_explore_lua.ExploreCoreTests.test_aim_inventory_interaction_focus_invalid_suspend) ... ok
+test_camera_offset_axes_no_accumulation_and_numeric_bounds (test_explore_lua.ExploreCoreTests.test_camera_offset_axes_no_accumulation_and_numeric_bounds) ... ok
+test_replay_malformed_and_generation_recovery (test_explore_lua.ExploreCoreTests.test_replay_malformed_and_generation_recovery) ... ok
+test_stable_heartbeat_and_stale_reset (test_explore_lua.ExploreCoreTests.test_stable_heartbeat_and_stale_reset) ... ok
+test_terminal_phase_without_new_sample_is_reported (test_explore_lua.ExploreCoreTests.test_terminal_phase_without_new_sample_is_reported) ... ok
+test_failed_write_or_oversized_line_closes (test_explore_lua.ExploreJournalTests.test_failed_write_or_oversized_line_closes) ... ok
+test_rotation_keeps_two_files_under_cap (test_explore_lua.ExploreJournalTests.test_rotation_keeps_two_files_under_cap) ... ok
+test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) ... ok
+test_duplicate_is_not_a_pass (test_host.HostTests.test_duplicate_is_not_a_pass) ... ok
+test_file_denied_still_reports_live (test_host.HostTests.test_file_denied_still_reports_live) ... ok
+test_invalid_disk_still_reports_live (test_host.HostTests.test_invalid_disk_still_reports_live) ... ok
+test_log_creation_failure_is_explicit (test_host.HostTests.test_log_creation_failure_is_explicit) ... ok
+test_log_write_failure_is_explicit (test_host.HostTests.test_log_write_failure_is_explicit) ... ok
+test_missing_is_reported (test_host.HostTests.test_missing_is_reported) ... ok
+test_normal_with_inaccessible_header_gap (test_host.HostTests.test_normal_with_inaccessible_header_gap) ... ok
+test_second_scan_does_not_reuse_disk_counts (test_host.HostTests.test_second_scan_does_not_reuse_disk_counts) ... ok
+test_status_file_indicates_complete (test_host.HostTests.test_status_file_indicates_complete) ... ok
+test_unreadable_memory_is_not_complete (test_host.HostTests.test_unreadable_memory_is_not_complete) ... ok
+test_whole_patch_change_outside_aob_is_detected (test_host.HostTests.test_whole_patch_change_outside_aob_is_detected) ... ok
+test_status_ui_with_stubbed_reframework_bindings (test_lua_ui.LuaTests.test_status_ui_with_stubbed_reframework_bindings) ... ok
+test_original_has_all_requested_sites (test_manifest.ManifestTests.test_original_has_all_requested_sites) ... ok
+test_rejects_wrong_input (test_manifest.ManifestTests.test_rejects_wrong_input) ... ok
+test_windows_observer_abi_and_no_game_write_imports (test_observer_binary.ObserverBinaryTests.test_windows_observer_abi_and_no_game_write_imports) ... ok
+test_callback_registration_exception_survives_poll (test_observer_lua.ObserverLuaTests.test_callback_registration_exception_survives_poll) ... ok
+test_camera_transform_is_resolved_through_owner (test_observer_lua.ObserverLuaTests.test_camera_transform_is_resolved_through_owner) ... ok
+test_malformed_status_cannot_bypass_camera_deadline (test_observer_lua.ObserverLuaTests.test_malformed_status_cannot_bypass_camera_deadline) ... ok
+test_missing_callback_diagnostic_survives_poll (test_observer_lua.ObserverLuaTests.test_missing_callback_diagnostic_survives_poll) ... ok
+test_missing_owner_method_does_not_attempt_getter (test_observer_lua.ObserverLuaTests.test_missing_owner_method_does_not_attempt_getter) ... ok
+test_null_owner_invalidates_coordinates_and_recovers (test_observer_lua.ObserverLuaTests.test_null_owner_invalidates_coordinates_and_recovers) ... ok
+test_observer_sdk_adapter_lifecycle (test_observer_lua.ObserverLuaTests.test_observer_sdk_adapter_lifecycle) ... Lua observer: nil, replacement, errors, stale status, throttling, recovery and I/O checks PASS
+ok
+test_stale_native_cannot_bypass_camera_deadline (test_observer_lua.ObserverLuaTests.test_stale_native_cannot_bypass_camera_deadline) ... ok
+test_synthetic_worker_session_and_failures (test_observer_plugin.ObserverPluginTests.test_synthetic_worker_session_and_failures) ... ok
+test_differential_masked_patterns_500_cases (test_properties.Properties.test_differential_masked_patterns_500_cases) ... ok
+test_sha256_against_hashlib (test_properties.Properties.test_sha256_against_hashlib) ... ok
+test_stream_boundaries_all_manifest_patterns (test_properties.Properties.test_stream_boundaries_all_manifest_patterns) ... ok
+
+----------------------------------------------------------------------
+Ran 48 tests in 1.660s
+
+OK

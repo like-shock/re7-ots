@@ -1,0 +1,25 @@
+test_windows_explore_abi_and_read_only_native_imports (test_explore_binary.ExploreBinaryTests.test_windows_explore_abi_and_read_only_native_imports) ... ok
+test_aim_inventory_interaction_and_focus_restore_then_recover (test_explore_lua.ExploreAdapterTests.test_aim_inventory_interaction_and_focus_restore_then_recover) ... ok
+test_default_off_enable_follow_and_restore_without_drift (test_explore_lua.ExploreAdapterTests.test_default_off_enable_follow_and_restore_without_drift) ... ok
+test_missing_update_callback_never_applies (test_explore_lua.ExploreAdapterTests.test_missing_update_callback_never_applies) ... ok
+test_partial_failed_apply_recovers_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_apply_recovers_measured_mutation) ... ok
+test_partial_failed_restore_retries_measured_mutation (test_explore_lua.ExploreAdapterTests.test_partial_failed_restore_retries_measured_mutation) ... ok
+test_registration_failure_stays_blocked_and_reset_restores (test_explore_lua.ExploreAdapterTests.test_registration_failure_stays_blocked_and_reset_restores) ... ok
+test_relative_external_writer_cannot_accumulate_offset (test_explore_lua.ExploreAdapterTests.test_relative_external_writer_cannot_accumulate_offset) ... ok
+test_reload_camera_replacement_and_external_write_not_clobbered (test_explore_lua.ExploreAdapterTests.test_reload_camera_replacement_and_external_write_not_clobbered) ... ok
+test_restore_failure_and_ignored_setter_are_visible (test_explore_lua.ExploreAdapterTests.test_restore_failure_and_ignored_setter_are_visible) ... ok
+test_setter_exception_after_mutation_restores_and_latches_off (test_explore_lua.ExploreAdapterTests.test_setter_exception_after_mutation_restores_and_latches_off) ... ok
+test_stale_malformed_missing_camera_and_log_failure (test_explore_lua.ExploreAdapterTests.test_stale_malformed_missing_camera_and_log_failure) ... ok
+test_aim_inventory_interaction_focus_invalid_suspend (test_explore_lua.ExploreCoreTests.test_aim_inventory_interaction_focus_invalid_suspend) ... ok
+test_camera_offset_axes_no_accumulation_and_numeric_bounds (test_explore_lua.ExploreCoreTests.test_camera_offset_axes_no_accumulation_and_numeric_bounds) ... ok
+test_replay_malformed_and_generation_recovery (test_explore_lua.ExploreCoreTests.test_replay_malformed_and_generation_recovery) ... ok
+test_stable_heartbeat_and_stale_reset (test_explore_lua.ExploreCoreTests.test_stable_heartbeat_and_stale_reset) ... ok
+test_terminal_phase_without_new_sample_is_reported (test_explore_lua.ExploreCoreTests.test_terminal_phase_without_new_sample_is_reported) ... ok
+test_failed_write_or_oversized_line_closes (test_explore_lua.ExploreJournalTests.test_failed_write_or_oversized_line_closes) ... ok
+test_rotation_keeps_two_files_under_cap (test_explore_lua.ExploreJournalTests.test_rotation_keeps_two_files_under_cap) ... ok
+test_automatic_monitor_and_failures (test_explore_plugin.ExplorePluginTests.test_automatic_monitor_and_failures) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.248s
+
+OK

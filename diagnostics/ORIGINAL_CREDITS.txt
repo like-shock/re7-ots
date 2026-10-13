@@ -1,0 +1,15 @@
+For those that have directly helped make this script possible, my thanks to:
+Dark Byte - Making the free and open source Cheat Engine
+Youtubers Stephen Chapman and Chris Fayte (CheatTheGame; rest in peace friend) - Teaching me how to use Cheat Engine with their excellent YouTube tutorials.
+alphaZomega and ZOMBIEALI - Making the first couple Ethan with a head model mods. I would've never updated and refined the original script if it wasn't for their assets.
+Fiery Mace - For both bringing the script to the attention of the RE Modding boards in the first place as well several days of playtesting and feedback before the script's first nexus release.
+AfroJackX - Creating the first real publicly available side character model mods and for converting the NAH weapon animation files.
+praydog - Making REframework, which has helped me put the timescale options into the RT release.
+The fearless/old cheat engine forums - Helping me learn better ways to implement code.
+Dimenarius - Making the Ryder Odison model, which allowed me to test Ethan's head with the original RT script.
+TL431 - For posting the byte values for the memory location of "Barrel distortion" and the "Vignette" on reddit.
+
+And also a thanks for anyone else that makes mods for RE7, even if not mentioned above. It's nice to see it get some love.
+
+If anyone wants to use anything in this script for their own projects, I fully welcome it.
+This was an ongoing learning experience for me and is freely available for public use.
