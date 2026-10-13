@@ -1,0 +1,49 @@
+# RE7 OTS
+
+Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
+
+## Current version: Explore v0.3.0
+
+- F6 toggles the exploration camera; every script load starts OFF.
+- Adjustable camera distance, shoulder offset and height.
+- First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
+- Automatic bounded play logs.
+- Native state monitoring is read-only. Lua deliberately changes the current camera position through REFramework.
+
+**User-observed status:** body visible in third person; head/face absent. Intermittent first-person fallback reported during walking/stairs. Its cause is still unknown; obstruction by a pillar is an unconfirmed hypothesis. Aiming has not been tested with a gun.
+
+This prototype has no wall collision, full model/head support, third-person ballistics or DLC validation. It is not a complete port of the original Cheat Engine script.
+
+## 설치 / 사용
+
+[한국어 설치·플레이 안내](diagnostics/EXPLORE_README_KO.md)
+
+기존에 작동하던 REFramework 환경에서 사용합니다. 이전 Observer/Diagnostics DLL과 Lua는 게임 종료 후 별도 폴더에 보관하고, Explore의 DLL과 Lua를 설치하세요. 게임 실행마다 기본 OFF이며 F6으로 켜고 끕니다. 별도 진단 단계 없이 플레이 로그가 자동으로 남습니다.
+
+## Build and test
+
+Linux x86_64 dependencies: clang 18+, lld-link, host C compiler, Python 3, liblua5.4.
+
+```bash
+cd diagnostics
+bash test.sh
+python3 tools/package_explore.py ../dist
+```
+
+`test.sh` builds the DLLs and generated Lua, then runs the tests. The optional original-CT re-extraction test requires your own matching `re7.CT` via `RE7_CT_FILE=/absolute/path/to/re7.CT`; otherwise that one test is skipped. Generated reference metadata is already included for normal builds.
+
+Outputs: `diagnostics/build/RE7_OTS_Explore.dll` and `diagnostics/build/re7_ots_explore.lua`. See [build notes](diagnostics/EXPLORE_BUILD.md) and [design](diagnostics/docs/EXPLORE_DESIGN.md).
+
+The `diagnostics/` directory name is retained from the prototype's history. It now contains the active Explore source as well as earlier diagnostic/observer code and regression tests. Historical design/progress documents describe their respective versions; current repository instructions take precedence.
+
+## Development
+
+`main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally; this initial import does not create a GitHub binary release.
+
+The first import preserves the shipped v0.3.0 runtime source. Development tests simulate the SDK/OS boundaries and do not prove in-game rendering. Further Steam Deck testing can wait until an integrated change is ready.
+
+## Credits
+
+Original Third-Person OTS Script: cheezeit / goldedtoad. REFramework: praydog and contributors. Model authors and original acknowledgements are preserved in [ORIGINAL_CREDITS.txt](diagnostics/ORIGINAL_CREDITS.txt). See [NOTICE](diagnostics/NOTICE.md).
+
+The project's original implementation is MIT licensed; original mod-derived reference data and external model assets retain their own terms. The game, REFramework binaries, original CT archive and model assets are not redistributed in this repository.
