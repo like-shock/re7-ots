@@ -1,4 +1,4 @@
--- Staged model lifecycle; NOT bundled into Explore until a real backend is verified.
+-- Visibility lifecycle; bundled with the opt-in experimental Ethan RT backend.
 -- No SDK calls, managed objects, global object search or guessed bone/mesh names.
 -- port.read() -> nil or {id=unique_generation_string, visible=boolean}
 -- port.write(id, expected_visible, desired_visible) -> true on guarded write success

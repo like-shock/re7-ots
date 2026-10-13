@@ -71,9 +71,11 @@ local j=Journal.new(io_mock,json_mock,'test/',{kind='header'},1024)
 class ExploreAdapterTests(unittest.TestCase):
  def adapter(self,tail,before=''):
   parts=[]
-  for name in ['core','journal','adapter']:
-   p=ROOT/f'lua/explore/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
-   s=p.read_text();parts.append(s if name=='adapter' else 'local '+('Core' if name=='core' else 'Journal')+'=(function()\n'+s+'\nend)()')
+  for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),
+                      ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
+                      ('explore/adapter',None)]:
+   p=ROOT/f'lua/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
+   s=p.read_text();parts.append(s if symbol is None else 'local '+symbol+'=(function()\n'+s+'\nend)()')
   harness=(ROOT/'tests/explore_lua_harness.lua').read_text()
   run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
  def test_default_off_enable_follow_and_restore_without_drift(self):
@@ -117,6 +119,17 @@ assert(ui():find('FAULT',1,true),'ownership conflict must stay visible')
   self.adapter("""start();fail_json=true;step();assert(near(position[3],3));fail_json=false;for i=1,12 do step() end;assert(near(position[3],4))
 nil_camera=true;step();nil_camera=false;position={1,3,3};for i=1,12 do step() end;assert(near(position[3],4));fail_io=true;for i=1,6 do step() end;assert(near(position[3],4),'log failure must not corrupt camera');assert(ui():find('ERROR',1,true))
 tick=tick+1;phase='frame';callbacks.frame();phase='update';callbacks.UpdateBehavior();phase='lock';callbacks.LockScene();assert(near(position[3],3))
+""")
+ def test_malformed_player_cannot_block_fallback_or_reset(self):
+  for value in ['17','true','"bad"','nil','{generation={}}']:
+   for reset in [False,True]:
+    with self.subTest(value=value,reset=reset):
+     action=("tick=tick+0.1;seq=seq+1;fixture=snapshot(seq);fixture.player="+value+
+             ";phase='frame';callbacks.frame();phase='reset';callbacks.reset()" if reset else
+             "step(function(s) s.player="+value+" end)")
+     self.adapter("start();assert(near(position[3],4));"+action+"""
+assert(near(position[3],3),'invalid player must restore camera with head mode disabled')
+assert(not ui():find('FAULT_CALLBACK_EXCEPTION',1,true))
 """)
  def test_missing_update_callback_never_applies(self):
   self.adapter("""for i=1,10 do step(nil,true) end;key=true;step(nil,true);key=false;for i=1,15 do step(nil,true) end;assert(set_calls==0);assert(ui():find('CALLBACK',1,true))""")

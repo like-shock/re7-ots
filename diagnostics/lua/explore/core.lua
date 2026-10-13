@@ -14,12 +14,13 @@ function M.distance(a,b)
     return math.sqrt(x*x+y*y+z*z)
 end
 function M.settings(input)
-    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15}
+    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15,ethan_head=false}
     if type(input)~='table' or input.schema~=1 then return c end
     for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6}}) do
         local x=input[v[1]]
         if M.finite(x,1000000) then c[v[1]]=math.max(v[2],math.min(v[3],x)) end
     end
+    c.ethan_head=input.ethan_head==true
     return c
 end
 function M.offset(p,q,c,blend)

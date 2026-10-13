@@ -1,7 +1,8 @@
--- Camera-only exploration prototype. This module intentionally uses set_position.
-local VERSION='0.3.0'
+-- Exploration camera with opt-in Ethan RT head mesh control.
+local VERSION='0.4.0-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
+local head_session=HeadSession.new(Ethan.new(sdk))
 local cfg=Core.settings(nil)
 local requested=false -- Never restore an enabled state from disk.
 local fault,callback_error,config_error=nil,nil,nil
@@ -23,7 +24,7 @@ do
     local ok,value=pcall(function() return json.load_file(DIR..'settings.json') end)
     if ok then cfg=Core.settings(value) end
 end
-local function menu_open()
+local function is_menu_open()
     local ok,v=pcall(function() return reframework:is_drawing_ui() end)
     return not ok or v~=false
 end
@@ -70,6 +71,21 @@ local function remember_mutation(owned,p)
     if ok and current and current.id==owned.id then owned.target=p end
 end
 local function restore_owned()
+    -- Epoch preparation belongs to the model failure boundary too. Core retains
+    -- health-invalid native snapshots for reporting; their player may be scalar.
+    head_session:run(function()
+        local s=gate.native
+        local p=s and type(s.player)=='table' and s.player or nil
+        local generation=p and p.generation
+        local t=now()
+        local epoch=s and s.phase=='MONITORING' and s.build=='KNOWN_EXE_HASH_AND_PE'
+            and gate.fresh and t>=gate.changed_at and t-gate.changed_at<=0.35
+            and p and p.status=='READABLE_CANDIDATE'
+            and Core.finite(generation,4294967295) and generation>0 and generation%1==0
+            and (s.session..':'..generation) or nil
+        head_session:configure(cfg.ethan_head,epoch)
+        head_session:before_restore()
+    end)
     if not pending then return true end
     local owned=pending
     local ok,c=pcall(camera)
@@ -114,7 +130,7 @@ end
 local function on_camera()
     local t=now()
     if processed_serial==update_serial then
-        if not requested or menu_open() or t-update_at>0.25 or not gate:ready(t) then
+        if not requested or is_menu_open() or t-update_at>0.25 or not gate:ready(t) then
             restore_owned();active_since=nil
             report(fault or (t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK' or 'PAUSED'))
         end
@@ -125,7 +141,7 @@ local function on_camera()
     if fault or callback_error then report(fault or callback_error);return end
     if not requested then report('OFF');active_since=nil;return end
     if update_serial==0 or t-update_at>0.25 then report('WAIT_UPDATE_CALLBACK');gate:suspend(state);return end
-    if menu_open() then report('PAUSED_MENU');gate:suspend(state);active_since=nil;return end
+    if is_menu_open() then report('PAUSED_MENU');gate:suspend(state);active_since=nil;return end
     local ready,why=gate:ready(t)
     if not ready then report(why);active_since=nil;return end
     local c,reason=camera()
@@ -156,6 +172,7 @@ local function on_camera()
     if not current or current.id~=c.id then
         restore_owned();gate:suspend('WAIT_CAMERA_CHANGED');active_since=nil;report('WAIT_CAMERA_CHANGED');return
     end
+    head_session:after_apply(after)
     report('ACTIVE',c,base,target,after)
 end
 local function on_frame()
@@ -170,13 +187,13 @@ local function on_frame()
             journal=Journal.new(io,json,DIR,{kind='header',schema=1,version=VERSION,session=journal_session,
                 camera_writes=true,native_game_writes=false,inline_hooks=false,
                 pairing='latest native snapshot, not simultaneous',callback='pre LockScene / pre UpdateBehavior',
-                collision=false,model_patches=false})
+                collision=false,model_binding='experimental_ethan_rt_drawself'})
         end
     end
     local ok,down=pcall(function() return reframework:is_key_down(0x75) end)
     down=ok and down==true
     local s=gate.native
-    if down and not key_was_down and s and s.foreground and gate.fresh and t-gate.changed_at<=0.35 and not menu_open() then
+    if down and not key_was_down and s and s.foreground and gate.fresh and t-gate.changed_at<=0.35 and not is_menu_open() then
         choose_enabled(not requested)
     end
     key_was_down=down
@@ -184,7 +201,7 @@ local function on_frame()
         last_log=t
         journal:record({kind='sample',schema=1,session=journal_session,lua_clock_s=t,
             requested=requested,state=state,callback_error=callback_error,fault=fault,
-            native_now=gate.native,camera=last_report})
+            native_now=gate.native,camera=last_report,model=head_session:status()})
     end
 end
 local function draw_ui()
@@ -197,15 +214,22 @@ local function draw_ui()
     imgui.text('Automatic play log: '..(journal and journal.state or 'WAIT_NATIVE'))
     if config_error then imgui.text(config_error) end
     local dirty=false
+    changed,value=imgui.checkbox('Ethan RT head model (experimental)',cfg.ethan_head)
+    if changed then cfg.ethan_head=value;dirty=true end
+    local model=head_session:status()
+    imgui.text('Head: '..model.state..' | '..model.binding)
     for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6}}) do
         changed,value=imgui.slider_float(v[2],cfg[v[1]],v[3],v[4])
         if changed then cfg[v[1]]=value;dirty=true end
     end
     if imgui.button('Swap shoulder') then cfg.shoulder=-cfg.shoulder;dirty=true end
-    if imgui.button('Reset offsets') then cfg=Core.settings(nil);dirty=true end
+    if imgui.button('Reset offsets') then
+        local enabled=cfg.ethan_head;cfg=Core.settings(nil);cfg.ethan_head=enabled;dirty=true
+    end
     if dirty then cfg=Core.settings(cfg);save_settings() end
     imgui.text('Exploration prototype. Aim/inventory/interaction pause the camera.')
-    imgui.text('No wall collision or model fixes. F6 OFF for combat and scripted scenes.')
+    imgui.text('Install Ethan with Head RT separately before enabling head mode.')
+    imgui.text('No wall collision. F6 OFF for combat and scripted scenes.')
     imgui.text('Logs: reframework/data/RE7_OTS_Explore (play_0 + play_1)')
     imgui.tree_pop()
 end

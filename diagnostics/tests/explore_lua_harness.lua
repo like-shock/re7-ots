@@ -11,7 +11,7 @@ local nil_camera,fail_camera,fail_set,fail_after_set,ignore_set=false,false,fals
 local fail_io,fail_json=false,false
 local partial_set,partial_restore=false,false
 local set_calls=0
-local ui_enable=nil
+local ui_enable,ui_head=nil,nil
 local saved=nil
 local config={schema=1,distance=1,shoulder=0.25,height=0.2,enabled=true}
 os.clock=function() return tick end
@@ -48,7 +48,9 @@ re={on_frame=function(f) callbacks.frame=f end,on_pre_application_entry=function
  on_script_reset=function(f) callbacks.reset=f end,on_draw_ui=function(f) callbacks.ui=f end,on_config_save=function(f) callbacks.save=f end}
 reframework={get_game_name=function() return 're7' end,is_key_down=function(_,k) assert(k==0x75);return key end,is_drawing_ui=function() return menu_open end}
 imgui={tree_node=function() return true end,tree_pop=function() end,text=function(s) texts[#texts+1]=s end,
- checkbox=function(_,v) if ui_enable~=nil then local r=ui_enable;ui_enable=nil;return true,r end;return false,v end,
+ checkbox=function(label,v) if label=='Ethan RT head model (experimental)' then
+  if ui_head~=nil then local r=ui_head;ui_head=nil;return true,r end;return false,v end
+  if ui_enable~=nil then local r=ui_enable;ui_enable=nil;return true,r end;return false,v end,
  slider_float=function(_,v) return false,v end,button=function() return false end}
 log={info=function() end,error=function() end}
 -- INSERT ADAPTER HERE

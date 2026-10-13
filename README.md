@@ -2,17 +2,18 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Current version: Explore v0.3.0
+## Development version: Explore Lua v0.4.0-dev
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height.
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
-- Automatic bounded play logs.
+- Opt-in Ethan RT head mesh visibility tied to verified camera placement (experimental).
+- Automatic bounded camera and model logs.
 - Native state monitoring is read-only. Lua deliberately changes the current camera position through REFramework.
 
 **User-observed status:** body visible in third person; head/face absent. Intermittent first-person fallback reported during walking/stairs. Its cause is still unknown; obstruction by a pillar is an unconfirmed hypothesis. Aiming has not been tested with a gun.
 
-This prototype has no wall collision, full model/head support, third-person ballistics or DLC validation. It is not a complete port of the original Cheat Engine script.
+This prototype has no wall collision, verified in-game head support, third-person ballistics or DLC validation. It is not a complete port of the original Cheat Engine script.
 
 ## 설치 / 사용
 
@@ -38,10 +39,11 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 
 ## Development
 
-Head/model work has started on `work`: a read-only model package inventory tool and
-an independently tested visibility lifecycle module are available. **They are not
-connected to the v0.3.0 autorun script yet.** An actual RT model archive and a verified
-head-only runtime binding are still required. See [진행 내용과 필요한 모델 파일](docs/MODEL_SUPPORT_PROGRESS_KO.md).
+`work` now bundles an experimental binding for the supplied **Ethan with Head RT** model.
+It selects the separate head mesh under the local player, hides it before first-person fallback,
+and shows it only after camera readback and head clearance checks. The model option defaults OFF;
+install the external model separately before enabling it. Native DLL/protocol remains v0.3.0.
+See [진행 내용](docs/MODEL_SUPPORT_PROGRESS_KO.md) and [asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
 
 `main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally; this initial import does not create a GitHub binary release.
 

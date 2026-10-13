@@ -9,7 +9,7 @@ diag = Path(__file__).resolve().parents[1]
 project = diag.parent
 out = Path(sys.argv[1]).resolve()
 out.mkdir(parents=True, exist_ok=True)
-version = '0.3.0'
+version = '0.4.0-dev'
 
 
 def sums(items):
