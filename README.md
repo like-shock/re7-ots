@@ -38,6 +38,11 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 
 ## Development
 
+Head/model work has started on `work`: a read-only model package inventory tool and
+an independently tested visibility lifecycle module are available. **They are not
+connected to the v0.3.0 autorun script yet.** An actual RT model archive and a verified
+head-only runtime binding are still required. See [진행 내용과 필요한 모델 파일](docs/MODEL_SUPPORT_PROGRESS_KO.md).
+
 `main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally; this initial import does not create a GitHub binary release.
 
 The first import preserves the shipped v0.3.0 runtime source. Development tests simulate the SDK/OS boundaries and do not prove in-game rendering. Further Steam Deck testing can wait until an integrated change is ready.
