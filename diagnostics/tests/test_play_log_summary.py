@@ -77,6 +77,33 @@ class PlayLogSummaryTests(unittest.TestCase):
         report=self.mod.summarize([p]);self.assertEqual(report['conflicts'],1)
         self.assertEqual(report['runs'][0]['fallbacks'],{})
 
+    def test_sample_conflicts_are_counted_once_and_break_the_timeline(self):
+        def sample(t, state):
+            return {'kind':'sample','session':'s','run':'r','lua_clock_s':t,'state':state}
+        a=self.log('a.jsonl',[sample(0,'ACTIVE'),sample(1,'ACTIVE'),sample(2,'FIRST_PERSON_AIM')])
+        b=self.log('b.jsonl',[sample(1,'FIRST_PERSON_INVENTORY'),sample(1,'ACTIVE')])
+        for paths in ([a,b],[b,a]):
+            report=self.mod.summarize(paths)
+            self.assertEqual(report['conflicts'],1)
+            self.assertEqual(report['runs'][0]['sample_count'],2)
+            self.assertEqual(report['runs'][0]['sampled_changes'],{})
+            self.assertEqual(report['runs'][0]['fallbacks'],{})
+
+    def test_identical_sample_state_is_counted_as_duplicate(self):
+        p=self.log('duplicate.jsonl',[{'kind':'sample','session':'s','run':'r',
+            'lua_clock_s':1,'state':'ACTIVE'}]*2)
+        report=self.mod.summarize([p,p])
+        self.assertEqual(report['duplicates'],3)
+        self.assertEqual(report['conflicts'],0)
+        self.assertEqual(report['runs'][0]['sample_count'],1)
+
+    def test_failed_restore_is_not_reported_as_verified_first_person(self):
+        p=self.log('failed.jsonl',[event(1,'ACTIVE'),event(2,'FAULT_RESTORE_WRITE','ACTIVE')])
+        output=self.mod.human_report(self.mod.summarize([p]))
+        self.assertIn('FAULT_RESTORE_WRITE=1',output)
+        self.assertNotIn('기록된 1인칭 복귀',output)
+        self.assertIn('중단/복귀 요청',output)
+
     def test_cli_and_limits(self):
         p=self.log('play.jsonl',[event(1,'ACTIVE'),event(2,'FIRST_PERSON_AIM','ACTIVE')])
         result=subprocess.run([sys.executable,str(TOOL),'--json',str(p)],capture_output=True,text=True)

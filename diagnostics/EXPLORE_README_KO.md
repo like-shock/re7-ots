@@ -19,6 +19,11 @@ reframework/plugins/RE7_OTS_Explore.dll
 reframework/autorun/re7_ots_explore.lua
 ```
 
+ZIP의 `BUILD_INFO.json`에는 소스 커밋과 버전, `SHA256SUMS`에는 파일 해시가 있습니다.
+이 두 안내 파일은 게임 폴더에 복사하지 않아도 됩니다. GitHub 자동 빌드 설치본은 저장소의
+`Actions → Offline build and package → 성공한 실행 → Artifacts`에서 받을 수 있습니다.
+`re7-ots-<커밋>` 묶음을 풀고 그 안의 `SteamDeck.zip`을 사용하세요. 자동 빌드 파일은 14일간 보관됩니다.
+
 현재 작동하는 REFramework, RELit, Proton 및 Steam 시작 옵션을 유지하세요. 새 `dinput8.dll`, Cheat Engine, 별도 실행 파일은 필요하지 않습니다. v0.2.1 카메라 수정본을 먼저 설치할 필요도 없습니다.
 
 ## 사용
@@ -95,7 +100,10 @@ python3 diagnostics/tools/summarize_play_log.py --json play_0.jsonl play_1.jsonl
 
 같은 사건의 중복을 제거하고, 실행별 복귀 사유·머리 오류·기록 누락을 집계합니다.
 구버전 로그는 표본 사이 변화만 표시하며, 기둥이나 계단이 원인이라고 추정하지 않습니다.
- native 값과 카메라 값은 서로 다른 시점의 관찰입니다. 모니터는 한 게임 실행당 최대 12시간 동작합니다.
+같은 실행·시각의 표본 상태가 충돌하면 제외하고 충돌 1건으로 집계합니다. 이 구간을 이어 붙여
+상태 전환을 추정하지 않습니다. 중단/복귀 요청에는 복원 실패도 포함될 수 있으므로 실제
+1인칭 화면으로 돌아왔다는 의미는 아닙니다.
+native 값과 카메라 값은 서로 다른 시점의 관찰입니다. 모니터는 한 게임 실행당 최대 12시간 동작합니다.
 
 제거하려면 게임 종료 후 이번에 추가한 DLL/Lua 두 파일만 밖으로 옮기세요. 실행 중 DLL 교체나 재로드는 하지 마세요.
 

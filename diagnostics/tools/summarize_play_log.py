@@ -110,10 +110,13 @@ def summarize(paths):
                                 'binding': binding if text(binding) else None}
                         else:
                             samples = group['samples']
-                            if stamp in samples and samples[stamp] != state:
-                                samples[stamp] = None  # Same timestamp, indeterminate order.
-                            else:
+                            if stamp not in samples:
                                 samples[stamp] = state
+                            elif samples[stamp] == state:
+                                report['duplicates'] += 1
+                            elif samples[stamp] is not None:
+                                samples[stamp] = None  # Conflict stays excluded across rotations.
+                                report['conflicts'] += 1
                             stats = row.get('events')
                             if isinstance(stats, dict) and integer(stats.get('dropped_total')):
                                 group['dropped'] = max(group['dropped'], stats['dropped_total'])
@@ -164,7 +167,7 @@ def human_report(report):
     for run in report['runs']:
         lines.append(f"\n{run['session']} / {run['run']} ({run['evidence']})")
         counts = run['fallbacks'] if run['evidence'] == 'recorded_transitions' else run['sampled_changes']
-        label = '기록된 1인칭 복귀' if run['evidence'] == 'recorded_transitions' else '표본 사이 상태 변화 (순간 전환은 누락 가능)'
+        label = '기록된 카메라 중단/복귀 요청' if run['evidence'] == 'recorded_transitions' else '표본 사이 상태 변화 (순간 전환은 누락 가능)'
         lines.append(label + ': ' + (', '.join(f'{k}={v}' for k, v in counts.items()) or '기록 없음'))
         for key, label in [('model_failures', '머리 제어 오류'), ('model_waits', '머리 대상 대기')]:
             if run[key]:

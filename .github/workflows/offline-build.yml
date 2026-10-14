@@ -1,0 +1,64 @@
+name: Offline build and package
+
+on:
+  push:
+    branches: [work, main]
+  pull_request:
+    branches: [work, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CC_WINDOWS: clang-18
+      LINK_WINDOWS: lld-link-18
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y clang-18 lld-18 liblua5.4-0 gcc python3 git
+
+      - name: Build and run complete offline suite
+        shell: bash
+        run: |
+          mkdir -p diagnostics/build
+          bash diagnostics/test.sh 2>&1 | tee diagnostics/build/ci-tests.txt
+
+      - name: Package tested source and binaries
+        run: |
+          python3 diagnostics/tools/package_explore.py dist
+          (cd dist && sha256sum *.zip > SHA256SUMS)
+          printf 'Source commit: %s\n\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Offline tests and packaging passed. In-game rendering remains unverified.\n' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload installer and source
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: re7-ots-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Preserve test output
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: offline-test-log-${{ github.sha }}
+          path: diagnostics/build/ci-tests.txt
+          if-no-files-found: warn
+          retention-days: 14
