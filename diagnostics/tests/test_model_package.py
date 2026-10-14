@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -110,6 +111,27 @@ class ModelPackageTests(unittest.TestCase):
         path = self.archive([('a' * 4097, b'x')])
         with self.assertRaises(ValueError):
             self.mod.inspect_package(path)
+
+    def test_implicit_parent_case_conflicts_are_rejected(self):
+        for entries in [[('A/one',b'a'),('a/two',b'b')],
+                        [('root/A/one',b'a'),('root/a/two',b'b')],
+                        [('A/one',b'a'),('a/',b'')]]:
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                self.mod.inspect_package(self.archive(entries))
+        self.assertEqual(self.mod.inspect_package(self.archive([('A/one',b'a'),('A/two',b'b')]))['file_count'],2)
+
+    def test_corrupt_lzma_cli_returns_clean_error(self):
+        path=self.root/'lzma.zip'
+        with zipfile.ZipFile(path,'w',zipfile.ZIP_LZMA) as z:
+            z.writestr('model.mesh.1',b'payload'*100)
+        raw=bytearray(path.read_bytes())
+        start=30+struct.unpack_from('<H',raw,26)[0]+struct.unpack_from('<H',raw,28)[0]
+        raw[start+4]=255  # Invalid LZMA properties byte, before CRC validation.
+        path.write_bytes(raw)
+        result=subprocess.run([sys.executable,str(TOOL),str(path)],capture_output=True,text=True)
+        self.assertEqual(result.returncode,2,result.stderr)
+        self.assertNotIn('Traceback',result.stderr)
+        self.assertEqual(result.stdout,'')
 
     def test_cli_json_and_errors(self):
         path = self.archive([('test.mesh.1', b'mesh')])

@@ -70,7 +70,7 @@ function M.new()
     end
     function self:ingest(s,t)
         if not M.finite(t,9007199254740991) or not envelope(s) then
-            self.native=nil;self.fresh=false;self:suspend('WAIT_NATIVE_INVALID');return
+            self.native=nil;self.fresh=false;self.player_step=nil;self:suspend('WAIT_NATIVE_INVALID');return
         end
         local why=health(s)
         if self.session~=s.session then
@@ -91,9 +91,10 @@ function M.new()
         end
         local gap=not self.fresh or t-self.changed_at>0.35 or s.tick_ms-self.tick>350 or t+1e-9<self.changed_at
         self.seq=s.seq;self.tick=s.tick_ms;self.changed_at=t;self.fresh=true;self.native=s
-        if why then self.previous_player=nil;self:suspend(why);return end
+        if why then self.previous_player=nil;self.player_step=nil;self:suspend(why);return end
         local generations=s.player.generation..':'..s.aim.generation..':'..s.inventory.generation
-        local jump=self.previous_player and M.distance(self.previous_player,s.player.xyz)>5
+        self.player_step=self.previous_player and M.distance(self.previous_player,s.player.xyz) or nil
+        local jump=self.player_step and self.player_step>5
         self.previous_player={s.player.xyz[1],s.player.xyz[2],s.player.xyz[3]}
         if gap or generations~=self.generations or jump then self:suspend(jump and 'WAIT_PLAYER_JUMP' or 'WARMUP') end
         self.generations=generations
@@ -107,7 +108,8 @@ function M.new()
         end
         if not self.stable_at then return false,self.reason end
         if t-self.stable_at<0.5-1e-9 or self.tick-self.stable_tick<500 then return false,self.reason end
-        return true,'READY'
+        self.reason='READY'
+        return true,self.reason
     end
     return self
 end

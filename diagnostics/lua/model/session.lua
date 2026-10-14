@@ -31,7 +31,7 @@ function HeadSession:prepare()
     if not self.enabled then self.state='DISABLED';return nil end
     if not self.controller then
         if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';return nil end
-        self.controller=Visibility.new({read=function() return b:read() end,
+        self.controller=Visibility.new({read=function() return b:read_cached() end,
             write=function(id,expected,wanted) return b:write(id,expected,wanted) end})
     end
     return self.controller
@@ -66,6 +66,6 @@ function HeadSession:after_apply(camera_position)
     end)
 end
 function HeadSession:status()
-    return {enabled=self.enabled,state=self.state,binding=self.backend.note,epoch=self.epoch}
+    return {enabled=self.enabled,state=self.state,binding=self.backend.note,epoch=self.epoch,search=self.backend:stats()}
 end
 return HeadSession

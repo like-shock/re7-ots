@@ -71,13 +71,27 @@ local j=Journal.new(io_mock,json_mock,'test/',{kind='header'},1024)
 class ExploreAdapterTests(unittest.TestCase):
  def adapter(self,tail,before=''):
   parts=[]
-  for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),
+  for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
                       ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
                       ('explore/adapter',None)]:
    p=ROOT/f'lua/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
    s=p.read_text();parts.append(s if symbol is None else 'local '+symbol+'=(function()\n'+s+'\nend)()')
   harness=(ROOT/'tests/explore_lua_harness.lua').read_text()
   run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
+ def test_f6_off_is_honored_during_invalid_stale_menu_and_focus_loss(self):
+  for change in ["fail_json=true", "menu_open=true", "tick=tick+1", "fixture.foreground=false"]:
+   with self.subTest(change=change):
+    self.adapter("start();tick=tick+0.1;"+change+""";key=true;phase='frame';callbacks.frame()
+phase='update';callbacks.UpdateBehavior();phase='lock';callbacks.LockScene();phase='frame'
+key=false;fail_json=false;menu_open=false
+for i=1,12 do step() end
+assert(near(position[3],3),'OFF must survive recovery')
+""")
+ def test_repeated_lockscene_preserves_native_fallback_reason(self):
+  self.adapter("""start();tick=tick+0.1;seq=seq+1;fixture=snapshot(seq);fixture.aim.raw=1
+phase='frame';callbacks.frame();phase='lock';callbacks.LockScene();phase='frame'
+assert(near(position[3],3));assert(ui():find('State: FIRST_PERSON_AIM',1,true))
+""")
  def test_default_off_enable_follow_and_restore_without_drift(self):
   self.adapter("""for i=1,20 do step() end;assert(set_calls==0,'OFF despite enabled in saved config')
 key=true;step();key=false;for i=1,10 do step() end

@@ -1,5 +1,5 @@
 -- SDK boundary fake: real Lua backend runs unchanged against this object tree.
-local model_reads,model_writes=0,{}
+local model_reads,model_writes,model_component_reads=0,{},0
 local model_hook=nil
 local next_id=1000
 local function managed(kind,methods)
@@ -21,7 +21,7 @@ local function node(path)
  local n={children={},components={},visible=true,position={1,3,3}}
  n.go=managed('via.GameObject',{
   get_Transform=function() return n.tr end,
-  get_Components=function() return {get_elements=function() return n.components end} end,
+  get_Components=function() model_component_reads=model_component_reads+1;return {get_elements=function() return n.components end} end,
   get_DrawSelf=function() return n.visible end,
   set_DrawSelf=function(_,v)
    if model_hook then model_hook(n,v) end

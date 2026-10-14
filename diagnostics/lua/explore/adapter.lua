@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in Ethan RT head mesh control.
-local VERSION='0.4.0-dev'
+local VERSION='0.4.1-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=HeadSession.new(Ethan.new(sdk))
@@ -8,7 +8,9 @@ local requested=false -- Never restore an enabled state from disk.
 local fault,callback_error,config_error=nil,nil,nil
 local state,restore_note='OFF','NONE'
 local pending,camera_identity,journal=nil,nil,nil
-local journal_session=nil
+local journal_session,trace,event_error=nil,nil,nil
+local last_fallback,last_camera_distance=nil,nil
+local report
 local last_poll,last_log=-math.huge,-math.huge
 local update_serial,processed_serial,update_at=0,-1,-math.huge
 local active_since=nil
@@ -16,6 +18,7 @@ local key_was_down=false
 local last_report={status='OFF'}
 local clock=os.clock or os.time
 local function now() return clock() end
+local run_id='lua_'..string.format('%.6f',now())
 local function save_settings()
     local ok,result=pcall(function() return json.dump_file(DIR..'settings.json',cfg) end)
     if not ok or result==false then config_error='ERROR_CONFIG_SAVE' else config_error=nil end
@@ -61,7 +64,8 @@ local function set_position(c,p)
     c.tr:set_position(Vector4f.new(p[1],p[2],p[3],1),false)
 end
 local function latch(reason)
-    fault=reason;requested=false;active_since=nil;state=reason;gate:suspend(reason)
+    fault=reason;requested=false;active_since=nil;gate:suspend(reason)
+    if report then report(reason) else state=reason end
 end
 -- A failed setter may still mutate. Only its immediate finite readback on the
 -- same current camera can replace the rollback comparison value.
@@ -122,17 +126,51 @@ local function on_update()
     update_serial=update_serial+1;update_at=now()
     restore_owned()
 end
-local function report(reason,c,p,target,after)
+local function flush_events()
+    if trace and journal then trace:drain(function(event) return journal:record(event) end) end
+end
+local function transition_context(c,p)
+    local n=gate.native or {}
+    local player=type(n.player)=='table' and n.player or {}
+    local aim=type(n.aim)=='table' and n.aim or {}
+    local inventory=type(n.inventory)=='table' and n.inventory or {}
+    local interact=type(n.interact)=='table' and n.interact or {}
+    local distance=p and Core.vector(player.xyz,3,1000000) and Core.distance(p,player.xyz) or nil
+    if distance then last_camera_distance=distance end
+    return {requested=requested,native_seq=n.seq,native_tick_ms=n.tick_ms,native_reason=gate.reason,
+        native_age_s=gate.changed_at and now()-gate.changed_at or nil,foreground=n.foreground,
+        player_generation=player.generation,aim_generation=aim.generation,
+        inventory_generation=inventory.generation,aim=aim.raw,inventory=inventory.raw,
+        interact_slot=interact.slot_hex,player_step=gate.player_step,
+        camera_id=c and c.id or camera_identity,camera_player_distance=distance,
+        last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note}
+end
+report=function(reason,c,p,target,after)
+    local was_active=state=='ACTIVE' or state=='ENTERING'
+    if was_active and reason~='ACTIVE' and reason~='ENTERING' and reason~='OFF' then
+        last_fallback=reason
+    end
     state=reason
+    -- Evidence collection must not participate in camera failure handling.
+    local event_ok=pcall(function()
+        if trace then
+            trace:observe('camera',reason,now(),transition_context(c,p))
+            local m=head_session:status()
+            trace:observe('model',m.state,now(),{binding=m.binding,enabled=m.enabled})
+        end
+    end)
+    if not event_ok then event_error='ERROR_EVENT' end
     last_report={status=reason,camera_id=c and c.id or nil,base=p,target=target,after=after,
         restore=restore_note,requested=requested,native=gate.native,settings=cfg,lua_clock_s=now()}
 end
 local function on_camera()
     local t=now()
     if processed_serial==update_serial then
-        if not requested or is_menu_open() or t-update_at>0.25 or not gate:ready(t) then
-            restore_owned();active_since=nil
-            report(fault or (t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK' or 'PAUSED'))
+        local ready,why=gate:ready(t)
+        local reason=not requested and 'OFF' or is_menu_open() and 'PAUSED_MENU'
+            or t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK' or not ready and why or nil
+        if reason then
+            restore_owned();active_since=nil;report(fault or reason)
         end
         return
     end
@@ -182,9 +220,11 @@ local function on_frame()
         local ok,s=pcall(function() return json.load_file(DIR..'status.json') end)
         gate:ingest(ok and s or nil,t)
         if gate.session and gate.native and journal_session~=gate.session then
+            flush_events()
             if journal then journal:close('SESSION_CHANGED') end
             journal_session=gate.session
-            journal=Journal.new(io,json,DIR,{kind='header',schema=1,version=VERSION,session=journal_session,
+            trace=Trace.new(journal_session,run_id)
+            journal=Journal.new(io,json,DIR,{kind='header',schema=1,version=VERSION,session=journal_session,run=run_id,
                 camera_writes=true,native_game_writes=false,inline_hooks=false,
                 pairing='latest native snapshot, not simultaneous',callback='pre LockScene / pre UpdateBehavior',
                 collision=false,model_binding='experimental_ethan_rt_drawself'})
@@ -193,15 +233,20 @@ local function on_frame()
     local ok,down=pcall(function() return reframework:is_key_down(0x75) end)
     down=ok and down==true
     local s=gate.native
-    if down and not key_was_down and s and s.foreground and gate.fresh and t-gate.changed_at<=0.35 and not is_menu_open() then
-        choose_enabled(not requested)
+    if down and not key_was_down then
+        if requested then choose_enabled(false)
+        elseif s and s.foreground and gate.fresh and t-gate.changed_at<=0.35 and not is_menu_open() then
+            choose_enabled(true)
+        end
     end
     key_was_down=down
+    flush_events()
     if journal and t-last_log>=0.2 then
         last_log=t
-        journal:record({kind='sample',schema=1,session=journal_session,lua_clock_s=t,
+        journal:record({kind='sample',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
             requested=requested,state=state,callback_error=callback_error,fault=fault,
-            native_now=gate.native,camera=last_report,model=head_session:status()})
+            native_now=gate.native,camera=last_report,model=head_session:status(),
+            events=trace and trace:stats() or nil,event_error=event_error})
     end
 end
 local function draw_ui()
@@ -211,6 +256,8 @@ local function draw_ui()
     imgui.text('State: '..(callback_error or fault or state))
     local _,native_reason=gate:ready(now())
     imgui.text('Native: '..native_reason..' | Restore: '..restore_note)
+    imgui.text('Last fallback: '..(last_fallback or 'NONE'))
+    if event_error then imgui.text(event_error) end
     imgui.text('Automatic play log: '..(journal and journal.state or 'WAIT_NATIVE'))
     if config_error then imgui.text(config_error) end
     local dirty=false
@@ -252,7 +299,7 @@ register('on_pre_application_entry',on_camera,'LockScene')
 register('on_frame',on_frame)
 register('on_draw_ui',draw_ui)
 register('on_script_reset',function()
-    requested=false;restore_owned();save_settings()
+    requested=false;restore_owned();report(fault or 'OFF');flush_events();save_settings()
     if journal then journal:close('SCRIPT_RESET') end
 end)
 if re and re.on_config_save then register('on_config_save',save_settings) end

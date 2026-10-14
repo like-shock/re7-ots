@@ -1,4 +1,4 @@
-# Build and verify Lua v0.4.0-dev
+# Build and verify Lua v0.4.1-dev
 
 From `diagnostics/`, on Linux x86_64 with clang 18+, lld-link, host `cc`, Python 3 and liblua5.4:
 
@@ -27,3 +27,5 @@ Historical v0.3.0 evidence: `evidence/v0.3.0/full_tests_final.txt`, `green_revie
 
 Current model binding analysis and verification ledger: `../docs/ETHAN_RT_MODEL_ANALYSIS_KO.md` and
 `../docs/superpowers/plans/2026-10-13-ethan-head-binding.md`. Runtime rendering is pending.
+
+Current offline stabilization: `../docs/OFFLINE_PROGRESS_KO.md`.

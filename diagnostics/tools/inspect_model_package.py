@@ -9,6 +9,11 @@ import stat
 import sys
 import zipfile
 import zlib
+try:
+    import lzma
+    LZMA_ERRORS = (lzma.LZMAError,)
+except ImportError:
+    LZMA_ERRORS = ()  # zipfile already reports unavailable LZMA as RuntimeError.
 
 MAX_BYTES = 256 * 1024 * 1024
 MAX_FILES = 4096
@@ -51,7 +56,7 @@ def inspect_package(source, *, max_bytes=MAX_BYTES, max_files=MAX_FILES, max_dep
     package-relative paths and hashes, never an absolute host path or file contents.
     """
     source = Path(source)
-    files, seen, nodes = [], set(), {}
+    files, seen, nodes, spellings = [], set(), {}, {}
     total = 0
     entries = 0
 
@@ -66,6 +71,13 @@ def inspect_package(source, *, max_bytes=MAX_BYTES, max_files=MAX_FILES, max_dep
         name = normalized_path(name)
         if len(name.split('/')) > max_depth:
             raise ValueError('package path depth limit exceeded')
+        original_parts = name.split('/')
+        for depth in range(1, len(original_parts) + 1):
+            spelling = '/'.join(original_parts[:depth])
+            folded = spelling.casefold()
+            if folded in spellings and spellings[folded] != spelling:
+                raise ValueError('case-ambiguous parent/entry: ' + name)
+            spellings[folded] = spelling
         key = name.casefold()
         if key in seen:
             raise ValueError('duplicate or case-ambiguous entry: ' + name)
@@ -134,7 +146,7 @@ def inspect_package(source, *, max_bytes=MAX_BYTES, max_files=MAX_FILES, max_dep
                         collect(name, item.file_size, lambda i=item: archive.open(i))
         else:
             raise ValueError('input does not exist or is not a file/directory')
-    except (OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError, UnicodeError, zlib.error) as exc:
+    except (OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError, UnicodeError, zlib.error) + LZMA_ERRORS as exc:
         raise ValueError('cannot read model package: ' + str(exc)) from exc
     if not files:
         raise ValueError('package has no files')

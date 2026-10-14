@@ -2,13 +2,14 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.4.0-dev
+## Development version: Explore Lua v0.4.1-dev
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height.
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
 - Opt-in Ethan RT head mesh visibility tied to verified camera placement (experimental).
-- Automatic bounded camera and model logs.
+- F6 OFF remains effective during native outages, focus loss or an open menu.
+- Bounded camera/model transition events, periodic logs and an offline log summary tool.
 - Native state monitoring is read-only. Lua deliberately changes the current camera position through REFramework.
 
 **User-observed status:** body visible in third person; head/face absent. Intermittent first-person fallback reported during walking/stairs. Its cause is still unknown; obstruction by a pillar is an unconfirmed hypothesis. Aiming has not been tested with a gun.
@@ -43,7 +44,7 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 It selects the separate head mesh under the local player, hides it before first-person fallback,
 and shows it only after camera readback and head clearance checks. The model option defaults OFF;
 install the external model separately before enabling it. Native DLL/protocol remains v0.3.0.
-See [진행 내용](docs/MODEL_SUPPORT_PROGRESS_KO.md) and [asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
+See [오프라인 개발 완료 범위](docs/OFFLINE_PROGRESS_KO.md), [진행 내용](docs/MODEL_SUPPORT_PROGRESS_KO.md) and [asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
 
 `main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally; this initial import does not create a GitHub binary release.
 

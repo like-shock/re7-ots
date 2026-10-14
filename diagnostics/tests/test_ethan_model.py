@@ -64,3 +64,32 @@ assert(not b:write(s.id,true,false));assert(head.visible and old.visible and #mo
         self.check("b:set_epoch(nil);assert(not b:read());assert(model_reads==0)")
         self.check("player=nil;assert(not b:read())")
         self.check("local s=b:read();head.position[1]=0/0;assert(not b:head_position(s.id))")
+
+    def test_cached_reads_skip_unrelated_components_but_each_write_rescans(self):
+        self.check("""
+for i=1,60 do attach(player,node()) end
+local s=b:read();local count=model_component_reads
+assert(b:read_cached().id==s.id);assert(b:read_cached().id==s.id);assert(b:head_position(s.id))
+assert(model_component_reads-count<=3,'cached reads must only inspect the selected mesh')
+count=model_component_reads
+assert(b:write(s.id,true,false));assert(model_component_reads-count>=62,'writes require a complete rescan')
+local cached=b:read_cached();attach(rig,node(head_path))
+assert(not b:write(cached.id,false,true));assert(not head.visible,'new duplicate blocks cached target write')
+""")
+
+    def test_cached_routes_revalidate_reorder_reparent_signature_and_epoch(self):
+        self.check("""
+local s=b:read();table.insert(rig.children,1,node());rig.children[1].parent=rig
+assert(b:read_cached().id==s.id,'reordered path must be reacquired')
+head.materials[1]='wrong';assert(not b:read_cached());assert(#model_writes==0)
+""")
+        self.check("""
+local s=b:read();rig.children={};attach(npc,head)
+assert(not b:read_cached());assert(not b:write(s.id,true,false))
+""")
+        self.check("""
+local s=b:read();local old=head;rig.children={};head=node(head_path);attach(rig,head)
+local replacement=b:read_cached();assert(replacement.id~=s.id)
+assert(not b:write(s.id,true,false));assert(head.visible and old.visible)
+b:set_epoch('native:2');assert(b:read_cached().id~=replacement.id)
+""")
