@@ -11,7 +11,7 @@ class HeadIntegrationTests(unittest.TestCase):
 config.ethan_head=true
 local lookup=sdk.get_managed_singleton
 sdk.get_managed_singleton=function(n)
- assert(phase=='update' or phase=='lock' or phase=='reset','model SDK outside callback')
+ assert(phase=='update' or phase=='gui' or phase=='lock' or phase=='reset','model SDK outside callback')
  return lookup(n)
 end
 local camera_set=tr.set_position
@@ -38,6 +38,14 @@ key=true;step();key=false;assert(not head.visible and near(position[3],3))
     def test_blend_and_near_camera_do_not_expose_head(self):
         self.head("start();assert(not head.visible);assert(near(position[3],3.2))",
                   "config.distance=0.2;config.shoulder=0;config.height=0")
+
+    def test_early_camera_keeps_head_ordering_and_first_person_cleanup(self):
+        self.head('''
+start();assert(head.visible and near(gui_projection[3],4))
+step(function(s) s.aim.raw=1 end);assert(not head.visible and near(position[3],3))
+for i=1,12 do step() end;assert(head.visible)
+phase='reset';callbacks.reset();assert(not head.visible and near(position[3],3))
+''', 'config.early_camera=true')
 
     def test_menu_stale_invalid_and_reset_hide(self):
         self.head('''

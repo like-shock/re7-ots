@@ -84,12 +84,18 @@ local function node_owner(tr,parent)
 end
 local function candidate(self,tr,go,root_id)
     local array=call(go,'get_Components')
-    local elements=array and array:get_elements()
-    if type(elements)~='table' then reject('WAIT_MODEL_COMPONENTS') end
-    local meshes,matching,component_count=0,nil,0
-    for _,component in pairs(elements) do
-        component_count=component_count+1
-        if component_count>64 then reject('WAIT_MODEL_COMPONENT_LIMIT') end
+    -- get_elements returns a Sol vector on REFramework, not necessarily a Lua
+    -- table. Index the SystemArray directly and validate its bound before reads.
+    if not array or type(array.get_size)~='function' or type(array.get_element)~='function' then
+        reject('WAIT_MODEL_COMPONENTS')
+    end
+    local size=array:get_size()
+    if type(size)~='number' or size~=size or size<0 or size%1~=0 then reject('WAIT_MODEL_COMPONENTS') end
+    if size>64 then reject('WAIT_MODEL_COMPONENT_LIMIT') end
+    local meshes,matching=0,nil
+    for i=0,size-1 do
+        local component=array:get_element(i)
+        if not component then reject('WAIT_MODEL_COMPONENTS') end
         if is_type(component,'via.render.Mesh') then
             meshes=meshes+1
             local resource=call(component,'getMesh')

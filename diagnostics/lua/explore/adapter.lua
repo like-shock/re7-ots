@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.0-dev'
+local VERSION='0.5.1-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -17,12 +17,33 @@ local report
 local last_poll,last_log=-math.huge,-math.huge
 local update_serial,processed_serial,update_at=0,-1,-math.huge
 local active_since=nil
+local early_serial,locked_serial=-1,-1
+local early_available=false
+local phase_probe,probe_serial,last_probe=nil,-1,-math.huge
 local key_was_down=false
 local shoulder_was_down=false
 local last_report={status='OFF'}
+local native_read={status='NONE',attempts=0,recovered_total=0,failed_total=0}
 local clock=os.clock or os.time
 local function now() return clock() end
 local run_id='lua_'..string.format('%.6f',now())
+local function read_native()
+    local r={attempts=0,recovered_total=native_read.recovered_total,failed_total=native_read.failed_total}
+    local value
+    for attempt=1,2 do
+        local ok,s=pcall(function() return json.load_file(DIR..'status.json') end)
+        r.attempts=attempt
+        r.status=not ok and 'READ_ERROR' or s==nil and 'EMPTY' or type(s)=='table' and 'DECODED' or 'INVALID_TYPE'
+        if ok and s~=nil then value=s;break end
+        if attempt==1 then r.first_failure=r.status end
+    end
+    -- No cached data is substituted. Every decoded result still passes through
+    -- the unchanged native identity, freshness and gameplay gates below.
+    if value==nil then r.failed_total=r.failed_total+1
+    elseif r.attempts==2 then r.recovered_total=r.recovered_total+1 end
+    native_read=r
+    return value
+end
 local function save_settings()
     local ok,result=pcall(function() return json.dump_file(DIR..'settings.json',cfg) end)
     if not ok or result==false then config_error='ERROR_CONFIG_SAVE' else config_error=nil end
@@ -126,9 +147,33 @@ local function choose_enabled(value)
         fault=nil;requested=true;active_since=nil
     else requested=false;active_since=nil end
 end
+local function observe_phase(name)
+    if not phase_probe or probe_serial~=update_serial then return end
+    -- Diagnostics cannot fault or delay camera cleanup. Each phase overwrites a
+    -- fixed key; a duplicate callback cannot grow an unbounded list.
+    local ok=pcall(function()
+        local c=camera()
+        phase_probe.phases[name]=Probe.camera(c)
+    end)
+    if not ok then phase_probe.phases[name]={status='UNAVAILABLE'} end
+end
 local function on_update()
     update_serial=update_serial+1;update_at=now()
+    if not requested or not gate.fresh or update_at-gate.changed_at>0.35 then
+        phase_probe=nil;probe_serial=-1
+    elseif update_at-last_probe>=0.5 then
+        last_probe=update_at;probe_serial=update_serial
+        phase_probe={serial=update_serial,lua_clock_s=update_at,early_camera=cfg.early_camera,phases={}}
+        observe_phase('update_before')
+    end
     restore_owned()
+    observe_phase('update_after_restore')
+    if phase_probe and probe_serial==update_serial then
+        if cfg.ethan_head and head_session.current_epoch then
+            local ok,value=pcall(Probe.player,sdk)
+            phase_probe.player=ok and value or {status='UNAVAILABLE'}
+        else phase_probe.player={status='DISABLED_OR_NO_MODEL_EPOCH'} end
+    end
 end
 local function flush_events()
     if trace and journal then trace:drain(function(event) return journal:record(event) end) end
@@ -147,7 +192,8 @@ local function transition_context(c,p)
         inventory_generation=inventory.generation,aim=aim.raw,inventory=inventory.raw,
         interact_slot=interact.slot_hex,player_step=gate.player_step,
         camera_id=c and c.id or camera_identity,camera_player_distance=distance,
-        last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note}
+        last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note,
+        native_read=native_read}
 end
 report=function(reason,c,p,target,after)
     if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION' then
@@ -238,8 +284,7 @@ local function on_frame()
     local t=now()
     if t-last_poll>=0.05 then
         last_poll=t
-        local ok,s=pcall(function() return json.load_file(DIR..'status.json') end)
-        gate:ingest(ok and s or nil,t)
+        gate:ingest(read_native(),t)
         if gate.session and gate.native and journal_session~=gate.session then
             flush_events()
             if journal then journal:close('SESSION_CHANGED') end
@@ -247,7 +292,7 @@ local function on_frame()
             trace=Trace.new(journal_session,run_id)
             journal=Journal.new(io,json,DIR,{kind='header',schema=1,version=VERSION,session=journal_session,run=run_id,
                 camera_writes=true,native_game_writes=false,inline_hooks=false,
-                pairing='latest native snapshot, not simultaneous',callback='pre LockScene / pre UpdateBehavior',
+                pairing='latest native snapshot, not simultaneous',callback='pre UpdateBehavior / optional pre PrerenderGUI / pre LockScene',
                 collision='optional_experimental_center_ray',model_binding='experimental_rt_drawself'})
         end
     end
@@ -273,7 +318,7 @@ local function on_frame()
         last_log=t
         journal:record({kind='sample',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
             requested=requested,state=state,callback_error=callback_error,fault=fault,
-            native_now=gate.native,camera=last_report,model=head_session:status(),
+            native_now=gate.native,native_read=native_read,camera=last_report,model=head_session:status(),phase_probe=phase_probe,
             events=trace and trace:stats() or nil,event_error=event_error})
     end
 end
@@ -295,6 +340,8 @@ local function draw_ui()
     if changed then cfg.full_model_pack=value;dirty=true end
     changed,value=imgui.checkbox('Obstacle avoidance (experimental center ray)',cfg.collision)
     if changed then cfg.collision=value;dirty=true end
+    changed,value=imgui.checkbox('Earlier HUD camera (experimental)',cfg.early_camera)
+    if changed then cfg.early_camera=value;dirty=true end
     imgui.text('Collision: '..collision_report.status)
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
@@ -314,6 +361,7 @@ local function draw_ui()
     imgui.text('Exploration prototype. Aim/inventory/interaction pause the camera.')
     imgui.text('Install the matching RT head package separately before enabling model mode.')
     imgui.text('Center ray is experimental; camera edges can still clip. F6 OFF for scripted scenes.')
+    imgui.text('Earlier HUD camera tests prompt timing; interaction targeting still has parallax.')
     imgui.text('Logs: reframework/data/RE7_OTS_Explore (play_0 + play_1)')
     imgui.tree_pop()
 end
@@ -329,10 +377,49 @@ local function register(name,fn,entry)
     if entry then ok,result=pcall(re[name],entry,guarded(fn)) else ok,result=pcall(re[name],guarded(fn)) end
     if not ok or result==false then callback_error='WAIT_CALLBACK_REGISTRATION' end
 end
+local function on_early_camera()
+    observe_phase('gui_before')
+    if cfg.early_camera and locked_serial~=update_serial and early_serial~=update_serial then
+        early_serial=update_serial;on_camera()
+    end
+    observe_phase('gui_after')
+end
+local function on_lock_camera()
+    locked_serial=update_serial
+    observe_phase('lock_before')
+    if cfg.early_camera then
+        if not early_available or early_serial~=update_serial then
+            restore_owned();active_since=nil;report(fault or 'WAIT_EARLY_CAMERA')
+            observe_phase('lock_after');return
+        end
+        if pending then
+            local c=camera()
+            if not c or c.id~=pending.id then
+                restore_owned();gate:suspend('WAIT_CAMERA_CHANGED');active_since=nil
+                report(fault or 'WAIT_CAMERA_CHANGED');observe_phase('lock_after');return
+            end
+            local p=position_of(c)
+            if not p or Core.distance(p,pending.target)>0.001 then
+                -- An engine/other-mod write after early application must never
+                -- become our next base or be overwritten with an old position.
+                restore_owned();latch('FAULT_EARLY_CAMERA_CHANGED');report(fault)
+                observe_phase('lock_after');return
+            end
+        end
+    end
+    on_camera()
+    observe_phase('lock_after')
+end
 local ok,game=pcall(function() return reframework:get_game_name() end)
 if not ok or type(game)~='string' or game:lower()~='re7' then callback_error='WAIT_RE7_RUNTIME' end
 register('on_pre_application_entry',on_update,'UpdateBehavior')
-register('on_pre_application_entry',on_camera,'LockScene')
+register('on_pre_application_entry',on_lock_camera,'LockScene')
+-- Optional callbacks must not make the established default path unavailable.
+if re and type(re.on_pre_application_entry)=='function' then
+    local registered,result=pcall(re.on_pre_application_entry,'PrerenderGUI',guarded(on_early_camera))
+    early_available=registered and result~=false
+    pcall(re.on_pre_application_entry,'BeginRendering',function() observe_phase('render') end)
+end
 register('on_frame',on_frame)
 register('on_draw_ui',draw_ui)
 register('on_script_reset',function()

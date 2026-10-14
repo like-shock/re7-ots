@@ -21,7 +21,10 @@ local function node(path)
  local n={children={},components={},visible=true,position={1,3,3}}
  n.go=managed('via.GameObject',{
   get_Transform=function() return n.tr end,
-  get_Components=function() model_component_reads=model_component_reads+1;return {get_elements=function() return n.components end} end,
+  get_Components=function() model_component_reads=model_component_reads+1;return {
+   get_size=function() return #n.components end,
+   get_element=function(_,i) assert(i>=0 and i<#n.components);return n.components[i+1] end,
+   get_elements=function() error('SystemArray vector must not be assumed to be a Lua table') end} end,
   get_DrawSelf=function() return n.visible end,
   set_DrawSelf=function(_,v)
    if model_hook then model_hook(n,v) end
