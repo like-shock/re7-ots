@@ -39,7 +39,7 @@ end
 function HeadSession:before_restore()
     return self:run(function()
         local c=self:prepare()
-        if not c then return not self.enabled end
+        if not c then return not self.enabled and self.state=='DISABLED' end
         -- Invalid/stale native input permits hiding an already identified target
         -- only. It cannot authorize acquiring/showing a new head.
         if not self.current_epoch and not c.identity then self.state='WAIT_MODEL_NATIVE';return false end

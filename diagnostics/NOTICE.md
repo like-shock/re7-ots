@@ -12,3 +12,11 @@ REFramework / praydog supplies the plugin loader and documented API contract. A 
 - https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
 
 The original diagnostic implementation (excluding original mod-derived reference data) is provided under the MIT License in LICENSE. No third-party license is replaced by this grant.
+
+
+Runtime v0.5.0-dev includes independently implemented bindings based on supplied RT model metadata
+and public API usage in alphaZomega's EMV Engine (commit a8a89961fde640d542afc72bd66fd8e12f3b82b3).
+The full RT placeholder archive credits AfroJackX. Mesh metadata was inspected using NSACloud's
+RE-Mesh-Editor (commit 622daa75b41ec622c3444ecb44ef31a651692687); its parser code and all model assets
+are external and are not copied or bundled here. See docs/RUNTIME_EXPANSION_KO.md in the source tree
+for API references, exact model scope and unverified runtime limits.

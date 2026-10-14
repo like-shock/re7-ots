@@ -1,8 +1,11 @@
--- Exploration camera with opt-in Ethan RT head mesh control.
-local VERSION='0.4.1-dev'
+-- Exploration camera with opt-in RT models and experimental obstacle avoidance.
+local VERSION='0.5.0-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
-local head_session=HeadSession.new(Ethan.new(sdk))
+local head_session=ModelGroup.new(sdk)
+local physics=Physics.new(sdk)
+local obstacle=Obstacle.new()
+local collision_report={status='DISABLED'}
 local cfg=Core.settings(nil)
 local requested=false -- Never restore an enabled state from disk.
 local fault,callback_error,config_error=nil,nil,nil
@@ -15,6 +18,7 @@ local last_poll,last_log=-math.huge,-math.huge
 local update_serial,processed_serial,update_at=0,-1,-math.huge
 local active_since=nil
 local key_was_down=false
+local shoulder_was_down=false
 local last_report={status='OFF'}
 local clock=os.clock or os.time
 local function now() return clock() end
@@ -64,7 +68,7 @@ local function set_position(c,p)
     c.tr:set_position(Vector4f.new(p[1],p[2],p[3],1),false)
 end
 local function latch(reason)
-    fault=reason;requested=false;active_since=nil;gate:suspend(reason)
+    fault=reason;requested=false;active_since=nil;obstacle:reset();gate:suspend(reason)
     if report then report(reason) else state=reason end
 end
 -- A failed setter may still mutate. Only its immediate finite readback on the
@@ -87,7 +91,7 @@ local function restore_owned()
             and p and p.status=='READABLE_CANDIDATE'
             and Core.finite(generation,4294967295) and generation>0 and generation%1==0
             and (s.session..':'..generation) or nil
-        head_session:configure(cfg.ethan_head,epoch)
+        head_session:configure(cfg.ethan_head,epoch,cfg.full_model_pack)
         head_session:before_restore()
     end)
     if not pending then return true end
@@ -146,6 +150,9 @@ local function transition_context(c,p)
         last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note}
 end
 report=function(reason,c,p,target,after)
+    if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION' then
+        obstacle:reset()
+    end
     local was_active=state=='ACTIVE' or state=='ENTERING'
     if was_active and reason~='ACTIVE' and reason~='ENTERING' and reason~='OFF' then
         last_fallback=reason
@@ -161,12 +168,13 @@ report=function(reason,c,p,target,after)
     end)
     if not event_ok then event_error='ERROR_EVENT' end
     last_report={status=reason,camera_id=c and c.id or nil,base=p,target=target,after=after,
-        restore=restore_note,requested=requested,native=gate.native,settings=cfg,lua_clock_s=now()}
+        restore=restore_note,requested=requested,native=gate.native,settings=cfg,
+        collision=collision_report,lua_clock_s=now()}
 end
 local function on_camera()
     local t=now()
     if processed_serial==update_serial then
-        local ready,why=gate:ready(t)
+        local ready,why=gate:ready(t,cfg)
         local reason=not requested and 'OFF' or is_menu_open() and 'PAUSED_MENU'
             or t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK' or not ready and why or nil
         if reason then
@@ -180,7 +188,7 @@ local function on_camera()
     if not requested then report('OFF');active_since=nil;return end
     if update_serial==0 or t-update_at>0.25 then report('WAIT_UPDATE_CALLBACK');gate:suspend(state);return end
     if is_menu_open() then report('PAUSED_MENU');gate:suspend(state);active_since=nil;return end
-    local ready,why=gate:ready(t)
+    local ready,why=gate:ready(t,cfg)
     if not ready then report(why);active_since=nil;return end
     local c,reason=camera()
     if not c then report(reason);gate:suspend(reason);active_since=nil;return end
@@ -194,10 +202,23 @@ local function on_camera()
     local q=c.tr:get_rotation()
     local quat=q and {q.x,q.y,q.z,q.w} or nil
     if not active_since then active_since=t end
-    local blend=math.min(1,(t-active_since)/0.15)
+    local blend=math.min(1,(t-active_since)/cfg.entry_blend)
     local target=Core.offset(base,quat,cfg,blend)
     if not target then report('WAIT_CAMERA_VALUES',c,base);gate:suspend(state);active_since=nil;return end
     if blend==0 then report('ENTERING',c,base,base,base);return end
+    if cfg.collision then
+        local result=physics:cast(base,target)
+        local status
+        target,status=obstacle:limit(base,target,result,t,
+            gate.session..':'..gate.native.player.generation..':'..c.id,cfg.collision_clearance)
+        collision_report={status=status,query=result}
+        if not target then
+            active_since=nil;report('WAIT_COLLISION_'..(result.reason or 'UNAVAILABLE'),c,base);return
+        end
+        if status=='BLOCKED' then report('FIRST_PERSON_COLLISION',c,base);return end
+    else
+        obstacle:reset();collision_report={status='DISABLED'}
+    end
     -- Capture ownership before invoking a setter: even an exception may have mutated.
     pending={id=c.id,base=base,target=target,time=t}
     local ok=pcall(set_position,c,target)
@@ -227,7 +248,7 @@ local function on_frame()
             journal=Journal.new(io,json,DIR,{kind='header',schema=1,version=VERSION,session=journal_session,run=run_id,
                 camera_writes=true,native_game_writes=false,inline_hooks=false,
                 pairing='latest native snapshot, not simultaneous',callback='pre LockScene / pre UpdateBehavior',
-                collision=false,model_binding='experimental_ethan_rt_drawself'})
+                collision='optional_experimental_center_ray',model_binding='experimental_rt_drawself'})
         end
     end
     local ok,down=pcall(function() return reframework:is_key_down(0x75) end)
@@ -240,6 +261,13 @@ local function on_frame()
         end
     end
     key_was_down=down
+    local shoulder_ok,shoulder_down=pcall(function() return reframework:is_key_down(0x76) end)
+    shoulder_down=shoulder_ok and shoulder_down==true
+    if shoulder_down and not shoulder_was_down and requested and s and s.foreground
+        and gate.fresh and t>=gate.changed_at and t-gate.changed_at<=0.35 and not is_menu_open() then
+        cfg.shoulder=-cfg.shoulder;obstacle:reset();save_settings()
+    end
+    shoulder_was_down=shoulder_down
     flush_events()
     if journal and t-last_log>=0.2 then
         last_log=t
@@ -254,29 +282,38 @@ local function draw_ui()
     local changed,value=imgui.checkbox('Exploration camera (F6)',requested)
     if changed then choose_enabled(value) end
     imgui.text('State: '..(callback_error or fault or state))
-    local _,native_reason=gate:ready(now())
+    local _,native_reason=gate:ready(now(),cfg)
     imgui.text('Native: '..native_reason..' | Restore: '..restore_note)
     imgui.text('Last fallback: '..(last_fallback or 'NONE'))
     if event_error then imgui.text(event_error) end
     imgui.text('Automatic play log: '..(journal and journal.state or 'WAIT_NATIVE'))
     if config_error then imgui.text(config_error) end
     local dirty=false
-    changed,value=imgui.checkbox('Ethan RT head model (experimental)',cfg.ethan_head)
+    changed,value=imgui.checkbox('RT head model (experimental)',cfg.ethan_head)
     if changed then cfg.ethan_head=value;dirty=true end
+    changed,value=imgui.checkbox('Use full RT model pack (all supported characters)',cfg.full_model_pack)
+    if changed then cfg.full_model_pack=value;dirty=true end
+    changed,value=imgui.checkbox('Obstacle avoidance (experimental center ray)',cfg.collision)
+    if changed then cfg.collision=value;dirty=true end
+    imgui.text('Collision: '..collision_report.status)
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
-    for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6}}) do
+    for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6},
+        {'collision_clearance','Wall clearance',0.03,0.3},
+        {'aim_release_delay','Aim release hold (seconds)',0,1.5},{'entry_blend','Camera return blend (seconds)',0.05,0.8}}) do
         changed,value=imgui.slider_float(v[2],cfg[v[1]],v[3],v[4])
         if changed then cfg[v[1]]=value;dirty=true end
     end
-    if imgui.button('Swap shoulder') then cfg.shoulder=-cfg.shoulder;dirty=true end
+    if imgui.button('Swap shoulder (F7)') then cfg.shoulder=-cfg.shoulder;dirty=true end
     if imgui.button('Reset offsets') then
-        local enabled=cfg.ethan_head;cfg=Core.settings(nil);cfg.ethan_head=enabled;dirty=true
+        local defaults=Core.settings(nil)
+        for _,name in ipairs({'distance','shoulder','height'}) do cfg[name]=defaults[name] end
+        dirty=true
     end
-    if dirty then cfg=Core.settings(cfg);save_settings() end
+    if dirty then cfg=Core.settings(cfg);obstacle:reset();save_settings() end
     imgui.text('Exploration prototype. Aim/inventory/interaction pause the camera.')
-    imgui.text('Install Ethan with Head RT separately before enabling head mode.')
-    imgui.text('No wall collision. F6 OFF for combat and scripted scenes.')
+    imgui.text('Install the matching RT head package separately before enabling model mode.')
+    imgui.text('Center ray is experimental; camera edges can still clip. F6 OFF for scripted scenes.')
     imgui.text('Logs: reframework/data/RE7_OTS_Explore (play_0 + play_1)')
     imgui.tree_pop()
 end
@@ -303,4 +340,4 @@ register('on_script_reset',function()
     if journal then journal:close('SCRIPT_RESET') end
 end)
 if re and re.on_config_save then register('on_config_save',save_settings) end
-if log and log.info then log.info('[RE7_EXPLORE] v'..VERSION..' loaded OFF. F6 toggles exploration camera; logs automatic.') end
+if log and log.info then log.info('[RE7_EXPLORE] v'..VERSION..' loaded OFF. F6 camera / F7 shoulder; logs automatic.') end

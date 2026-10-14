@@ -73,6 +73,8 @@ class ExploreAdapterTests(unittest.TestCase):
   parts=[]
   for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
                       ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
+                      ('model/group','ModelGroup'),
+                      ('explore/physics','Physics'),('explore/obstacle','Obstacle'),
                       ('explore/adapter',None)]:
    p=ROOT/f'lua/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
    s=p.read_text();parts.append(s if symbol is None else 'local '+symbol+'=(function()\n'+s+'\nend)()')

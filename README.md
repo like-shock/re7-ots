@@ -2,19 +2,21 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.4.1-dev
+## Development version: Explore Lua v0.5.0-dev
 
 - F6 toggles the exploration camera; every script load starts OFF.
-- Adjustable camera distance, shoulder offset and height.
+- Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
+- Configurable aim-release hold and camera return blend.
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
-- Opt-in Ethan RT head mesh visibility tied to verified camera placement (experimental).
+- Opt-in RT head visibility for eight model families, including separate Mia face/hair ownership.
+- Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
 - F6 OFF remains effective during native outages, focus loss or an open menu.
 - Bounded camera/model transition events, periodic logs and an offline log summary tool.
 - Native state monitoring is read-only. Lua deliberately changes the current camera position through REFramework.
 
 **User-observed status:** body visible in third person; head/face absent. Intermittent first-person fallback reported during walking/stairs. Its cause is still unknown; obstruction by a pillar is an unconfirmed hypothesis. Aiming has not been tested with a gun.
 
-This prototype has no wall collision, verified in-game head support, third-person ballistics or DLC validation. It is not a complete port of the original Cheat Engine script.
+Model rendering, obstacle coverage/performance and DLC behavior remain unverified in-game. Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are not implemented. It is not a complete port of the original Cheat Engine script.
 
 ## 설치 / 사용
 
@@ -46,11 +48,13 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 
 ## Development
 
-`work` now bundles an experimental binding for the supplied **Ethan with Head RT** model.
-It selects the separate head mesh under the local player, hides it before first-person fallback,
-and shows it only after camera readback and head clearance checks. The model option defaults OFF;
-install the external model separately before enabling it. Native DLL/protocol remains v0.3.0.
-See [오프라인 개발 완료 범위](docs/OFFLINE_PROGRESS_KO.md), [진행 내용](docs/MODEL_SUPPORT_PROGRESS_KO.md) and [asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
+`work` includes standalone **Ethan with Head RT** and **Third Person Full Model Placeholders RT**
+bindings. Install the matching external model package separately; model control and obstacle
+avoidance default OFF. The full pack uses exact path/material signatures for Ethan, Chris, Joe,
+Mia, Clancy and Zoe variants. Parts are hidden before first-person fallback and shown only after
+camera readback and clearance checks. Native DLL/protocol remains v0.3.0.
+See [v0.5.0 implementation and evidence](docs/RUNTIME_EXPANSION_KO.md),
+[prior offline work](docs/OFFLINE_PROGRESS_KO.md) and [Ethan asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
 
 `main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally or by CI; this workflow does not publish a GitHub Release.
 

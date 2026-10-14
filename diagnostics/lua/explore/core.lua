@@ -14,13 +14,17 @@ function M.distance(a,b)
     return math.sqrt(x*x+y*y+z*z)
 end
 function M.settings(input)
-    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15,ethan_head=false}
+    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15,ethan_head=false,full_model_pack=false,
+        collision=false,collision_clearance=0.12,aim_release_delay=0.5,entry_blend=0.15}
     if type(input)~='table' or input.schema~=1 then return c end
-    for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6}}) do
+    for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6},
+        {'collision_clearance',0.03,0.3},{'aim_release_delay',0,1.5},{'entry_blend',0.05,0.8}}) do
         local x=input[v[1]]
         if M.finite(x,1000000) then c[v[1]]=math.max(v[2],math.min(v[3],x)) end
     end
     c.ethan_head=input.ethan_head==true
+    c.full_model_pack=input.full_model_pack==true
+    c.collision=input.collision==true
     return c
 end
 function M.offset(p,q,c,blend)
@@ -76,6 +80,7 @@ function M.new()
         if self.session~=s.session then
             self.session=s.session;self.seq=s.seq;self.tick=s.tick_ms;self.changed_at=t
             self.native=s;self.fresh=false;self.generations=nil;self.previous_player=nil
+            self.last_aim_at=why=='FIRST_PERSON_AIM' and t or nil
             self:suspend(why or 'WAIT_HEARTBEAT');return
         end
         -- Validation/terminal snapshots have no new gameplay sample number.
@@ -91,6 +96,7 @@ function M.new()
         end
         local gap=not self.fresh or t-self.changed_at>0.35 or s.tick_ms-self.tick>350 or t+1e-9<self.changed_at
         self.seq=s.seq;self.tick=s.tick_ms;self.changed_at=t;self.fresh=true;self.native=s
+        if why=='FIRST_PERSON_AIM' then self.last_aim_at=t end
         if why then self.previous_player=nil;self.player_step=nil;self:suspend(why);return end
         local generations=s.player.generation..':'..s.aim.generation..':'..s.inventory.generation
         self.player_step=self.previous_player and M.distance(self.previous_player,s.player.xyz) or nil
@@ -101,13 +107,17 @@ function M.new()
         if not self.stable_at then self.stable_at=t;self.stable_tick=s.tick_ms end
         self.reason=jump and 'WAIT_PLAYER_JUMP' or 'WARMUP'
     end
-    function self:ready(t)
+    function self:ready(t,settings)
         if not self.fresh or not self.native then return false,self.reason end
         if t+1e-9<self.changed_at or t-self.changed_at>0.35 then
             self.fresh=false;self:suspend('WAIT_NATIVE_STALE');return false,self.reason
         end
         if not self.stable_at then return false,self.reason end
         if t-self.stable_at<0.5-1e-9 or self.tick-self.stable_tick<500 then return false,self.reason end
+        local delay=M.settings(settings).aim_release_delay
+        if self.last_aim_at and t-self.last_aim_at<delay-1e-9 then
+            self.reason='WAIT_AIM_RELEASE';return false,self.reason
+        end
         self.reason='READY'
         return true,self.reason
     end

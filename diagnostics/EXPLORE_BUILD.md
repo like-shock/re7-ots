@@ -1,4 +1,4 @@
-# Build and verify Lua v0.4.1-dev
+# Build and verify Lua v0.5.0-dev
 
 From `diagnostics/`, on Linux x86_64 with clang 18+, lld-link, host `cc`, Python 3 and liblua5.4:
 
@@ -45,7 +45,11 @@ Host tests execute production C with synthetic Win32 boundaries and test-only SH
 
 Historical v0.3.0 evidence: `evidence/v0.3.0/full_tests_final.txt`, `green_review.txt`, `release_checks.txt`, and `docs/EXPLORE_REVIEW.md`. Actual build used locally extracted clang/lld 18.1.3; the toolchain is not redistributed.
 
-Current model binding analysis and verification ledger: `../docs/ETHAN_RT_MODEL_ANALYSIS_KO.md` and
+Historical Ethan binding analysis and verification ledger: `../docs/ETHAN_RT_MODEL_ANALYSIS_KO.md` and
 `../docs/superpowers/plans/2026-10-13-ethan-head-binding.md`. Runtime rendering is pending.
 
 Current offline stabilization: `../docs/OFFLINE_PROGRESS_KO.md`.
+
+Current integrated runtime: `../docs/RUNTIME_EXPANSION_KO.md` and
+`../docs/superpowers/plans/2026-10-14-runtime-expansion.md`. Lua bundles the guarded physics adapter,
+scalar obstacle limiter and per-part model group. Physics queries never write game memory.

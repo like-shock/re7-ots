@@ -6,7 +6,7 @@ local texts,records,files={},{},{}
 local position={1,3,3}
 local rotation={0,0,0,1}
 local camera_id,transform_id=10,20
-local key,menu_open=false,false
+local key,shoulder_key,menu_open=false,false,false
 local nil_camera,fail_camera,fail_set,fail_after_set,ignore_set=false,false,false,false,false
 local fail_io,fail_json=false,false
 local partial_set,partial_restore=false,false
@@ -46,9 +46,11 @@ sdk={get_primary_camera=function()
 end}
 re={on_frame=function(f) callbacks.frame=f end,on_pre_application_entry=function(n,f) callbacks[n]=f end,
  on_script_reset=function(f) callbacks.reset=f end,on_draw_ui=function(f) callbacks.ui=f end,on_config_save=function(f) callbacks.save=f end}
-reframework={get_game_name=function() return 're7' end,is_key_down=function(_,k) assert(k==0x75);return key end,is_drawing_ui=function() return menu_open end}
+reframework={get_game_name=function() return 're7' end,is_key_down=function(_,k)
+ assert(k==0x75 or k==0x76);return k==0x75 and key or k==0x76 and shoulder_key
+end,is_drawing_ui=function() return menu_open end}
 imgui={tree_node=function() return true end,tree_pop=function() end,text=function(s) texts[#texts+1]=s end,
- checkbox=function(label,v) if label=='Ethan RT head model (experimental)' then
+ checkbox=function(label,v) if label=='RT head model (experimental)' then
   if ui_head~=nil then local r=ui_head;ui_head=nil;return true,r end;return false,v end
   if ui_enable~=nil then local r=ui_enable;ui_enable=nil;return true,r end;return false,v end,
  slider_float=function(_,v) return false,v end,button=function() return false end}

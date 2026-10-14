@@ -1,11 +1,21 @@
--- Experimental binding for the supplied Ethan with Head RT package.
+-- Experimental per-part bindings for the supplied RT model packages.
 -- Cache scalar routes for reads only; reacquire/validate objects on every call.
 -- Every write still scans the complete bounded tree to reject new duplicates.
 local Ethan={}
 Ethan.__index=Ethan
-local PATH='character/player/pl0000/pl0002/pl0002.mesh'
-local MATERIALS={pl0050_face=true,pl0050_eye=true,pl0050_hair=true,
-    pl0050_eye_tear=true,pl0050_eye_shadow=true}
+local PROFILES={
+    chris={family='chris',path='ch8/character/player/pl1000/pl1002/pl1002.mesh',materials={'em7350_face__Character_Default'}},
+    joe={family='joe',path='ch9/character/player/pl9000/pl9002/pl9002.mesh',materials={'pl9050_face','pl9050_hair'}},
+    ethan={family='ethan',path='character/player/pl0000/pl0002/pl0002.mesh',materials={'pl0050_face','pl0050_eye','pl0050_hair','pl0050_eye_tear','pl0050_eye_shadow'}},
+    mia2000={family='mia2000',path='character/player/pl2000/pl2002/pl2002.mesh',materials={'em2050_Skin_Evil','em2070_Hair2','em2050_Hair','em2070_Hair3','eye_Tear','em2050_Skin_Mia','em2050_Skin_Blend','em2050_Eye_Blend','Eye_Shadow'}},
+    mia2100_hair={family='mia2100',path='character/player/pl2100/pl2100/pl2120.mesh',materials={'em2070_Hair2','em2070_Hair3'}},
+    mia2100={family='mia2100',path='character/player/pl2100/pl2102/pl2102.mesh',materials={'em2050_Skin_Evil','em2050_Hair','eye_Tear','em2050_Skin_Mia','em2050_Skin_Blend','em2050_Eye_Blend','Eye_Shadow'}},
+    clancy3000={family='clancy3000',path='character/player/pl3000/pl3002/pl3002.mesh',materials={'pl3050_face__Character_Default','pl3050_eye__Character_Default','pl3050_Equipment__Character_Default','pl3050_hair__Character_AlphaTest'}},
+    clancy3100={family='clancy3100',path='character/player/pl3100/pl3102/pl3102.mesh',materials={'pl3050_face__Character_Default','pl3050_eye__Character_Default','pl3050_Equipment__Character_Default','pl3050_hair__Character_AlphaTest'}},
+    zoe={family='zoe',path='character/player/pl3400/pl3402/pl3402.mesh',materials={'em3450_eye','em3450_hair','em3450_Eye_Shadow','em3450_Eye_Tier','pl3450_face','pl3400_hair'}},
+}
+local BY_PATH={}
+for name,p in pairs(PROFILES) do p.name=name;p.set={};for _,m in ipairs(p.materials) do p.set[m]=true end;BY_PATH[p.path]=p end
 local function reject(reason) error({reason=reason},0) end
 local function method(o,name)
     if not o then reject('WAIT_MODEL_OBJECT') end
@@ -40,15 +50,15 @@ local function resource_path(resource)
     s=s:match('^[^%[%]]+%[@?([^%[%]]+)%]$')
     if not s then return nil end
     s=s:lower():gsub('\\','/'):gsub('^natives/stm/','')
-    if s==PATH or s==PATH..'.220128762' then return PATH end
-    return nil
+    s=s:gsub('%.220128762$','')
+    return BY_PATH[s] and s or nil
 end
-local function signature(mesh)
-    if call(mesh,'get_MaterialNum')~=5 then reject('WAIT_MODEL_MATERIALS') end
+local function signature(mesh,profile)
+    if call(mesh,'get_MaterialNum')~=#profile.materials then reject('WAIT_MODEL_MATERIALS') end
     local seen={}
-    for i=0,4 do
+    for i=0,#profile.materials-1 do
         local name=call(mesh,'getMaterialName',i)
-        if not MATERIALS[name] or seen[name] then reject('WAIT_MODEL_MATERIALS') end
+        if not profile.set[name] or seen[name] then reject('WAIT_MODEL_MATERIALS') end
         seen[name]=true
     end
 end
@@ -83,8 +93,9 @@ local function candidate(self,tr,go,root_id)
         if is_type(component,'via.render.Mesh') then
             meshes=meshes+1
             local resource=call(component,'getMesh')
-            if resource and resource_path(resource)==PATH then
-                signature(component);matching={mesh=component,resource=resource}
+            local profile=resource and BY_PATH[resource_path(resource)]
+            if profile and (self.discover_only or profile==self.profile) then
+                signature(component,profile);matching={mesh=component,resource=resource,profile=profile}
             end
         end
     end
@@ -96,12 +107,12 @@ local function candidate(self,tr,go,root_id)
         reject('WAIT_MODEL_HEAD_JOINT')
     end
     method(joint,'get_Position')
-    return {go=go,joint=joint,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
+    return {go=go,joint=joint,profile=matching.profile,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
         ..':'..address(matching.mesh)..':'..address(matching.resource)..':'..address(joint)}
 end
 local function full_resolve(self)
     local root,root_id=player_root(self)
-    local visited,count,target,route={},0,nil,{}
+    local visited,count,target,route,found_parts={},0,nil,{},{}
     local function visit(tr,parent,depth)
         count=count+1
         if count>128 or depth>12 then reject('WAIT_MODEL_TREE_LIMIT') end
@@ -112,7 +123,9 @@ local function full_resolve(self)
         if parent then -- Never select the player root.
             local found=candidate(self,tr,go,root_id)
             if found then
-                if target then reject('WAIT_MODEL_AMBIGUOUS') end
+                if target and not self.discover_only then reject('WAIT_MODEL_AMBIGUOUS') end
+                if found_parts[found.profile.name] then reject('WAIT_MODEL_AMBIGUOUS') end
+                found_parts[found.profile.name]=found
                 target=found;target.route={}
                 for i=1,depth do target.route[i]=route[i] end
             end
@@ -125,6 +138,18 @@ local function full_resolve(self)
     end
     visit(root,nil,0)
     if not target then reject('WAIT_MODEL_NOT_FOUND') end
+    if self.discover_only then
+        local family,parts,identities=nil,{},{}
+        for name,t in pairs(found_parts) do
+            if family and family~=t.profile.family then reject('WAIT_MODEL_MIXED_FAMILY') end
+            family=t.profile.family;parts[#parts+1]=name;identities[#identities+1]=name..':'..t.id
+        end
+        for name,p in pairs(PROFILES) do
+            if p.family==family and not found_parts[name] then reject('WAIT_MODEL_COMPANION') end
+        end
+        table.sort(parts);table.sort(identities)
+        return {family=family,parts=parts,identity=table.concat(identities,'|')}
+    end
     return target
 end
 local function cached_resolve(self)
@@ -145,8 +170,15 @@ local function cached_resolve(self)
     local target=candidate(self,tr,node_owner(tr,nil),root_id)
     return target and target.id==cached.id and target or nil
 end
-function Ethan.new(sdk_api)
-    return setmetatable({sdk=sdk_api,note='WAIT_MODEL_NATIVE',full_scans=0,cached_reads=0},Ethan)
+function Ethan.new(sdk_api,profile_name)
+    local profile=PROFILES[profile_name or 'ethan'];assert(profile,'unknown RT profile')
+    return setmetatable({sdk=sdk_api,profile=profile,note='WAIT_MODEL_NATIVE',full_scans=0,cached_reads=0},Ethan)
+end
+function Ethan.discover(sdk_api,epoch)
+    local b=Ethan.new(sdk_api);b:set_epoch(epoch);b.discover_only=true
+    local ok,result=pcall(full_resolve,b)
+    if not ok then return nil,type(result)=='table' and result.reason or 'WAIT_MODEL_API' end
+    return result
 end
 function Ethan:set_epoch(epoch)
     local next_epoch=type(epoch)=='string' and #epoch>0 and #epoch<=110 and epoch or nil
@@ -157,7 +189,7 @@ function Ethan:resolve(allow_cache)
     if allow_cache and self.cache then
         local ok,target=pcall(cached_resolve,self)
         if ok and target then
-            self.cached_reads=self.cached_reads+1;self.note='MATCHED_ETHAN_RT';return target
+            self.cached_reads=self.cached_reads+1;self.note='MATCHED_'..self.profile.name:upper()..'_RT';return target
         end
     end
     self.cache=nil;self.full_scans=self.full_scans+1
@@ -168,7 +200,7 @@ function Ethan:resolve(allow_cache)
     end
     -- Store ONLY scalar identities and sibling indices, never target userdata.
     self.cache={id=target.id,root_id=target.root_id,route=target.route}
-    self.note='MATCHED_ETHAN_RT'
+    self.note='MATCHED_'..self.profile.name:upper()..'_RT'
     return target
 end
 local function read_draw(self,allow_cache)
@@ -184,6 +216,7 @@ function Ethan:read() return read_draw(self,false) end
 function Ethan:read_cached() return read_draw(self,true) end
 function Ethan:write(id,expected,wanted)
     if type(expected)~='boolean' or type(wanted)~='boolean' then return false end
+    if wanted and self.validate_show and not self.validate_show() then return false end
     local t=self:resolve(false)
     if not t or t.id~=id or call(t.go,'get_DrawSelf')~=expected then return false end
     call(t.go,'set_DrawSelf',wanted)

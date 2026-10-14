@@ -22,7 +22,7 @@ class PackageExploreTests(unittest.TestCase):
         shutil.copyfile(TOOL.with_name('build_explore_lua.py'),self.diag/'tools/build_explore_lua.py')
         (self.diag/'lua/explore').mkdir(parents=True)
         (self.diag/'lua/model').mkdir()
-        for name in ('explore/core','explore/journal','explore/trace','model/visibility','model/ethan','model/session'):
+        for name in ('explore/core','explore/journal','explore/trace','model/visibility','model/ethan','model/session','model/group','explore/physics','explore/obstacle'):
             (self.diag/f'lua/{name}.lua').write_text('return {}\n')
         (self.diag/'lua/explore/adapter.lua').write_text("local VERSION='0.4.1-dev'\n")
         for name in ('EXPLORE_README_KO.md','LICENSE','NOTICE.md','ORIGINAL_CREDITS.txt'):
