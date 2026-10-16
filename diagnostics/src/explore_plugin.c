@@ -15,10 +15,12 @@ WIN_IMPORT u32 WINAPI GetCurrentProcessId(void);
 WIN_IMPORT BOOL WINAPI MoveFileExW(const WCHAR*,const WCHAR*,u32);
 #define PATH_CAP 32768u
 #define BUF_CAP 8192u
-#define EXP_VERSION "0.3.0"
+#define EXP_VERSION "0.3.1"
+#define EXP_PROTOCOL "0.3.0"
 #define EXP_MAX_MS 43200000ULL
 static const REFFunctions*ref;
 static int initialized;
+static u32 publish_failures,last_publish_error;
 static char marker,session[96];
 static WCHAR exe_path[PATH_CAP],folder[PATH_CAP],status_path[PATH_CAP],temp_path[PATH_CAP];
 static u8 hash_buffer[1024*1024],pe_header[65536];
@@ -69,16 +71,22 @@ static int setup_paths(void){
 }
 static int publish(const Buffer*b){
  HANDLE f=CreateFileW(temp_path,GENERIC_WRITE,7,0,2,FILE_ATTRIBUTE_NORMAL,0);
- if(f==INVALID_HANDLE)return 0;
- int ok=write_all(f,b);if(!CloseHandle(f))ok=0;
+ if(f==INVALID_HANDLE){last_publish_error=GetLastError();publish_failures++;return 0;}
+ int ok=write_all(f,b);u32 error=ok?0:GetLastError();
+ if(!CloseHandle(f)){if(ok)error=GetLastError();ok=0;}
  /* Readers see either complete snapshot. Failure leaves the previous heartbeat stale. */
- return ok&&MoveFileExW(temp_path,status_path,1);
+ if(ok&&!MoveFileExW(temp_path,status_path,1)){error=GetLastError();ok=0;}
+ if(!ok){publish_failures++;last_publish_error=error;}
+ return ok;
 }
 static int foreground(void){u32 pid=0;void*w=GetForegroundWindow();if(w)GetWindowThreadProcessId(w,&pid);return pid==GetCurrentProcessId();}
 static void common(Buffer*b,const char*phase,u32 seq,u64 tick){
- diag_zero(b,sizeof *b);add(b,"{\"schema\":1,\"version\":\"" EXP_VERSION "\",\"session\":");quote(b,session);
+ diag_zero(b,sizeof *b);add(b,"{\"schema\":1,\"version\":\"" EXP_PROTOCOL "\",\"monitor_version\":\"" EXP_VERSION "\",\"session\":");quote(b,session);
  add(b,",\"phase\":");quote(b,phase);add(b,",\"seq\":");number(b,seq);add(b,",\"tick_ms\":");number(b,tick);
  add(b,",\"foreground\":");add(b,foreground()?"true":"false");
+ /* Completed attempts only: this snapshot's own publication is not known yet. */
+ add(b,",\"publication\":{\"failures\":");number(b,publish_failures);
+ add(b,",\"last_error\":");number(b,last_publish_error);add(b,"}");
 }
 static u32 WINAPI monitor(void*unused){
  (void)unused;SetThreadPriority(GetCurrentThread(),-1);
@@ -102,7 +110,9 @@ static u32 WINAPI monitor(void*unused){
   if(!published&&!publication_failed)message(1,"Status publication failed; retrying while camera heartbeat expires");
   if(published&&publication_failed)message(0,"Status publication recovered");
   publication_failed=!published;
-  Sleep(published?50:250);
+  /* A failed atomic replace must not slow the next fresh sample. Two 250ms
+     backoffs exceeded Lua's 350ms heartbeat limit even for brief contention. */
+  Sleep(50);
  }
  common(&b,"LIMIT",seq,GetTickCount64());add(&b,",\"reason\":\"TWELVE_HOUR_MONITOR_LIMIT\"}\n");if(!publish(&b))message(1,"Limit status publication failed");return 0;
 }

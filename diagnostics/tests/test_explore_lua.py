@@ -4,7 +4,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 FIXTURE="""
 local function snapshot(n)
- return {schema=1,version='0.3.0',session='re7_explore_2026_10_13_1000_42',phase='MONITORING',build='KNOWN_EXE_HASH_AND_PE',seq=n,tick_ms=1000+n*100,foreground=true,
+ return {schema=1,version='0.3.0',monitor_version='0.3.1',publication={failures=0,last_error=0},session='re7_explore_2026_10_13_1000_42',phase='MONITORING',build='KNOWN_EXE_HASH_AND_PE',seq=n,tick_ms=1000+n*100,foreground=true,
  player={status='READABLE_CANDIDATE',generation=1,xyz={1,2,3}},
  aim={status='READABLE_CANDIDATE',generation=1,raw=0},
  inventory={status='READABLE_CANDIDATE',generation=1,raw=0},

@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.8-dev'
+local VERSION='0.5.9-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -197,7 +197,7 @@ local function transition_context(c,p)
         interact_slot=interact.slot_hex,player_step=gate.player_step,
         camera_id=c and c.id or camera_identity,camera_player_distance=distance,
         last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note,
-        native_read=native_read,collision_last=collision_report}
+        native_read=native_read,native_gate=gate.reset_evidence,publication=n.publication,collision_last=collision_report}
 end
 report=function(reason,c,p,target,after)
     if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION'
@@ -379,6 +379,12 @@ local function draw_ui()
     local _,native_reason=gate:ready(now(),cfg)
     imgui.text('Native: '..native_reason..' | Restore: '..restore_note)
     imgui.text('Last fallback: '..(last_fallback or 'NONE'))
+    local native=gate.native
+    local monitor_version=native and native.monitor_version
+    if type(monitor_version)~='string' or #monitor_version>16 or not monitor_version:match('^%d+%.%d+%.%d+$') then
+        monitor_version='legacy / unavailable'
+    end
+    imgui.text('Native monitor: '..monitor_version)
     if event_error then imgui.text(event_error) end
     imgui.text('Automatic play log: '..(journal and journal.state or 'WAIT_NATIVE'))
     if config_error then imgui.text(config_error) end

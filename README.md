@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.8-dev (prompt reprojection and head performance)
+## Development version: Explore Lua v0.5.9-dev (state publication recovery)
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -93,7 +93,7 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 bindings. Install the matching external model package separately; model control and obstacle
 avoidance default OFF. The full pack uses exact path/material signatures for Ethan, Chris, Joe,
 Mia, Clancy and Zoe variants. Parts are hidden before first-person fallback and shown only after
-camera readback and clearance checks. Native DLL/protocol remains v0.3.0.
+camera readback and clearance checks. Native DLL is v0.3.1; snapshot protocol remains v0.3.0.
 See [gameplay feedback fixes and limits](docs/GAMEPLAY_FEEDBACK_KO.md),
 [v0.5.0 implementation and evidence](docs/RUNTIME_EXPANSION_KO.md),
 [prior offline work](docs/OFFLINE_PROGRESS_KO.md) and [Ethan asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
@@ -114,3 +114,10 @@ The project's original implementation is MIT licensed; original mod-derived refe
 - Shares read-only head resolutions within one synchronous operation and removes duplicate reflected method searches. All writes still reacquire their target; scopes are discarded on setters, exceptions and reentry. Mock SDK calls per steady frame: 15,251 → 6,631 (two heads, 60 unrelated branches).
 - Adds scalar head callback timing and prompt source/destination evidence to automatic logs.
 - A-button rendering remains unverified on hardware. Native interaction selection and third-person firing-origin correction are still open; aiming continues to fall back to first person. SDK call reduction is not an FPS benchmark.
+
+### v0.5.9-dev
+
+- Keeps native state sampling at 50ms after failed atomic publication. The previous 250ms failure backoff amplified two brief replacement failures into a 550ms gap, exceeding the 350ms camera freshness limit. The same host scenario now has a 150ms publication gap.
+- Adds native publication error counters and precise gate-reset evidence for stationary/walking fallback investigation. No heartbeat or invalid-state checks are relaxed.
+- Includes native DLL v0.3.1, retaining protocol v0.3.0. Replace both installer files; the UI shows the native monitor version.
+- Reproduction injects file replacement failures; it does not prove that every reported in-game switch has this cause.
