@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.1-dev
+## Development version: Explore Lua v0.5.2-dev
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -10,6 +10,7 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
 - Opt-in RT head visibility for eight model families, including separate Mia face/hair ownership.
 - Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
+- Collision fallback uses separate entry/release distances and 0.4 seconds of stable space before recovery.
 - F6 OFF remains effective during native outages, focus loss or an open menu.
 - Bounded camera/model transition events, periodic logs and an offline log summary tool.
 - Bounded same-poll retry for an empty/failed status read; indexed REFramework component arrays.
@@ -21,7 +22,10 @@ displaced interaction prompts/center, hands behind the neck at walls, repeated F
 The supplied v0.5.0 logs record seven invalid-native transitions while obstacle avoidance was OFF,
 and the head controller remained at component discovery. v0.5.1 corrects the array API mismatch and
 retries transient read failures; whether these eliminate the observed symptoms needs game evidence.
-Aiming has not been tested with a gun.
+Aiming has not been tested with a gun. The user reports no benefit from the earlier HUD-camera
+experiment, partial benefit from obstacle avoidance, and continued stationary FP/OTS switching.
+v0.5.2 addresses a reproduced collision-jitter path; the latest switching cause is not confirmed
+without that run's logs. HUD alignment, model occlusion and wall-edge coverage remain open.
 
 Automatic head visibility, obstacle coverage/performance and DLC behavior remain unverified in-game. Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are not implemented. It is not a complete port of the original Cheat Engine script.
 
@@ -60,7 +64,7 @@ bindings. Install the matching external model package separately; model control 
 avoidance default OFF. The full pack uses exact path/material signatures for Ethan, Chris, Joe,
 Mia, Clancy and Zoe variants. Parts are hidden before first-person fallback and shown only after
 camera readback and clearance checks. Native DLL/protocol remains v0.3.0.
-See [v0.5.1 gameplay feedback fixes and limits](docs/GAMEPLAY_FEEDBACK_KO.md),
+See [gameplay feedback fixes and limits](docs/GAMEPLAY_FEEDBACK_KO.md),
 [v0.5.0 implementation and evidence](docs/RUNTIME_EXPANSION_KO.md),
 [prior offline work](docs/OFFLINE_PROGRESS_KO.md) and [Ethan asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
 

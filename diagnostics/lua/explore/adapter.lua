@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.1-dev'
+local VERSION='0.5.2-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -193,10 +193,11 @@ local function transition_context(c,p)
         interact_slot=interact.slot_hex,player_step=gate.player_step,
         camera_id=c and c.id or camera_identity,camera_player_distance=distance,
         last_camera_player_distance=last_camera_distance,update_age_s=now()-update_at,restore=restore_note,
-        native_read=native_read}
+        native_read=native_read,collision_last=collision_report}
 end
 report=function(reason,c,p,target,after)
-    if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION' then
+    if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION'
+        and not reason:match('^WAIT_COLLISION_') then
         obstacle:reset()
     end
     local was_active=state=='ACTIVE' or state=='ENTERING'
@@ -249,22 +250,24 @@ local function on_camera()
     local quat=q and {q.x,q.y,q.z,q.w} or nil
     if not active_since then active_since=t end
     local blend=math.min(1,(t-active_since)/cfg.entry_blend)
-    local target=Core.offset(base,quat,cfg,blend)
+    -- Collision is queried toward the full requested destination. Entry blend
+    -- must not shorten the ray and make the same wall appear/disappear.
+    local target=Core.offset(base,quat,cfg,cfg.collision and 1 or blend)
     if not target then report('WAIT_CAMERA_VALUES',c,base);gate:suspend(state);active_since=nil;return end
-    if blend==0 then report('ENTERING',c,base,base,base);return end
     if cfg.collision then
         local result=physics:cast(base,target)
         local status
         target,status=obstacle:limit(base,target,result,t,
-            gate.session..':'..gate.native.player.generation..':'..c.id,cfg.collision_clearance)
-        collision_report={status=status,query=result}
+            gate.session..':'..gate.native.player.generation..':'..c.id,cfg.collision_clearance,blend)
+        collision_report={status=status,query=result,stabilization=obstacle:status(),lua_clock_s=t}
         if not target then
             active_since=nil;report('WAIT_COLLISION_'..(result.reason or 'UNAVAILABLE'),c,base);return
         end
         if status=='BLOCKED' then report('FIRST_PERSON_COLLISION',c,base);return end
     else
-        obstacle:reset();collision_report={status='DISABLED'}
+        obstacle:reset();collision_report={status='DISABLED',lua_clock_s=t}
     end
+    if blend==0 then report('ENTERING',c,base,base,base);return end
     -- Capture ownership before invoking a setter: even an exception may have mutated.
     pending={id=c.id,base=base,target=target,time=t}
     local ok=pcall(set_position,c,target)
@@ -343,6 +346,10 @@ local function draw_ui()
     changed,value=imgui.checkbox('Earlier HUD camera (experimental)',cfg.early_camera)
     if changed then cfg.early_camera=value;dirty=true end
     imgui.text('Collision: '..collision_report.status)
+    local stability=collision_report.stabilization
+    if stability and stability.blocked then
+        imgui.text('Collision hold: '..stability.hold_reason..' | needs 0.4s stable space')
+    end
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
     for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6},
