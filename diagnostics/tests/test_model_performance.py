@@ -117,3 +117,45 @@ assert(not g:after_apply({1,3,5}))
 assert(#head.material_writes==at_fault,'failed setter must not authorize writes to a now-shared mesh')
 assert(#added.material_writes==0)
 ''')
+
+    def test_sdk_work_budget_with_two_heads_and_sixty_unrelated_branches(self):
+        self.check("""
+attach(rig,node(head_path));for i=1,60 do attach(player,node()) end
+g:configure(true,'s:1',true);assert(g:before_restore());assert(g:after_apply({1,3,5}))
+local cost=model_sdk_calls
+assert(g:before_restore());assert(g:before_restore());assert(g:after_apply({1,3,5}))
+local used=model_sdk_calls-cost
+assert(used<7000,'SDK boundary calls per steady frame: '..used)
+""")
+
+    def test_read_scope_is_discarded_after_exception_and_before_mutation(self):
+        self.check('''
+local b=Ethan.new(sdk);b:set_epoch('s:1')
+local old_id
+local ok=pcall(function() b:with_read_scope(function()
+ old_id=b:read_cached().id;error('abort read scope')
+end) end)
+assert(not ok and b.read_scope==nil)
+local old=head;head=node(head_path);rig.children={};attach(rig,head)
+b:with_read_scope(function()
+ assert(b:read_cached().id~=old_id)
+ assert(not b:write(old_id,true,false),'old identity cannot write replacement')
+end)
+assert(head.visible and old.visible and b.read_scope==nil)
+''')
+
+    def test_callback_timings_count_outer_calls_including_failures(self):
+        self.check('''
+local time=0;g.clock=function() return time end
+assert(g:run(function()
+ time=time+0.002;g:run(function() time=time+0.003;return true end);return true
+end))
+assert(not g:run(function() time=time+0.010;error('abort') end))
+local timing=g:status().timing
+assert(timing and timing.callbacks==2,'nested callbacks must not inflate timing')
+assert(math.abs(timing.total_ms-15)<0.001 and math.abs(timing.max_ms-10)<0.001)
+''')
+
+    def test_sdk_nil_for_missing_method_cannot_truncate_hierarchy(self):
+        for mutation in ["rig.tr.missing.get_Child=true", "head.tr.missing.get_Next=true", "head.mesh.missing.getMesh=true"]:
+            self.check("model_missing_returns_nil=true;"+mutation+";g:configure(true,'s:1',true);assert(not g:before_restore());assert(#model_writes==0)")

@@ -7,7 +7,7 @@ def render(root):
     for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
                         ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
                         ('model/group','ModelGroup'),('explore/physics','Physics'),('explore/obstacle','Obstacle'),
-                        ('explore/probe','Probe')]:
+                        ('explore/probe','Probe'),('explore/prompt','Prompt')]:
         parts.append(f'local {symbol}=(function()\n'+(root/f'lua/{name}.lua').read_text(encoding='utf-8')+'\nend)()\n')
     parts.append((root/'lua/explore/adapter.lua').read_text(encoding='utf-8'))
     return '\n'.join(parts)

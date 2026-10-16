@@ -1,9 +1,12 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.7-dev'
+local VERSION='0.5.8-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
 local physics=Physics.new(sdk)
+local prompt=Prompt.new(sdk)
+local prompt_available=false
+local prompt_context=nil
 local obstacle=Obstacle.new()
 local collision_report={status='DISABLED'}
 local cfg=Core.settings(nil)
@@ -77,7 +80,7 @@ local function camera()
     if not tr then return nil,'WAIT_NO_TRANSFORM' end
     local ty=tr:get_type_definition()
     if not ty or not ty:is_a('via.Transform') then return nil,'WAIT_TRANSFORM_TYPE' end
-    return {id=tostring(cam:get_address())..':'..tostring(tr:get_address()),tr=tr}
+    return {id=tostring(cam:get_address())..':'..tostring(tr:get_address()),tr=tr,cam=cam}
 end
 local function position_of(c)
     local p=c.tr:get_position()
@@ -100,6 +103,7 @@ local function remember_mutation(owned,p)
     if ok and current and current.id==owned.id then owned.target=p end
 end
 local function restore_owned()
+    prompt_context=nil;prompt:configure(false,nil);prompt:restore_all()
     -- Epoch preparation belongs to the model failure boundary too. Core retains
     -- health-invalid native snapshots for reporting; their player may be scalar.
     head_session:run(function()
@@ -216,7 +220,7 @@ report=function(reason,c,p,target,after)
     if not event_ok then event_error='ERROR_EVENT' end
     last_report={status=reason,camera_id=c and c.id or nil,base=p,target=target,after=after,
         restore=restore_note,requested=requested,native=gate.native,settings=cfg,
-        collision=collision_report,lua_clock_s=now()}
+        collision=collision_report,prompt=prompt:status(),lua_clock_s=now()}
 end
 local function on_camera()
     local t=now()
@@ -281,6 +285,15 @@ local function on_camera()
         restore_owned();gate:suspend('WAIT_CAMERA_CHANGED');active_since=nil;report('WAIT_CAMERA_CHANGED');return
     end
     head_session:after_apply(after)
+    -- Copy matrix/pose scalars only. GUI projection failure cannot fault camera recovery.
+    if cfg.prompt_correction and prompt_available then
+        local ok,context=pcall(function()
+            local m=c.cam:call('get_ProjectionMatrix');local projection={}
+            for i=0,3 do local v=m[i];projection[i+1]={v.x,v.y,v.z,v.w} end
+            return {id=c.id,base=base,target=after,rotation=quat,projection=projection,time=t,serial=update_serial}
+        end)
+        if ok then prompt_context=context end
+    end
     report('ACTIVE',c,base,target,after)
 end
 local function on_frame()
@@ -322,7 +335,10 @@ local function on_frame()
         journal:record({kind='sample',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
             requested=requested,state=state,callback_error=callback_error,fault=fault,
             native_now=gate.native,native_read=native_read,camera=last_report,model=head_session:status(),
-            events=trace and trace:stats() or nil,event_error=event_error})
+            events=trace and trace:stats() or nil,event_error=event_error,prompt=prompt:status()})
+        if cfg.prompt_correction then
+            journal:record({kind='prompt',schema=1,session=journal_session,run=run_id,lua_clock_s=t,prompt=prompt:status(true)})
+        end
         -- Scene evidence gets its own bounded record: combining native data,
         -- fractional phase coordinates and materials can exceed 4096 bytes.
         if cfg.ethan_head or phase_probe then
@@ -375,6 +391,9 @@ local function draw_ui()
     if changed then cfg.collision=value;dirty=true end
     changed,value=imgui.checkbox('Earlier HUD camera (experimental)',cfg.early_camera)
     if changed then cfg.early_camera=value;dirty=true end
+    changed,value=imgui.checkbox('Prompt reprojection (experimental)',cfg.prompt_correction)
+    if changed then cfg.prompt_correction=value;dirty=true end
+    imgui.text('Prompt: '..(prompt_available and prompt:status().state or 'WAIT_DRAW_CALLBACK'))
     imgui.text('Collision: '..collision_report.status)
     local stability=collision_report.stabilization
     if stability and stability.blocked then
@@ -400,7 +419,7 @@ local function draw_ui()
     imgui.text('Exploration prototype. Aim/inventory/interaction pause the camera.')
     imgui.text('Install the matching RT head package separately before enabling model mode.')
     imgui.text('Center ray is experimental; camera edges can still clip. F6 OFF for scripted scenes.')
-    imgui.text('Earlier HUD camera tests prompt timing; interaction targeting still has parallax.')
+    imgui.text('Prompt reprojection aligns supported A cursors; interaction selection / firing origins remain native.')
     imgui.text('Logs: reframework/data/RE7_OTS_Explore (play_0 + play_1)')
     imgui.tree_pop()
 end
@@ -458,6 +477,35 @@ if re and type(re.on_pre_application_entry)=='function' then
     local registered,result=pcall(re.on_pre_application_entry,'PrerenderGUI',guarded(on_early_camera))
     early_available=registered and result~=false
     pcall(re.on_pre_application_entry,'BeginRendering',function() observe_phase('render') end)
+end
+-- GUI hooks operate on the final confirmed pose and restore their own screen
+-- control immediately after draw. Unsupported layouts keep the game's cursor.
+if re and type(re.on_pre_gui_draw_element)=='function' and type(re.on_gui_draw_element)=='function' then
+    local post_ok,post_result=pcall(re.on_gui_draw_element,function(element) prompt:post(element) end)
+    local pre_ok,pre_result=pcall(re.on_pre_gui_draw_element,function(element)
+        local ok=pcall(function()
+            if not prompt:is_candidate(element) then return end
+            local context=prompt_context
+            local ready=gate:ready(now(),cfg)
+            local enabled=prompt_available and cfg.prompt_correction and requested and state=='ACTIVE'
+                and context and context.serial==update_serial and ready and not is_menu_open()
+            if enabled then
+                local c=camera();local p=c and position_of(c)
+                local q=c and c.tr:get_rotation()
+                local rotation=q and {q.x,q.y,q.z,q.w}
+                local error=0
+                if Core.vector(rotation,4,2) then
+                    for i=1,4 do error=error+(rotation[i]-context.rotation[i])^2 end
+                else error=1 end
+                enabled=c and c.id==context.id and p and Core.distance(p,context.target)<=0.001 and error<0.000001
+            end
+            prompt:configure(enabled==true,context)
+            prompt:pre(element)
+        end)
+        if not ok then prompt:configure(false,nil);prompt:restore_all() end
+        return true
+    end)
+    prompt_available=post_ok and post_result~=false and pre_ok and pre_result~=false
 end
 register('on_frame',on_frame)
 register('on_draw_ui',draw_ui)

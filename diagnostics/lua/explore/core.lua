@@ -15,7 +15,7 @@ function M.distance(a,b)
 end
 function M.settings(input)
     local c={schema=1,distance=0.9,shoulder=0.25,height=0.15,ethan_head=false,full_model_pack=false,
-        collision=false,collision_clearance=0.12,aim_release_delay=0.5,entry_blend=0.15,early_camera=false}
+        collision=false,collision_clearance=0.12,aim_release_delay=0.5,entry_blend=0.15,early_camera=false,prompt_correction=true}
     if type(input)~='table' or input.schema~=1 then return c end
     for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6},
         {'collision_clearance',0.03,0.3},{'aim_release_delay',0,1.5},{'entry_blend',0.05,0.8}}) do
@@ -26,6 +26,7 @@ function M.settings(input)
     c.full_model_pack=input.full_model_pack==true
     c.collision=input.collision==true
     c.early_camera=input.early_camera==true
+    c.prompt_correction=input.prompt_correction~=false
     return c
 end
 function M.offset(p,q,c,blend)

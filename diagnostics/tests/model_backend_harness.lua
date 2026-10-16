@@ -1,16 +1,20 @@
 -- SDK boundary fake: real Lua backend runs unchanged against this object tree.
 local model_reads,model_writes,model_component_reads=0,{},0
+local model_sdk_calls=0
+local model_missing_returns_nil=false
 local model_hook=nil
 local next_id=1000
 local function managed(kind,methods)
  next_id=next_id+1
  local o={id=next_id,methods=methods or {},missing={}}
- o.get_address=function(self) return self.id end
- o.get_type_definition=function(self) return {
+ o.get_address=function(self) model_sdk_calls=model_sdk_calls+1;return self.id end
+ o.get_type_definition=function(self) model_sdk_calls=model_sdk_calls+1;return {
   is_a=function(_,n) return n==kind end,
-  get_method=function(_,n) return not self.missing[n] and self.methods[n] and {} or nil end,
+  get_method=function(_,n) model_sdk_calls=model_sdk_calls+1;return not self.missing[n] and self.methods[n] and {} or nil end,
   get_parent_type=function() return nil end} end
  o.call=function(self,n,...)
+  model_sdk_calls=model_sdk_calls+1
+  if model_missing_returns_nil and (self.missing[n] or not self.methods[n]) then return nil end
   assert(not self.missing[n] and self.methods[n], 'unsupported method: '..n)
   return self.methods[n](self,...)
  end

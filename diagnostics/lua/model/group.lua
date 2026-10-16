@@ -3,7 +3,7 @@ local Group={}
 Group.__index=Group
 function Group.new(sdk_api,clock)
     return setmetatable({sdk=sdk_api,clock=clock or os.clock,parts={},state='DISABLED',
-        enabled=false,scans=0},Group)
+        enabled=false,scans=0,timing={callbacks=0,total_ms=0,max_ms=0,last_ms=0}},Group)
 end
 function Group:configure(enabled,epoch,full_pack)
     self.enabled=enabled==true;self.current_epoch=epoch
@@ -13,8 +13,14 @@ function Group:run(fn)
     -- Share only a scalar membership check inside this synchronous callback.
     -- Do not carry authorization across engine phases, failures or reentry.
     local previous=self.validation
+    local started=not previous and self.clock() or nil
     self.validation={}
     local ok,result=pcall(fn)
+    if started then
+        local ms=math.max(0,(self.clock()-started)*1000)
+        local t=self.timing;t.callbacks=t.callbacks+1;t.total_ms=t.total_ms+ms
+        t.last_ms=ms;t.max_ms=math.max(t.max_ms,ms)
+    end
     self.validation=previous
     if previous then previous.checked=false end
     if not ok then self.fault='MODEL_CALLBACK_ERROR';self.state=self.fault;return false end
@@ -131,6 +137,8 @@ function Group:status(detail)
     end
     return {enabled=self.enabled,state=self.state,binding=binding,
         diagnostic_kind=diagnostic_kind,diagnostic=detail and self.diagnostic or nil,
-        epoch=self.epoch,family=self.family,instances=#self.parts,parts=parts,search=search}
+        epoch=self.epoch,family=self.family,instances=#self.parts,parts=parts,search=search,
+        timing={callbacks=self.timing.callbacks,total_ms=self.timing.total_ms,
+            max_ms=self.timing.max_ms,last_ms=self.timing.last_ms}}
 end
 return Group

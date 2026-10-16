@@ -1,5 +1,6 @@
 -- Experimental per-part bindings for the supplied RT model packages.
--- Cache scalar routes only; reacquire/validate live objects on every call.
+-- Persist scalar routes only. A synchronous read scope may share a verified target;
+-- it is discarded before/after every setter and on scope exit, including exceptions.
 -- Group callbacks share a bounded membership scan across material writes.
 -- Standalone writes and failed-group cleanup still scan the complete tree.
 local Ethan={}
@@ -30,7 +31,13 @@ local function method(o,name)
     reject('WAIT_MODEL_METHOD:'..name)
 end
 local function call(o,name,...)
-    method(o,name);return o:call(name,...)
+    -- A non-nil result proves availability without a second reflection lookup.
+    -- REFramework also returns nil for MISSING methods: verify nil results so
+    -- an absent hierarchy getter cannot silently truncate discovery.
+    if not o then reject('WAIT_MODEL_OBJECT') end
+    local value=o:call(name,...)
+    if value==nil then method(o,name) end
+    return value
 end
 local function address(o)
     if not o then reject('WAIT_MODEL_OBJECT') end
@@ -301,18 +308,42 @@ function Ethan.discover(sdk_api,epoch,ethan_only)
         type(result)=='table' and result.diagnostic or nil end
     return result
 end
+function Ethan:discard_read()
+    if self.read_scope then self.read_scope.target=nil end
+end
+function Ethan:with_read_scope(fn)
+    local previous=self.read_scope
+    self.read_scope={}
+    local ok,result=pcall(fn)
+    self.read_scope=previous
+    self:discard_read() -- reentry cannot leave its caller's snapshot authorized
+    if not ok then error(result,0) end
+    return result
+end
+local function remember_read(self,target)
+    if self.read_scope then self.read_scope.target=target end
+    return target
+end
+local function mutate(self,obj,name,...)
+    self:discard_read()
+    local ok,result=pcall(call,obj,name,...)
+    self:discard_read() -- a setter can reenter or throw after a partial mutation
+    if not ok then error(result,0) end
+    return result
+end
 function Ethan:set_epoch(epoch)
     local next_epoch=type(epoch)=='string' and #epoch>0 and #epoch<=110 and epoch or nil
-    if next_epoch~=self.epoch then self.cache=nil;self.diagnostic=nil end
+    if next_epoch~=self.epoch then self.cache=nil;self.diagnostic=nil;self:discard_read() end
     self.epoch=next_epoch
 end
 function Ethan:resolve(allow_cache)
+    if allow_cache and self.read_scope and self.read_scope.target then return self.read_scope.target end
     if allow_cache and self.cache then
         local ok,target=pcall(cached_resolve,self)
         if ok and target then
             self.cached_reads=self.cached_reads+1;self.diagnostic=nil
             self.target_info=target.info
-            self.note='MATCHED_'..self.profile.name:upper()..'_RT';return target
+            self.note='MATCHED_'..self.profile.name:upper()..'_RT';return remember_read(self,target)
         end
     end
     self.cache=nil;self.full_scans=self.full_scans+1
@@ -327,7 +358,7 @@ function Ethan:resolve(allow_cache)
     self.target_info=target.info
     self.diagnostic=nil
     self.note='MATCHED_'..self.profile.name:upper()..'_RT'
-    return target
+    return remember_read(self,target)
 end
 local function read_draw(self,allow_cache)
     local t=self:resolve(allow_cache)
@@ -368,6 +399,7 @@ function Ethan:read_material(name)
     return {id=t.id,visible=value}
 end
 function Ethan:write_material(id,name,expected,wanted,fresh_group)
+    self:discard_read()
     if not self.profile.set[name] or type(expected)~='boolean' or type(wanted)~='boolean' then return false end
     local verified=self.validate_group and self.validate_group(fresh_group)
     if wanted and verified==false then return false end
@@ -375,16 +407,17 @@ function Ethan:write_material(id,name,expected,wanted,fresh_group)
     if not t or t.id~=id then return false end
     local index=material_index(t,name)
     if index==nil or call(t.mesh,'getMaterialsEnable',index)~=expected then return false end
-    call(t.mesh,'setMaterialsEnable',index,wanted)
+    mutate(self,t.mesh,'setMaterialsEnable',index,wanted)
     return true
 end
 function Ethan:write(id,expected,wanted,fresh_group)
+    self:discard_read()
     if type(expected)~='boolean' or type(wanted)~='boolean' then return false end
     local verified=self.validate_group and self.validate_group(fresh_group)
     if wanted and verified==false then return false end
     local t=self:resolve(verified==true)
     if not t or t.id~=id or call(t.go,'get_DrawSelf')~=expected then return false end
-    call(t.go,'set_DrawSelf',wanted)
+    mutate(self,t.go,'set_DrawSelf',wanted)
     return true
 end
 function Ethan:head_position(id)

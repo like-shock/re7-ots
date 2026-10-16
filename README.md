@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.7-dev (head-control performance)
+## Development version: Explore Lua v0.5.8-dev (prompt reprojection and head performance)
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -107,3 +107,10 @@ The first import preserves the shipped v0.3.0 runtime source. Development tests 
 Original Third-Person OTS Script: cheezeit / goldedtoad. REFramework: praydog and contributors. Model authors and original acknowledgements are preserved in [ORIGINAL_CREDITS.txt](diagnostics/ORIGINAL_CREDITS.txt). See [NOTICE](diagnostics/NOTICE.md).
 
 The project's original implementation is MIT licensed; original mod-derived reference data and external model assets retain their own terms. The game, REFramework binaries, original CT archive and model assets are not redistributed in this repository.
+
+### v0.5.8-dev
+
+- Reprojects the validated RE7 interaction cursor from its world anchor using the confirmed final camera pose. Defaults ON; unknown layouts keep their original prompt. GUI writes are scoped to draw and restored afterward.
+- Shares read-only head resolutions within one synchronous operation and removes duplicate reflected method searches. All writes still reacquire their target; scopes are discarded on setters, exceptions and reentry. Mock SDK calls per steady frame: 15,251 → 6,631 (two heads, 60 unrelated branches).
+- Adds scalar head callback timing and prompt source/destination evidence to automatic logs.
+- A-button rendering remains unverified on hardware. Native interaction selection and third-person firing-origin correction are still open; aiming continues to fall back to first person. SDK call reduction is not an FPS benchmark.

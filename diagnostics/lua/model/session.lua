@@ -13,7 +13,9 @@ function HeadSession:invalidate_group()
     if self.backend.invalidate_group then self.backend.invalidate_group() end
 end
 function HeadSession:run(fn)
-    local ok,result=pcall(fn)
+    local ok,result
+    if self.backend.with_read_scope then ok,result=pcall(self.backend.with_read_scope,self.backend,fn)
+    else ok,result=pcall(fn) end
     if not ok or result==false then self:invalidate_group() end
     if not ok then self.fault='MODEL_CALLBACK_ERROR';self.state=self.fault;return false end
     return result
