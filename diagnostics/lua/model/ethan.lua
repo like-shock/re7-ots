@@ -3,6 +3,7 @@
 -- Every write still scans the complete bounded tree to reject new duplicates.
 local Ethan={}
 Ethan.__index=Ethan
+local MAX_ETHAN_INSTANCES=4
 local PROFILES={
     chris={family='chris',path='ch8/character/player/pl1000/pl1002/pl1002.mesh',materials={'em7350_face__Character_Default'}},
     joe={family='joe',path='ch9/character/player/pl9000/pl9002/pl9002.mesh',materials={'pl9050_face','pl9050_hair'}},
@@ -108,7 +109,9 @@ local function candidate(self,tr,go,root_id)
             local resource=call(component,'getMesh')
             local profile=resource and BY_PATH[resource_path(resource)]
             components[meshes]={mesh=component,profile=profile and profile.name or 'OTHER'}
-            if profile and (self.discover_only or profile==self.profile) then
+            local selected=profile and (self.discover_only and (not self.only_profile or profile==self.only_profile)
+                or not self.discover_only and profile==self.profile)
+            if selected then
                 signature(component,profile);matching={mesh=component,resource=resource,profile=profile}
             end
         end
@@ -146,7 +149,7 @@ local function duplicate_targets(first,second)
 end
 local function full_resolve(self)
     local root,root_id=player_root(self)
-    local visited,count,target,route,found_parts={},0,nil,{},{}
+    local visited,count,target,route,found_parts,meshes={},0,nil,{},{},{}
     local function visit(tr,parent,depth)
         count=count+1
         if count>128 or depth>12 then reject('WAIT_MODEL_TREE_LIMIT') end
@@ -157,11 +160,23 @@ local function full_resolve(self)
         if parent then -- Never select the player root.
             local found=candidate(self,tr,go,root_id)
             if found then
-                local previous=not self.discover_only and target or found_parts[found.profile.name]
-                if previous then reject('WAIT_MODEL_AMBIGUOUS',duplicate_targets(previous,found)) end
-                found_parts[found.profile.name]=found
-                target=found;target.route={}
-                for i=1,depth do target.route[i]=route[i] end
+                local name=found.profile.name
+                local instances=found_parts[name] or {}
+                if #instances>0 and not (self.allow_instances and name=='ethan') then
+                    reject('WAIT_MODEL_AMBIGUOUS',duplicate_targets(instances[1],found))
+                end
+                if #instances>=MAX_ETHAN_INSTANCES then
+                    reject('WAIT_MODEL_INSTANCE_LIMIT',{kind='ETHAN_INSTANCE_LIMIT',limit=MAX_ETHAN_INSTANCES})
+                end
+                local mesh_id=address(found.mesh)
+                if meshes[mesh_id] then
+                    local d=duplicate_targets(meshes[mesh_id],found);d.kind='SHARED_HEAD_MESH'
+                    reject('WAIT_MODEL_AMBIGUOUS',d)
+                end
+                meshes[mesh_id]=found
+                instances[#instances+1]=found;found_parts[name]=instances
+                found.route={};for i=1,depth do found.route[i]=route[i] end
+                if not self.target_id or found.id==self.target_id then target=found end
             end
         end
         local child,index=call(tr,'get_Child'),1
@@ -171,18 +186,24 @@ local function full_resolve(self)
         end
     end
     visit(root,nil,0)
-    if not target then reject('WAIT_MODEL_NOT_FOUND') end
+    if not target then reject(self.target_id and 'WAIT_MODEL_TARGET' or 'WAIT_MODEL_NOT_FOUND') end
     if self.discover_only then
-        local family,parts,identities=nil,{},{}
-        for name,t in pairs(found_parts) do
-            if family and family~=t.profile.family then reject('WAIT_MODEL_MIXED_FAMILY') end
-            family=t.profile.family;parts[#parts+1]=name;identities[#identities+1]=name..':'..t.id
+        local family,parts,identities,targets=nil,{},{},{}
+        for name,instances in pairs(found_parts) do
+            table.sort(instances,function(a,b) return a.id<b.id end)
+            for i,t in ipairs(instances) do
+                if family and family~=t.profile.family then reject('WAIT_MODEL_MIXED_FAMILY') end
+                family=t.profile.family
+                local key=i==1 and name or name..'_'..i
+                parts[#parts+1]=key;identities[#identities+1]=name..':'..t.id
+                targets[key]={profile=name,id=t.id,owner=address(t.go),mesh=address(t.mesh),copies=#instances}
+            end
         end
         for name,p in pairs(PROFILES) do
             if p.family==family and not found_parts[name] then reject('WAIT_MODEL_COMPANION') end
         end
         table.sort(parts);table.sort(identities)
-        return {family=family,parts=parts,identity=table.concat(identities,'|')}
+        return {family=family,parts=parts,targets=targets,identity=table.concat(identities,'|')}
     end
     return target
 end
@@ -204,12 +225,16 @@ local function cached_resolve(self)
     local target=candidate(self,tr,node_owner(tr,nil),root_id)
     return target and target.id==cached.id and target or nil
 end
-function Ethan.new(sdk_api,profile_name)
+function Ethan.new(sdk_api,profile_name,binding)
     local profile=PROFILES[profile_name or 'ethan'];assert(profile,'unknown RT profile')
-    return setmetatable({sdk=sdk_api,profile=profile,note='WAIT_MODEL_NATIVE',full_scans=0,cached_reads=0},Ethan)
+    return setmetatable({sdk=sdk_api,profile=profile,note='WAIT_MODEL_NATIVE',full_scans=0,cached_reads=0,
+        target_id=binding and binding.id or nil,allow_instances=binding~=nil,
+        preserve_draw=binding and binding.copies>1 or false,
+        target_info=binding and {owner=binding.owner,mesh=binding.mesh} or nil},Ethan)
 end
-function Ethan.discover(sdk_api,epoch)
+function Ethan.discover(sdk_api,epoch,ethan_only)
     local b=Ethan.new(sdk_api);b:set_epoch(epoch);b.discover_only=true
+    b.only_profile=ethan_only and PROFILES.ethan or nil;b.allow_instances=true
     local ok,result=pcall(full_resolve,b)
     if not ok then return nil,type(result)=='table' and result.reason or 'WAIT_MODEL_API',
         type(result)=='table' and result.diagnostic or nil end

@@ -81,13 +81,15 @@ end
         for full in ['true','false']:
             with self.subTest(full_pack=full):
                 self.check('''
-attach(rig,node(head_path));g:configure(true,'s:1','''+full+''')
+g:configure(true,'s:1','''+full+''');assert(g:before_restore())
+local writes=#model_writes
+head.components[2]=node('other/body.mesh').mesh
 assert(not g:before_restore());local s=g:status(true)
 assert(s.binding=='WAIT_MODEL_AMBIGUOUS','family name is not proof of a match')
-assert(s.diagnostic_kind=='MULTIPLE_HEAD_OBJECTS')
+assert(s.diagnostic_kind=='MULTIPLE_MESH_COMPONENTS')
 local d=s.diagnostic or s.parts.ethan.diagnostic
-assert(d and #d.targets==2 and d.kind=='MULTIPLE_HEAD_OBJECTS')
-assert(#model_writes==0)
+assert(d and d.mesh_count==2 and d.kind=='MULTIPLE_MESH_COMPONENTS')
+assert(#model_writes==writes,'new ambiguity cannot authorize another write')
 ''')
 
     def test_ambiguity_detail_reaches_bounded_automatic_logs_without_writes(self):

@@ -16,7 +16,7 @@ function Group:run(fn)
 end
 function Group:valid_group()
     self.scans=self.scans+1
-    local group,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch)
+    local group,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch,not self.mode)
     self.diagnostic=diagnostic
     if not group or group.identity~=self.identity then
         self.fault=group and 'TARGET_CHANGED' or reason;return false
@@ -54,18 +54,16 @@ function Group:before_restore()
         end
         if #self.parts==0 then
             if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';self.diagnostic=nil;return false end
-            local names={'ethan'}
-            if self.mode then
-                if self.retry_at and self.clock()<self.retry_at then return false end
-                self.retry_at=self.clock()+0.5;self.scans=self.scans+1
-                local found,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch)
-                self.diagnostic=diagnostic
-                if not found then self.state=reason;return false end
-                names=found.parts;self.identity=found.identity;self.family=found.family
-            else self.family='ethan' end
-            for _,name in ipairs(names) do
-                local backend=Ethan.new(self.sdk,name)
-                if self.mode then backend.validate_show=function() return self:valid_group() end end
+            if self.retry_at and self.clock()<self.retry_at then return false end
+            self.retry_at=self.clock()+0.5;self.scans=self.scans+1
+            local found,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch,not self.mode)
+            self.diagnostic=diagnostic
+            if not found then self.state=reason;return false end
+            self.identity=found.identity;self.family=found.family
+            for _,name in ipairs(found.parts) do
+                local binding=found.targets[name]
+                local backend=Ethan.new(self.sdk,binding.profile,binding)
+                backend.validate_show=function() return self:valid_group() end
                 self.parts[#self.parts+1]={name=name,session=HeadSession.new(backend)}
             end
         end
@@ -77,18 +75,19 @@ end
 function Group:after_apply(position)
     return self:run(function()
         if not self.enabled or not self.current_epoch or #self.parts==0 or self.fault then return false end
-        if self.mode and not self:valid_group() then self:hide_all();self.state=self.fault;return false end
-        local reason
+        if not self:valid_group() then self:hide_all();self.state=self.fault;return false end
+        local reason,baseline=nil,false
         for _,part in ipairs(self.parts) do
             local s=part.session
-            if not s:after_apply(position) or s.state~='VISIBLE' then
+            if not s:after_apply(position) or (s.state~='VISIBLE' and s.state~='RESTORED_BASELINE') then
                 reason=s.state
                 if s.fault or (s.controller and s.controller.fault) then self.fault=reason end
                 break
             end
+            baseline=baseline or s.state=='RESTORED_BASELINE'
         end
         if reason then self:hide_all();self.state=self.fault or reason;return false end
-        self.state='VISIBLE';return true
+        self.state=baseline and 'RESTORED_BASELINE' or 'VISIBLE';return true
     end)
 end
 function Group:status(detail)
@@ -97,7 +96,8 @@ function Group:status(detail)
     local diagnostic_kind=self.diagnostic and self.diagnostic.kind or nil
     for _,part in ipairs(self.parts) do
         local s=part.session:status(detail)
-        parts[part.name]={state=s.state,binding=s.binding,materials=s.materials,draw=s.draw,diagnostic=s.diagnostic}
+        parts[part.name]={state=s.state,binding=s.binding,materials=s.materials,draw=s.draw,diagnostic=s.diagnostic,
+            target=s.target,original_draw=s.original_draw}
         if not self.fault and s.binding:sub(1,8)~='MATCHED_' then binding=s.binding end
         diagnostic_kind=diagnostic_kind or s.diagnostic_kind
         search.full_scans=search.full_scans+s.search.full_scans
@@ -105,6 +105,6 @@ function Group:status(detail)
     end
     return {enabled=self.enabled,state=self.state,binding=binding,
         diagnostic_kind=diagnostic_kind,diagnostic=detail and self.diagnostic or nil,
-        epoch=self.epoch,family=self.family,parts=parts,search=search}
+        epoch=self.epoch,family=self.family,instances=#self.parts,parts=parts,search=search}
 end
 return Group

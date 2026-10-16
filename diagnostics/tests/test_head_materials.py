@@ -178,8 +178,10 @@ local encode=(function()
 end)()
 json.dump_string=function(r)
  local line=encode(r);max_line=math.max(max_line,#line+1)
- if r.kind=='scene_detail' and r.model and r.model.parts.mia2100 then
+ if r.kind=='model_part' and r.model and r.model.parts.mia2100 then
   detail_seen=r.model.parts.mia2100.materials.em2050_Skin_Mia~=nil
+ end
+ if r.kind=='scene_detail' then
   local p=r.phase_probe
   if p and p.player and p.player.hands and p.player.hands.status=='OK'
    and p.phases.render and p.phases.render.joint.status=='OK' then phase_seen=true end

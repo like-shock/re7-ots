@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.4-dev'
+local VERSION='0.5.5-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -342,6 +342,13 @@ local function on_frame()
                     journal:record({kind='model_binding',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
                         model=binding})
                 end
+                -- Per-instance material evidence has its own row, so additional
+                -- verified head copies cannot overflow fractional phase data.
+                for name,part in pairs(model.parts) do
+                    journal:record({kind='model_part',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
+                        model={epoch=model.epoch,parts={[name]=part}}})
+                    model.parts[name]={state=part.state,binding=part.binding}
+                end
             end
             journal:record({kind='scene_detail',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
                 model=model,phase_probe=phase_probe})
@@ -375,6 +382,7 @@ local function draw_ui()
     end
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
+    imgui.text('Head instances: '..tostring(model.instances))
     if model.diagnostic_kind then imgui.text('Head binding detail: '..model.diagnostic_kind) end
     for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6},
         {'collision_clearance','Wall clearance',0.03,0.3},
