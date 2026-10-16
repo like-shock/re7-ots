@@ -1,6 +1,7 @@
 -- Experimental per-part bindings for the supplied RT model packages.
--- Cache scalar routes for reads only; reacquire/validate objects on every call.
--- Every write still scans the complete bounded tree to reject new duplicates.
+-- Cache scalar routes only; reacquire/validate live objects on every call.
+-- Group callbacks share a bounded membership scan across material writes.
+-- Standalone writes and failed-group cleanup still scan the complete tree.
 local Ethan={}
 Ethan.__index=Ethan
 local MAX_ETHAN_INSTANCES=4
@@ -341,8 +342,8 @@ local function read_draw(self,allow_cache)
     return {id=t.id,visible=value}
 end
 function Ethan:read() return read_draw(self,false) end
--- The visibility lifecycle may use this read because every mutation below
--- independently rechecks uniqueness. Standalone read() keeps its full-scan contract.
+-- Every mutation revalidates its target. Group membership is checked at callback
+-- boundaries; standalone read()/write() keep their full-scan contract.
 function Ethan:read_cached() return read_draw(self,true) end
 function Ethan:material_names()
     local names={};for i,name in ipairs(self.profile.materials) do names[i]=name end
@@ -366,20 +367,22 @@ function Ethan:read_material(name)
     if type(value)~='boolean' then self.note='WAIT_MODEL_MATERIAL_ENABLE_TYPE';return nil end
     return {id=t.id,visible=value}
 end
-function Ethan:write_material(id,name,expected,wanted)
+function Ethan:write_material(id,name,expected,wanted,fresh_group)
     if not self.profile.set[name] or type(expected)~='boolean' or type(wanted)~='boolean' then return false end
-    if wanted and self.validate_show and not self.validate_show() then return false end
-    local t=self:resolve(false)
+    local verified=self.validate_group and self.validate_group(fresh_group)
+    if wanted and verified==false then return false end
+    local t=self:resolve(verified==true)
     if not t or t.id~=id then return false end
     local index=material_index(t,name)
     if index==nil or call(t.mesh,'getMaterialsEnable',index)~=expected then return false end
     call(t.mesh,'setMaterialsEnable',index,wanted)
     return true
 end
-function Ethan:write(id,expected,wanted)
+function Ethan:write(id,expected,wanted,fresh_group)
     if type(expected)~='boolean' or type(wanted)~='boolean' then return false end
-    if wanted and self.validate_show and not self.validate_show() then return false end
-    local t=self:resolve(false)
+    local verified=self.validate_group and self.validate_group(fresh_group)
+    if wanted and verified==false then return false end
+    local t=self:resolve(verified==true)
     if not t or t.id~=id or call(t.go,'get_DrawSelf')~=expected then return false end
     call(t.go,'set_DrawSelf',wanted)
     return true

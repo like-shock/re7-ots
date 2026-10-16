@@ -10,15 +10,28 @@ function Group:configure(enabled,epoch,full_pack)
     self.requested_mode=full_pack==true
 end
 function Group:run(fn)
+    -- Share only a scalar membership check inside this synchronous callback.
+    -- Do not carry authorization across engine phases, failures or reentry.
+    local previous=self.validation
+    self.validation={}
     local ok,result=pcall(fn)
+    self.validation=previous
+    if previous then previous.checked=false end
     if not ok then self.fault='MODEL_CALLBACK_ERROR';self.state=self.fault;return false end
     return result
 end
-function Group:valid_group()
+function Group:valid_group(fresh)
+    local v=self.validation
+    if not fresh and v and v.checked and v.epoch==self.current_epoch
+        and v.mode==self.mode and v.identity==self.identity then return v.valid end
     self.scans=self.scans+1
     local group,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch,not self.mode)
     self.diagnostic=diagnostic
-    if not group or group.identity~=self.identity then
+    local valid=group~=nil and group.identity==self.identity
+    if v then
+        v.checked=true;v.valid=valid;v.epoch=self.current_epoch;v.mode=self.mode;v.identity=self.identity
+    end
+    if not valid then
         self.fault=group and 'TARGET_CHANGED' or reason;return false
     end
     return true
@@ -63,7 +76,17 @@ function Group:before_restore()
             for _,name in ipairs(found.parts) do
                 local binding=found.targets[name]
                 local backend=Ethan.new(self.sdk,binding.profile,binding)
-                backend.validate_show=function() return self:valid_group() end
+                backend.validate_group=function(fresh)
+                    -- A temporary native outage still permits owned hiding via
+                    -- the backend's previous epoch, without latching a group fault.
+                    if not self.current_epoch then return false end
+                    -- Baseline release is infrequent and keeps fresh per-write
+                    -- validation, including retries of closed controllers.
+                    return self:valid_group(fresh)
+                end
+                backend.invalidate_group=function()
+                    if self.validation then self.validation.checked=false end
+                end
                 self.parts[#self.parts+1]={name=name,session=HeadSession.new(backend)}
             end
         end
@@ -87,6 +110,9 @@ function Group:after_apply(position)
             baseline=baseline or s.state=='RESTORED_BASELINE'
         end
         if reason then self:hide_all();self.state=self.fault or reason;return false end
+        -- Setters may invoke other hooks. Check the complete membership again
+        -- before reporting a visible group; roll back owned parts on a change.
+        if not self:valid_group(true) then self:hide_all();self.state=self.fault;return false end
         self.state=baseline and 'RESTORED_BASELINE' or 'VISIBLE';return true
     end)
 end

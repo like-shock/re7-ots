@@ -9,8 +9,12 @@ function HeadSession:configure(enabled,epoch)
     self.enabled=enabled==true
     self.current_epoch=type(epoch)=='string' and epoch or nil
 end
+function HeadSession:invalidate_group()
+    if self.backend.invalidate_group then self.backend.invalidate_group() end
+end
 function HeadSession:run(fn)
     local ok,result=pcall(fn)
+    if not ok or result==false then self:invalidate_group() end
     if not ok then self.fault='MODEL_CALLBACK_ERROR';self.state=self.fault;return false end
     return result
 end
@@ -25,6 +29,7 @@ function HeadSession:material_change(show,release)
         elseif show and part.original==true then ok=c:after_camera_apply(true)
         else ok=c:before_camera_restore() end
         if not ok then
+            self:invalidate_group()
             success=false;reason=reason or ('MATERIAL_'..part.name..':'..c.state)
             if c.fault then self.fault=self.fault or reason end
         end
@@ -50,12 +55,14 @@ function HeadSession:prepare()
     if not self.enabled then self.state='DISABLED';return nil end
     if not self.controller then
         if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';return nil end
-        self.controller=Visibility.new({read=function()
+        local controller
+        controller=Visibility.new({read=function()
             local s=b:read_cached()
             if s and self.original_draw==nil then self.original_draw=s.visible end
             return s
         end,
-            write=function(id,expected,wanted) return b:write(id,expected,wanted) end})
+            write=function(id,expected,wanted) return b:write(id,expected,wanted,controller.closed) end})
+        self.controller=controller
         self.materials={}
         for _,name in ipairs(b:material_names()) do
             local part={name=name}
@@ -63,7 +70,9 @@ function HeadSession:prepare()
                 local s=b:read_material(name)
                 if s and part.original==nil then part.original=s.visible end
                 return s
-            end,write=function(id,expected,wanted) return b:write_material(id,name,expected,wanted) end})
+            end,write=function(id,expected,wanted)
+                return b:write_material(id,name,expected,wanted,part.controller.closed)
+            end})
             self.materials[#self.materials+1]=part
         end
     end
@@ -92,6 +101,7 @@ function HeadSession:after_apply(camera_position)
         local head=c.identity and self.backend:head_position(c.identity)
         if not head or not Core.vector(camera_position,3,1000000)
             or Core.distance(head,camera_position)<0.60 then
+            self:invalidate_group()
             local materials_ok,reason=self:material_change(false,false)
             local ok=c:before_camera_restore()
             self.state=self.fault or reason or c.fault or (head and 'HIDDEN_NEAR_CAMERA' or 'WAIT_HEAD_POSITION')
@@ -105,6 +115,7 @@ function HeadSession:after_apply(camera_position)
         local materials_ok,reason=false,nil
         if ok then materials_ok,reason=self:material_change(true,false) end
         if not ok or not materials_ok then
+            self:invalidate_group()
             self:material_change(false,false);c:before_camera_restore()
         end
         self.state=self.fault or reason or (ok and materials_ok and self.backend.preserve_draw and 'RESTORED_BASELINE') or c.state

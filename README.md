@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.6-dev (head target reacquisition)
+## Development version: Explore Lua v0.5.7-dev (head-control performance)
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -13,6 +13,7 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 - Independently hide up to four verified Ethan head instances; restore each copy’s original display values in third person.
 - Identify render targets by their live components, independently of temporary resource/joint getter objects.
 - Use a bounded, owner-checked component chain when an array result lacks the indexed SDK API.
+- Share group validation within each callback instead of scanning the entire tree for every material write.
 - Bounded automatic evidence distinguishes multiple head objects from multiple mesh components and repeated references.
 - Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
 - Collision fallback uses separate entry/release distances and 0.4 seconds of stable space before recovery.
@@ -31,7 +32,7 @@ Aiming has not been tested with a gun. The user reports no benefit from the earl
 experiment, partial benefit from obstacle avoidance, and continued stationary FP/OTS switching.
 v0.5.2 addresses a reproduced collision-jitter path; the latest switching cause is not confirmed
 without that run's logs. HUD alignment, model occlusion and wall-edge coverage remain open.
-The user still reports floating facial features in first person. The supplied v0.5.3 logs show
+Before v0.5.6 the user reported floating facial features in first person. The supplied v0.5.3 logs show
 model selection blocked by `WAIT_MODEL_AMBIGUOUS`; material hiding never acquired a target.
 v0.5.4 runtime diagnostics consistently identify two distinct verified Ethan head objects.
 v0.5.5 removes the single-Ethan-head assumption in group discovery and binds each verified copy
@@ -44,10 +45,19 @@ Most part records show `WAIT_MODEL_TARGET`, with intermittent `COMPONENT_ARRAY_A
 v0.5.6 removes resource-holder/joint getter addresses from render ownership identity while retaining
 the exact path, material and joint-owner checks. It also validates the complete component chain
 when indexed array access is unavailable. Fresh-wrapper and array-access failures are reproduced
-offline; the logs do not identify which old identity field changed. Actual head hiding remains
-unverified in-game. Object names and getter addresses now provide additional diagnostic evidence.
+offline; the logs do not identify which old identity field changed. Object names and getter
+addresses now provide additional diagnostic evidence.
 
-Automatic head visibility, obstacle coverage/performance and DLC behavior remain unverified in-game. Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are not implemented. It is not a complete port of the original Cheat Engine script.
+The user confirms facial remnants disappear with `RT head model (experimental)` enabled, but
+reports severe third-person slowdown that clears in first person. v0.5.7 removes repeated group
+scans from each material write while preserving per-write target validation, value comparisons,
+readbacks and hiding before camera restoration. A final group scan rejects changes during showing.
+Release writes keep fresh checks; a failed channel invalidates authorization before further writes.
+In 100 simulated steady frames with two heads and 60 unrelated nodes, full scans fall from 37 to
+3 per frame and component enumerations from 2,393 to 275. These are code-path counts, not game FPS.
+Steam Deck speed improvement, shadow roles, obstacle coverage and DLC behavior remain unverified.
+Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are
+not implemented. It is not a complete port of the original Cheat Engine script.
 
 ## 설치 / 사용
 
