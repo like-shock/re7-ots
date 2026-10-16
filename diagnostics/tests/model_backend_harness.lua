@@ -18,7 +18,7 @@ local function managed(kind,methods)
 end
 local materials={'pl0050_face','pl0050_eye','pl0050_hair','pl0050_eye_tear','pl0050_eye_shadow'}
 local function node(path)
- local n={children={},components={},visible=true,position={1,3,3}}
+ local n={children={},components={},visible=true,position={1,3,3},material_enabled={},material_writes={}}
  n.go=managed('via.GameObject',{
   get_Transform=function() return n.tr end,
   get_Components=function() model_component_reads=model_component_reads+1;return {
@@ -26,6 +26,7 @@ local function node(path)
    get_element=function(_,i) assert(i>=0 and i<#n.components);return n.components[i+1] end,
    get_elements=function() error('SystemArray vector must not be assumed to be a Lua table') end} end,
   get_DrawSelf=function() return n.visible end,
+  get_Draw=function() return n.visible end,
   set_DrawSelf=function(_,v)
    if model_hook then model_hook(n,v) end
    model_writes[#model_writes+1]={node=n,value=v}
@@ -51,7 +52,19 @@ local function node(path)
   n.mesh=managed('via.render.Mesh',{
    getMesh=function() return n.resource end,
    get_MaterialNum=function() return #n.materials end,
-   getMaterialName=function(_,i) return n.materials[i+1] end})
+   getMaterialName=function(_,i) return n.materials[i+1] end,
+   getMaterialsEnable=function(_,i)
+    assert(i>=0 and i<#n.materials)
+    return n.material_enabled[n.materials[i+1]]~=false
+   end,
+   setMaterialsEnable=function(_,i,v)
+    assert(i>=0 and i<#n.materials and type(v)=='boolean')
+    local name=n.materials[i+1]
+    if n.material_hook then n.material_hook(name,v) end
+    n.material_writes[#n.material_writes+1]={name=name,value=v}
+    if not n.ignore_material then n.material_enabled[name]=v end
+    if n.throw_material then error('material setter exception') end
+   end})
   n.components={n.mesh}
  end
  return n

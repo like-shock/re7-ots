@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.2-dev'
+local VERSION='0.5.3-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -321,8 +321,14 @@ local function on_frame()
         last_log=t
         journal:record({kind='sample',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
             requested=requested,state=state,callback_error=callback_error,fault=fault,
-            native_now=gate.native,native_read=native_read,camera=last_report,model=head_session:status(),phase_probe=phase_probe,
+            native_now=gate.native,native_read=native_read,camera=last_report,model=head_session:status(),
             events=trace and trace:stats() or nil,event_error=event_error})
+        -- Scene evidence gets its own bounded record: combining native data,
+        -- fractional phase coordinates and materials can exceed 4096 bytes.
+        if cfg.ethan_head or phase_probe then
+            journal:record({kind='scene_detail',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
+                model=cfg.ethan_head and head_session:status(true) or nil,phase_probe=phase_probe})
+        end
     end
 end
 local function draw_ui()

@@ -113,7 +113,7 @@ local function candidate(self,tr,go,root_id)
         reject('WAIT_MODEL_HEAD_JOINT')
     end
     method(joint,'get_Position')
-    return {go=go,joint=joint,profile=matching.profile,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
+    return {go=go,mesh=matching.mesh,joint=joint,profile=matching.profile,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
         ..':'..address(matching.mesh)..':'..address(matching.resource)..':'..address(joint)}
 end
 local function full_resolve(self)
@@ -214,12 +214,49 @@ local function read_draw(self,allow_cache)
     if not t then return nil end
     local value=call(t.go,'get_DrawSelf')
     if type(value)~='boolean' then self.note='WAIT_MODEL_DRAW_TYPE';return nil end
+    -- Optional evidence only: DrawSelf is a request and can differ from Draw.
+    -- Neither getter proves the final pixels; unsupported Draw must not fault.
+    local ok,draw=pcall(call,t.go,'get_Draw')
+    self.draw={draw_self=value,effective_draw=ok and type(draw)=='boolean' and draw or nil}
+    if ok and draw==false then self.draw.effective_draw=false end
     return {id=t.id,visible=value}
 end
 function Ethan:read() return read_draw(self,false) end
 -- The visibility lifecycle may use this read because every mutation below
 -- independently rechecks uniqueness. Standalone read() keeps its full-scan contract.
 function Ethan:read_cached() return read_draw(self,true) end
+function Ethan:material_names()
+    local names={};for i,name in ipairs(self.profile.materials) do names[i]=name end
+    return names
+end
+local function material_index(target,name)
+    -- Resolve the current index by name; material order can change without a
+    -- resource/owner change. Signature validation still requires the exact set.
+    method(target.mesh,'getMaterialsEnable');method(target.mesh,'setMaterialsEnable')
+    for i=0,#target.profile.materials-1 do
+        if call(target.mesh,'getMaterialName',i)==name then return i end
+    end
+end
+function Ethan:read_material(name)
+    if not self.profile.set[name] then return nil end
+    local t=self:resolve(true)
+    if not t then return nil end
+    local index=material_index(t,name)
+    if index==nil then return nil end
+    local value=call(t.mesh,'getMaterialsEnable',index)
+    if type(value)~='boolean' then self.note='WAIT_MODEL_MATERIAL_ENABLE_TYPE';return nil end
+    return {id=t.id,visible=value}
+end
+function Ethan:write_material(id,name,expected,wanted)
+    if not self.profile.set[name] or type(expected)~='boolean' or type(wanted)~='boolean' then return false end
+    if wanted and self.validate_show and not self.validate_show() then return false end
+    local t=self:resolve(false)
+    if not t or t.id~=id then return false end
+    local index=material_index(t,name)
+    if index==nil or call(t.mesh,'getMaterialsEnable',index)~=expected then return false end
+    call(t.mesh,'setMaterialsEnable',index,wanted)
+    return true
+end
 function Ethan:write(id,expected,wanted)
     if type(expected)~='boolean' or type(wanted)~='boolean' then return false end
     if wanted and self.validate_show and not self.validate_show() then return false end

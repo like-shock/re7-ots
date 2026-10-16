@@ -16,7 +16,8 @@ assert(set_calls==n,'duplicate callbacks never offset twice')
     def test_default_keeps_late_application_and_collects_scalar_phase_evidence(self):
         self.adapter('''
 start();assert(near(gui_projection[3],3));assert(near(position[3],4))
-tick=tick+0.21;callbacks.frame();local d=records[#records].phase_probe
+tick=tick+0.21;callbacks.frame();local row=records[#records]
+assert(row.kind=='scene_detail' and row.lua_clock_s==tick);local d=row.phase_probe
 assert(d and d.phases.gui_before and d.phases.lock_after and d.phases.render)
 assert(d.phases.gui_before.transform[3]==3 and d.phases.lock_after.transform[3]==4)
 assert(d.phases.render.transform[3]==4)

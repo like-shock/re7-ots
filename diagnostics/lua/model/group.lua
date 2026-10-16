@@ -89,10 +89,10 @@ function Group:after_apply(position)
         self.state='VISIBLE';return true
     end)
 end
-function Group:status()
+function Group:status(detail)
     local parts,search={}, {full_scans=self.scans,cached_reads=0}
     for _,part in ipairs(self.parts) do
-        local s=part.session:status();parts[part.name]={state=s.state,binding=s.binding}
+        local s=part.session:status(detail);parts[part.name]={state=s.state,binding=s.binding,materials=s.materials,draw=s.draw}
         search.full_scans=search.full_scans+s.search.full_scans
         search.cached_reads=search.cached_reads+s.search.cached_reads
     end

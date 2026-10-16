@@ -13,7 +13,9 @@ start();local original=json.load_file;local reads=0
 json.load_file=function(p) reads=reads+1;if reads==1 then """+failure+""" end;return original(p) end
 step();assert(reads==2,'one immediate retry');assert(near(position[3],4),'no FP drop')
 tick=tick+0.201;callbacks.frame()
-local s=records[#records];assert(s.kind=='sample');assert(s.native_read.recovered_total==1)
+local s
+for i=#records,1,-1 do if records[i].kind=='sample' then s=records[i];break end end
+assert(s and s.lua_clock_s==tick);assert(s.native_read.recovered_total==1)
 """)
 
     def test_persistent_failure_is_bounded_and_restores_immediately(self):

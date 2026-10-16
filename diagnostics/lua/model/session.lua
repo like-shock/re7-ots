@@ -14,25 +14,54 @@ function HeadSession:run(fn)
     if not ok then self.fault='MODEL_CALLBACK_ERROR';self.state=self.fault;return false end
     return result
 end
+function HeadSession:material_change(show,release)
+    local success,reason=true,nil
+    for _,part in ipairs(self.materials or {}) do
+        local c=part.controller
+        local ok
+        if not release and not self.current_epoch and not c.identity then
+            ok=false;c.state='WAIT_MODEL_NATIVE'
+        elseif release then ok=c:release()
+        elseif show and part.original==true then ok=c:after_camera_apply(true)
+        else ok=c:before_camera_restore() end
+        if not ok then
+            success=false;reason=reason or ('MATERIAL_'..part.name..':'..c.state)
+            if c.fault then self.fault=self.fault or reason end
+        end
+    end
+    return success,reason
+end
 function HeadSession:prepare()
     local b=self.backend
     if self.current_epoch and self.current_epoch~=self.epoch then
         -- A generation change invalidates the old baseline, even if all addresses
         -- were reused. Do not restore it into a newly loaded player.
         self.epoch=self.current_epoch;b:set_epoch(self.epoch)
-        self.controller=nil;self.fault=nil
+        self.controller=nil;self.materials=nil;self.fault=nil
     end
     if self.controller and (not self.enabled or self.controller.closed) then
-        if not self.controller:release() then
-            self.state='RELEASE_'..self.controller.state;return nil
+        local materials_ok,reason=self:material_change(false,true)
+        local draw_ok=self.controller:release()
+        if not draw_ok or not materials_ok then
+            self.state='RELEASE_'..(reason or self.controller.state);return nil
         end
-        self.controller=nil;self.fault=nil
+        self.controller=nil;self.materials=nil;self.fault=nil
     end
     if not self.enabled then self.state='DISABLED';return nil end
     if not self.controller then
         if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';return nil end
         self.controller=Visibility.new({read=function() return b:read_cached() end,
             write=function(id,expected,wanted) return b:write(id,expected,wanted) end})
+        self.materials={}
+        for _,name in ipairs(b:material_names()) do
+            local part={name=name}
+            part.controller=Visibility.new({read=function()
+                local s=b:read_material(name)
+                if s and part.original==nil then part.original=s.visible end
+                return s
+            end,write=function(id,expected,wanted) return b:write_material(id,name,expected,wanted) end})
+            self.materials[#self.materials+1]=part
+        end
     end
     return self.controller
 end
@@ -43,9 +72,12 @@ function HeadSession:before_restore()
         -- Invalid/stale native input permits hiding an already identified target
         -- only. It cannot authorize acquiring/showing a new head.
         if not self.current_epoch and not c.identity then self.state='WAIT_MODEL_NATIVE';return false end
+        -- Each material has independent ownership and an original enable value.
+        -- Keep trying the other channels even if one setter fails.
+        local materials_ok,reason=self:material_change(false,false)
         local ok=c:before_camera_restore()
-        self.state=self.fault or c.state
-        return ok
+        self.state=self.fault or reason or c.state
+        return ok and materials_ok
     end)
 end
 function HeadSession:after_apply(camera_position)
@@ -55,17 +87,30 @@ function HeadSession:after_apply(camera_position)
         local head=c.identity and self.backend:head_position(c.identity)
         if not head or not Core.vector(camera_position,3,1000000)
             or Core.distance(head,camera_position)<0.60 then
+            local materials_ok,reason=self:material_change(false,false)
             local ok=c:before_camera_restore()
-            self.state=c.fault or (head and 'HIDDEN_NEAR_CAMERA' or 'WAIT_HEAD_POSITION')
-            return ok
+            self.state=self.fault or reason or c.fault or (head and 'HIDDEN_NEAR_CAMERA' or 'WAIT_HEAD_POSITION')
+            return ok and materials_ok
         end
         local ok=c:after_camera_apply(true)
-        if not ok then c:before_camera_restore() end -- clean up a show that mutated then failed
-        self.state=c.state
-        return ok
+        local materials_ok,reason=false,nil
+        if ok then materials_ok,reason=self:material_change(true,false) end
+        if not ok or not materials_ok then
+            self:material_change(false,false);c:before_camera_restore()
+        end
+        self.state=self.fault or reason or c.state
+        return ok and materials_ok
     end)
 end
-function HeadSession:status()
-    return {enabled=self.enabled,state=self.state,binding=self.backend.note,epoch=self.epoch,search=self.backend:stats()}
+function HeadSession:status(detail)
+    local materials
+    if detail then
+        materials={}
+        for _,part in ipairs(self.materials or {}) do
+            materials[part.name]={state=part.controller.state,original=part.original}
+        end
+    end
+    return {enabled=self.enabled,state=self.state,binding=self.backend.note,epoch=self.epoch,
+        materials=materials,draw=detail and self.backend.draw or nil,search=self.backend:stats()}
 end
 return HeadSession
