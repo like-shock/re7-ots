@@ -1,5 +1,5 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.3-dev'
+local VERSION='0.5.4-dev'
 local DIR='RE7_OTS_Explore/'
 local gate=Core.new()
 local head_session=ModelGroup.new(sdk)
@@ -326,8 +326,25 @@ local function on_frame()
         -- Scene evidence gets its own bounded record: combining native data,
         -- fractional phase coordinates and materials can exceed 4096 bytes.
         if cfg.ethan_head or phase_probe then
+            local model=cfg.ethan_head and head_session:status(true) or nil
+            if model then
+                -- An acquired multi-part group may retain both group and part
+                -- failures. Keep that evidence out of the populated scene row.
+                local binding={diagnostic=model.diagnostic,parts={},epoch=model.epoch}
+                local has_binding=model.diagnostic~=nil
+                model.diagnostic=nil
+                for name,part in pairs(model.parts) do
+                    if part.diagnostic then
+                        binding.parts[name]=part.diagnostic;has_binding=true;part.diagnostic=nil
+                    end
+                end
+                if has_binding then
+                    journal:record({kind='model_binding',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
+                        model=binding})
+                end
+            end
             journal:record({kind='scene_detail',schema=1,session=journal_session,run=run_id,lua_clock_s=t,
-                model=cfg.ethan_head and head_session:status(true) or nil,phase_probe=phase_probe})
+                model=model,phase_probe=phase_probe})
         end
     end
 end
@@ -358,6 +375,7 @@ local function draw_ui()
     end
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
+    if model.diagnostic_kind then imgui.text('Head binding detail: '..model.diagnostic_kind) end
     for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6},
         {'collision_clearance','Wall clearance',0.03,0.3},
         {'aim_release_delay','Aim release hold (seconds)',0,1.5},{'entry_blend','Camera return blend (seconds)',0.05,0.8}}) do

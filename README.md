@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.3-dev
+## Development version: Explore Lua v0.5.4-dev (binding diagnostics)
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -10,6 +10,7 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
 - Opt-in RT head visibility for eight model families, including separate Mia face/hair ownership.
 - First-person head hiding also disables each verified head material and preserves its original enable value.
+- Bounded automatic evidence distinguishes multiple head objects from multiple mesh components and repeated references.
 - Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
 - Collision fallback uses separate entry/release distances and 0.4 seconds of stable space before recovery.
 - F6 OFF remains effective during native outages, focus loss or an open menu.
@@ -27,8 +28,11 @@ Aiming has not been tested with a gun. The user reports no benefit from the earl
 experiment, partial benefit from obstacle avoidance, and continued stationary FP/OTS switching.
 v0.5.2 addresses a reproduced collision-jitter path; the latest switching cause is not confirmed
 without that run's logs. HUD alignment, model occlusion and wall-edge coverage remain open.
-The user also reports floating facial features in first person. v0.5.3 adds per-material hiding
-and DrawSelf/Draw evidence; its effect on the reported rendering artifact still needs game evidence.
+The user still reports floating facial features in first person. The supplied v0.5.3 logs show
+model selection blocked by `WAIT_MODEL_AMBIGUOUS`; material hiding never acquired a target.
+v0.5.4 is a diagnostic build: it records the ambiguity subtype and bounded component identities,
+and corrects a misleading family-level `MATCHED` label when the actual binding failed.
+It preserves selection guards and does not claim to fix the remaining facial rendering artifact.
 
 Automatic head visibility, obstacle coverage/performance and DLC behavior remain unverified in-game. Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are not implemented. It is not a complete port of the original Cheat Engine script.
 

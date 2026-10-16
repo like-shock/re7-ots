@@ -16,7 +16,7 @@ local PROFILES={
 }
 local BY_PATH={}
 for name,p in pairs(PROFILES) do p.name=name;p.set={};for _,m in ipairs(p.materials) do p.set[m]=true end;BY_PATH[p.path]=p end
-local function reject(reason) error({reason=reason},0) end
+local function reject(reason,diagnostic) error({reason=reason,diagnostic=diagnostic},0) end
 local function method(o,name)
     if not o then reject('WAIT_MODEL_OBJECT') end
     local ty=o:get_type_definition()
@@ -86,27 +86,46 @@ local function candidate(self,tr,go,root_id)
     local array=call(go,'get_Components')
     -- get_elements returns a Sol vector on REFramework, not necessarily a Lua
     -- table. Index the SystemArray directly and validate its bound before reads.
-    if not array or type(array.get_size)~='function' or type(array.get_element)~='function' then
-        reject('WAIT_MODEL_COMPONENTS')
+    if not array then
+        reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_UNAVAILABLE',owner=address(go)})
+    end
+    if type(array.get_size)~='function' or type(array.get_element)~='function' then
+        reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_ACCESS',owner=address(go)})
     end
     local size=array:get_size()
-    if type(size)~='number' or size~=size or size<0 or size%1~=0 then reject('WAIT_MODEL_COMPONENTS') end
-    if size>64 then reject('WAIT_MODEL_COMPONENT_LIMIT') end
-    local meshes,matching=0,nil
+    if type(size)~='number' or size~=size or size<0 or size%1~=0 then
+        reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_SIZE',owner=address(go)})
+    end
+    if size>64 then reject('WAIT_MODEL_COMPONENT_LIMIT',{kind='COMPONENT_ARRAY_LIMIT',owner=address(go)}) end
+    local meshes,matching,components=0,nil,{}
     for i=0,size-1 do
         local component=array:get_element(i)
-        if not component then reject('WAIT_MODEL_COMPONENTS') end
+        if not component then
+            reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_HOLE',owner=address(go),index=i})
+        end
         if is_type(component,'via.render.Mesh') then
             meshes=meshes+1
             local resource=call(component,'getMesh')
             local profile=resource and BY_PATH[resource_path(resource)]
+            components[meshes]={mesh=component,profile=profile and profile.name or 'OTHER'}
             if profile and (self.discover_only or profile==self.profile) then
                 signature(component,profile);matching={mesh=component,resource=resource,profile=profile}
             end
         end
     end
     if not matching then return nil end
-    if meshes~=1 then reject('WAIT_MODEL_AMBIGUOUS') end
+    if meshes~=1 then
+        -- Evidence only: retain the existing rejection even for repeated array
+        -- references. Never retain SDK objects or unbounded resource strings.
+        local seen,unique,entries={},0,{}
+        for _,entry in ipairs(components) do
+            local id=address(entry.mesh)
+            if not seen[id] then seen[id]=true;unique=unique+1 end
+            if #entries<4 then entries[#entries+1]={mesh=id,profile=entry.profile} end
+        end
+        reject('WAIT_MODEL_AMBIGUOUS',{kind='MULTIPLE_MESH_COMPONENTS',owner=address(go),
+            mesh_count=meshes,unique_mesh_count=unique,meshes=entries,truncated=meshes>#entries})
+    end
     method(go,'get_DrawSelf');method(go,'set_DrawSelf')
     local joint=call(tr,'getJointByName','Head')
     if not is_type(joint,'via.Joint') or not same(call(joint,'get_Owner'),tr) then
@@ -115,6 +134,15 @@ local function candidate(self,tr,go,root_id)
     method(joint,'get_Position')
     return {go=go,mesh=matching.mesh,joint=joint,profile=matching.profile,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
         ..':'..address(matching.mesh)..':'..address(matching.resource)..':'..address(joint)}
+end
+local function duplicate_targets(first,second)
+    local targets={}
+    for _,t in ipairs({first,second}) do
+        targets[#targets+1]={profile=t.profile.name,owner=address(t.go),mesh=address(t.mesh)}
+    end
+    -- The traversal stops at the first duplicate; these are two witnesses,
+    -- not a claim that the entire hierarchy contains exactly two heads.
+    return {kind='MULTIPLE_HEAD_OBJECTS',targets=targets}
 end
 local function full_resolve(self)
     local root,root_id=player_root(self)
@@ -129,8 +157,8 @@ local function full_resolve(self)
         if parent then -- Never select the player root.
             local found=candidate(self,tr,go,root_id)
             if found then
-                if target and not self.discover_only then reject('WAIT_MODEL_AMBIGUOUS') end
-                if found_parts[found.profile.name] then reject('WAIT_MODEL_AMBIGUOUS') end
+                local previous=not self.discover_only and target or found_parts[found.profile.name]
+                if previous then reject('WAIT_MODEL_AMBIGUOUS',duplicate_targets(previous,found)) end
                 found_parts[found.profile.name]=found
                 target=found;target.route={}
                 for i=1,depth do target.route[i]=route[i] end
@@ -183,29 +211,33 @@ end
 function Ethan.discover(sdk_api,epoch)
     local b=Ethan.new(sdk_api);b:set_epoch(epoch);b.discover_only=true
     local ok,result=pcall(full_resolve,b)
-    if not ok then return nil,type(result)=='table' and result.reason or 'WAIT_MODEL_API' end
+    if not ok then return nil,type(result)=='table' and result.reason or 'WAIT_MODEL_API',
+        type(result)=='table' and result.diagnostic or nil end
     return result
 end
 function Ethan:set_epoch(epoch)
     local next_epoch=type(epoch)=='string' and #epoch>0 and #epoch<=110 and epoch or nil
-    if next_epoch~=self.epoch then self.cache=nil end
+    if next_epoch~=self.epoch then self.cache=nil;self.diagnostic=nil end
     self.epoch=next_epoch
 end
 function Ethan:resolve(allow_cache)
     if allow_cache and self.cache then
         local ok,target=pcall(cached_resolve,self)
         if ok and target then
-            self.cached_reads=self.cached_reads+1;self.note='MATCHED_'..self.profile.name:upper()..'_RT';return target
+            self.cached_reads=self.cached_reads+1;self.diagnostic=nil
+            self.note='MATCHED_'..self.profile.name:upper()..'_RT';return target
         end
     end
     self.cache=nil;self.full_scans=self.full_scans+1
     local ok,target=pcall(full_resolve,self)
     if not ok then
         self.note=type(target)=='table' and target.reason or 'WAIT_MODEL_API'
+        self.diagnostic=type(target)=='table' and target.diagnostic or nil
         return nil
     end
     -- Store ONLY scalar identities and sibling indices, never target userdata.
     self.cache={id=target.id,root_id=target.root_id,route=target.route}
+    self.diagnostic=nil
     self.note='MATCHED_'..self.profile.name:upper()..'_RT'
     return target
 end

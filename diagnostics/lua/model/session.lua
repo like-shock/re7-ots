@@ -111,6 +111,8 @@ function HeadSession:status(detail)
         end
     end
     return {enabled=self.enabled,state=self.state,binding=self.backend.note,epoch=self.epoch,
+        diagnostic_kind=self.backend.diagnostic and self.backend.diagnostic.kind or nil,
+        diagnostic=detail and self.backend.diagnostic or nil,
         materials=materials,draw=detail and self.backend.draw or nil,search=self.backend:stats()}
 end
 return HeadSession

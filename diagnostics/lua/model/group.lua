@@ -16,7 +16,8 @@ function Group:run(fn)
 end
 function Group:valid_group()
     self.scans=self.scans+1
-    local group,reason=Ethan.discover(self.sdk,self.current_epoch)
+    local group,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch)
+    self.diagnostic=diagnostic
     if not group or group.identity~=self.identity then
         self.fault=group and 'TARGET_CHANGED' or reason;return false
     end
@@ -35,7 +36,7 @@ end
 function Group:before_restore()
     return self:run(function()
         if self.current_epoch and self.current_epoch~=self.epoch then
-            self.parts={};self.epoch=self.current_epoch;self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil
+            self.parts={};self.epoch=self.current_epoch;self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil;self.diagnostic=nil
         end
         if self.mode~=self.requested_mode then
             local released=true
@@ -44,20 +45,21 @@ function Group:before_restore()
                 if not part.session:before_restore() then released=false;self.state=part.session.state end
             end
             if not released then return false end
-            self.parts={};self.mode=self.requested_mode;self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil
+            self.parts={};self.mode=self.requested_mode;self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil;self.diagnostic=nil
         end
         if not self.enabled then
             local ok=self:hide_all()
-            if ok then self.parts={};self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil;self.state='DISABLED' end
+            if ok then self.parts={};self.fault=nil;self.identity=nil;self.retry_at=nil;self.family=nil;self.diagnostic=nil;self.state='DISABLED' end
             return ok
         end
         if #self.parts==0 then
-            if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';return false end
+            if not self.current_epoch then self.state='WAIT_MODEL_NATIVE';self.diagnostic=nil;return false end
             local names={'ethan'}
             if self.mode then
                 if self.retry_at and self.clock()<self.retry_at then return false end
                 self.retry_at=self.clock()+0.5;self.scans=self.scans+1
-                local found,reason=Ethan.discover(self.sdk,self.current_epoch)
+                local found,reason,diagnostic=Ethan.discover(self.sdk,self.current_epoch)
+                self.diagnostic=diagnostic
                 if not found then self.state=reason;return false end
                 names=found.parts;self.identity=found.identity;self.family=found.family
             else self.family='ethan' end
@@ -91,12 +93,18 @@ function Group:after_apply(position)
 end
 function Group:status(detail)
     local parts,search={}, {full_scans=self.scans,cached_reads=0}
+    local binding=self.fault or (self.family and ('MATCHED_'..self.family:upper()..'_RT') or self.state)
+    local diagnostic_kind=self.diagnostic and self.diagnostic.kind or nil
     for _,part in ipairs(self.parts) do
-        local s=part.session:status(detail);parts[part.name]={state=s.state,binding=s.binding,materials=s.materials,draw=s.draw}
+        local s=part.session:status(detail)
+        parts[part.name]={state=s.state,binding=s.binding,materials=s.materials,draw=s.draw,diagnostic=s.diagnostic}
+        if not self.fault and s.binding:sub(1,8)~='MATCHED_' then binding=s.binding end
+        diagnostic_kind=diagnostic_kind or s.diagnostic_kind
         search.full_scans=search.full_scans+s.search.full_scans
         search.cached_reads=search.cached_reads+s.search.cached_reads
     end
-    return {enabled=self.enabled,state=self.state,binding=self.family and ('MATCHED_'..self.family:upper()..'_RT') or self.state,
+    return {enabled=self.enabled,state=self.state,binding=binding,
+        diagnostic_kind=diagnostic_kind,diagnostic=detail and self.diagnostic or nil,
         epoch=self.epoch,family=self.family,parts=parts,search=search}
 end
 return Group
