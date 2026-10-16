@@ -2,7 +2,7 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Development version: Explore Lua v0.5.5-dev (multiple Ethan heads)
+## Development version: Explore Lua v0.5.6-dev (head target reacquisition)
 
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
@@ -11,6 +11,8 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 - Opt-in RT head visibility for eight model families, including separate Mia face/hair ownership.
 - First-person head hiding also disables each verified head material and preserves its original enable value.
 - Independently hide up to four verified Ethan head instances; restore each copy’s original display values in third person.
+- Identify render targets by their live components, independently of temporary resource/joint getter objects.
+- Use a bounded, owner-checked component chain when an array result lacks the indexed SDK API.
 - Bounded automatic evidence distinguishes multiple head objects from multiple mesh components and repeated references.
 - Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
 - Collision fallback uses separate entry/release distances and 0.4 seconds of stable space before recovery.
@@ -36,7 +38,14 @@ v0.5.5 removes the single-Ethan-head assumption in group discovery and binds eac
 by identity, with independent DrawSelf/material ownership. First person hides every acquired copy;
 third person restores each copy’s original display values after camera/clearance checks. Shared
 head/body objects and shared mesh components still block control. This fixes the reproduced
-selection failure; whether it removes the floating facial features remains unverified in-game.
+selection failure. The user still reports floating facial features with v0.5.5: the new logs show
+two discovered heads, but every enabled sample is blocked before reading their display baseline.
+Most part records show `WAIT_MODEL_TARGET`, with intermittent `COMPONENT_ARRAY_ACCESS` failures.
+v0.5.6 removes resource-holder/joint getter addresses from render ownership identity while retaining
+the exact path, material and joint-owner checks. It also validates the complete component chain
+when indexed array access is unavailable. Fresh-wrapper and array-access failures are reproduced
+offline; the logs do not identify which old identity field changed. Actual head hiding remains
+unverified in-game. Object names and getter addresses now provide additional diagnostic evidence.
 
 Automatic head visibility, obstacle coverage/performance and DLC behavior remain unverified in-game. Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are not implemented. It is not a complete port of the original Cheat Engine script.
 

@@ -83,7 +83,7 @@ local function node_owner(tr,parent)
     if not same(call(go,'get_Transform'),tr) then reject('WAIT_MODEL_ANCESTRY') end
     return go
 end
-local function candidate(self,tr,go,root_id)
+local function array_components(go)
     local array=call(go,'get_Components')
     -- get_elements returns a Sol vector on REFramework, not necessarily a Lua
     -- table. Index the SystemArray directly and validate its bound before reads.
@@ -98,12 +98,55 @@ local function candidate(self,tr,go,root_id)
         reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_SIZE',owner=address(go)})
     end
     if size>64 then reject('WAIT_MODEL_COMPONENT_LIMIT',{kind='COMPONENT_ARRAY_LIMIT',owner=address(go)}) end
-    local meshes,matching,components=0,nil,{}
+    local components={}
     for i=0,size-1 do
         local component=array:get_element(i)
         if not component then
             reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_ARRAY_HOLE',owner=address(go),index=i})
         end
+        components[#components+1]=component
+    end
+    return components
+end
+local function component_list(tr,go)
+    local ok,components=pcall(array_components,go)
+    if ok then return components,'array' end
+    -- Some RE7 get_Components results do not expose the SystemArray interface.
+    -- EMV uses Component.get_Chain for this case. Validate the COMPLETE chain,
+    -- including repeated types, instead of stopping at the first Mesh/type.
+    if type(components)~='table' or not components.diagnostic
+        or components.diagnostic.kind~='COMPONENT_ARRAY_ACCESS'
+        or not pcall(method,tr,'get_Chain') then error(components,0) end
+    local list,seen,current={}, {},tr
+    while current~=nil do
+        if not is_type(current,'via.Component') then
+            reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_CHAIN_TYPE',owner=address(go)})
+        end
+        local id=address(current)
+        if seen[id] then
+            if same(current,tr) then return list,'chain' end
+            reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_CHAIN_CYCLE',owner=address(go)})
+        end
+        if #list>=64 then
+            reject('WAIT_MODEL_COMPONENT_LIMIT',{kind='COMPONENT_CHAIN_LIMIT',owner=address(go)})
+        end
+        if not same(call(current,'get_GameObject'),go) then
+            reject('WAIT_MODEL_COMPONENTS',{kind='COMPONENT_CHAIN_OWNER',owner=address(go),component=id})
+        end
+        seen[id]=true;list[#list+1]=current
+        current=call(current,'get_Chain')
+    end
+    return list,'chain'
+end
+local function optional_name(go)
+    local ok,name=pcall(call,go,'get_Name')
+    -- Omit long names: byte truncation can split UTF-8 and stop JSON logging.
+    if ok and type(name)=='string' and #name<=80 then return name:gsub('%c','?') end
+end
+local function candidate(self,tr,go,root_id)
+    local list,source=component_list(tr,go)
+    local meshes,matching,components=0,nil,{}
+    for _,component in ipairs(list) do
         if is_type(component,'via.render.Mesh') then
             meshes=meshes+1
             local resource=call(component,'getMesh')
@@ -135,8 +178,15 @@ local function candidate(self,tr,go,root_id)
         reject('WAIT_MODEL_HEAD_JOINT')
     end
     method(joint,'get_Position')
-    return {go=go,mesh=matching.mesh,joint=joint,profile=matching.profile,root_id=root_id,id=self.epoch..':'..root_id..':'..address(go)..':'..address(tr)
-        ..':'..address(matching.mesh)..':'..address(matching.resource)..':'..address(joint)}
+    -- Render ownership belongs to the live GameObject/Transform/Mesh within a
+    -- native player generation. A resource holder or joint returned by a getter
+    -- need not be the same wrapper on the next call. Still revalidate the exact
+    -- resource path, material signature and joint owner on EVERY resolution.
+    local info={owner=address(go),transform=address(tr),mesh=address(matching.mesh),root=root_id,
+        resource_holder=address(matching.resource),joint=address(joint),components=source,
+        name=optional_name(go)}
+    return {go=go,mesh=matching.mesh,joint=joint,profile=matching.profile,root_id=root_id,info=info,
+        id=self.epoch..':'..root_id..':'..info.owner..':'..info.transform..':'..info.mesh..':'..matching.profile.name}
 end
 local function duplicate_targets(first,second)
     local targets={}
@@ -147,9 +197,15 @@ local function duplicate_targets(first,second)
     -- not a claim that the entire hierarchy contains exactly two heads.
     return {kind='MULTIPLE_HEAD_OBJECTS',targets=targets}
 end
+local function render_identity(info)
+    -- Four failed parts can share one binding record. Keep descriptive names
+    -- and transient getter addresses in model_part, not this comparison list.
+    return info and {owner=info.owner,transform=info.transform,mesh=info.mesh,root=info.root} or nil
+end
 local function full_resolve(self)
     local root,root_id=player_root(self)
     local visited,count,target,route,found_parts,meshes={},0,nil,{},{},{}
+    local observed={}
     local function visit(tr,parent,depth)
         count=count+1
         if count>128 or depth>12 then reject('WAIT_MODEL_TREE_LIMIT') end
@@ -160,6 +216,7 @@ local function full_resolve(self)
         if parent then -- Never select the player root.
             local found=candidate(self,tr,go,root_id)
             if found then
+                if #observed<4 then observed[#observed+1]=render_identity(found.info) end
                 local name=found.profile.name
                 local instances=found_parts[name] or {}
                 if #instances>0 and not (self.allow_instances and name=='ethan') then
@@ -186,7 +243,10 @@ local function full_resolve(self)
         end
     end
     visit(root,nil,0)
-    if not target then reject(self.target_id and 'WAIT_MODEL_TARGET' or 'WAIT_MODEL_NOT_FOUND') end
+    if not target then
+        reject(self.target_id and 'WAIT_MODEL_TARGET' or 'WAIT_MODEL_NOT_FOUND',
+            self.target_id and {kind='TARGET_IDENTITY_MISMATCH',expected=render_identity(self.target_info),observed=observed} or nil)
+    end
     if self.discover_only then
         local family,parts,identities,targets=nil,{},{},{}
         for name,instances in pairs(found_parts) do
@@ -196,7 +256,7 @@ local function full_resolve(self)
                 family=t.profile.family
                 local key=i==1 and name or name..'_'..i
                 parts[#parts+1]=key;identities[#identities+1]=name..':'..t.id
-                targets[key]={profile=name,id=t.id,owner=address(t.go),mesh=address(t.mesh),copies=#instances}
+                targets[key]={profile=name,id=t.id,owner=address(t.go),mesh=address(t.mesh),copies=#instances,info=t.info}
             end
         end
         for name,p in pairs(PROFILES) do
@@ -230,7 +290,7 @@ function Ethan.new(sdk_api,profile_name,binding)
     return setmetatable({sdk=sdk_api,profile=profile,note='WAIT_MODEL_NATIVE',full_scans=0,cached_reads=0,
         target_id=binding and binding.id or nil,allow_instances=binding~=nil,
         preserve_draw=binding and binding.copies>1 or false,
-        target_info=binding and {owner=binding.owner,mesh=binding.mesh} or nil},Ethan)
+        target_info=binding and (binding.info or {owner=binding.owner,mesh=binding.mesh}) or nil},Ethan)
 end
 function Ethan.discover(sdk_api,epoch,ethan_only)
     local b=Ethan.new(sdk_api);b:set_epoch(epoch);b.discover_only=true
@@ -250,6 +310,7 @@ function Ethan:resolve(allow_cache)
         local ok,target=pcall(cached_resolve,self)
         if ok and target then
             self.cached_reads=self.cached_reads+1;self.diagnostic=nil
+            self.target_info=target.info
             self.note='MATCHED_'..self.profile.name:upper()..'_RT';return target
         end
     end
@@ -262,6 +323,7 @@ function Ethan:resolve(allow_cache)
     end
     -- Store ONLY scalar identities and sibling indices, never target userdata.
     self.cache={id=target.id,root_id=target.root_id,route=target.route}
+    self.target_info=target.info
     self.diagnostic=nil
     self.note='MATCHED_'..self.profile.name:upper()..'_RT'
     return target

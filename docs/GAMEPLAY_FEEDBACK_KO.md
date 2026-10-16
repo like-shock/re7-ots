@@ -1,4 +1,4 @@
-# 실기 피드백과 v0.5.5-dev 복수 에단 머리 제어
+# 실기 피드백과 v0.5.6-dev 머리 재식별 수정
 
 에단 모델 표시와 좌우 어깨 전환은 사용자 확인 완료. 총기 조준, 자동 머리 숨김/표시는 아직 미확인이다.
 
@@ -187,6 +187,33 @@ transition 집계는 유지한다. Critical/다른 Important 지적은 없었다
 사용자 원본 로그와 모델 파일은 저장소나 설치본에 넣지 않는다.
 `test.sh` 로컬 결과: C core30, observer12, Python/Lua189개 통과(원본 CT 선택 검사 포함).
 
+## 2026-10-16 v0.5.5 실기 로그와 v0.5.6 수정
+
+새 두 파일은 같은 v0.5.5 실행의 연속 회전 로그다. 전체 sample 864개 중 머리 제어가 켜진
+95개 모두 `MATERIAL_pl0050_face:WAIT_MODEL`이며 인스턴스 수는 2였다. 객체별 model_part 190개 중
+153개는 `WAIT_MODEL_TARGET`, 37개는 `WAIT_MODEL_COMPONENTS`였다. 원래 DrawSelf/재질 활성값이나
+숨김 완료 기록은 없다. model_binding 33개는 `COMPONENT_ARRAY_ACCESS`를 담고 있다.
+마지막에는 머리 옵션이 꺼져 있지만, 켜져 있던 구간도 모두 실패했으므로 설정 해제만이 원인은 아니다.
+
+발견 단계 이후의 재식별 실패가 확인됐다. 기존 identity에는 getter가 반환한 ResourceHolder와
+Head Joint 주소까지 포함됐다. 이 반환 객체가 재생성되는 모의 SDK에서 같은 `WAIT_MODEL_TARGET`을
+재현했다. 다만 실기 로그에 해당 주소가 없으므로 어떤 필드가 바뀌었는지는 아직 단정할 수 없다.
+렌더링을 실제로 변경하는 대상의 세대·루트·GameObject·Transform·Mesh·프로필을 identity로 사용하며,
+정확한 경로·재질 집합·Head 관절 타입/소유자/현재 위치는 조회 때마다 계속 검증한다.
+같은 경로를 사용하는 새 Mesh도 이전 대상이 되지 않으며, 이전 표시값을 전달하지 않는다.
+
+별도로 관측된 배열 API 접근 실패에는 `via.Component.get_Chain` 기반의 완전한 대체 순회를 추가했다.
+배열 API가 정상인데 크기/원소가 잘못된 경우는 여전히 거부한다. 대체 순회는 최대 64개,
+모든 컴포넌트의 타입·GameObject 소유 관계, nil 종단 또는 시작 Transform으로의 순환을 검증한다.
+중간 순환이나 같은 타입의 두 Mesh를 정상 종단으로 오인하지 않는다. 원시 메모리 오프셋은 사용하지 않는다.
+
+객체별 진단에는 선택적으로 이름과 getter 주소, 실제 컴포넌트 조회 경로를 기록한다.
+재식별 실패 기록은 기대/관측한 렌더 대상의 식별값만 포함해 4개 인스턴스에서도 4096바이트 이내로 유지한다.
+반환 객체 재생성, 배열 API 누락, 잘못된 소유자/순환/한도, 같은 경로의 메시 교체,
+4개 대상의 동시 실패 로그에 대한 회귀 검사를 추가했다. 실제 숨김, 그림자 역할과 성능은 실기 확인 전이다.
+사용자 로그·모델·원본 CT는 공개 저장소와 설치본에 포함하지 않는다.
+`test.sh` 로컬 결과: C core30, observer12, Python/Lua197개 통과(원본 CT 선택 검사 포함).
+
 ## 원문 근거
 
 REFramework 참조 커밋 `d052e8fd3fd41d0a1a33394fcf6e6c19be39b1ee`:
@@ -203,6 +230,9 @@ REFramework 참조 커밋 `d052e8fd3fd41d0a1a33394fcf6e6c19be39b1ee`:
 EMV 참조 커밋 `a8a89961fde640d542afc72bd66fd8e12f3b82b3`, `EMV Engine/init.lua`는
 world_to_screen에 맞춰 Camera 관절과 Transform을 일시 정렬한다. 이 차이를 기록하지만,
 현재 진단은 view/projection 행렬이나 실제 A버튼 스크린 좌표까지 측정하지 않는다.
+같은 파일의 `lua_get_components`/`GameObject.get_components`는 `via.Component.get_Chain`을
+사용하고, ResourceHolder 캐시는 객체 주소 대신 리소스 경로로 구분한다. 본 구현은 중복 타입 생략을
+따르지 않으며 전체 순회·타입·소유자·한도 검증을 추가한다. 이 코드는 실기 주소 변화의 직접 증거는 아니다.
 
 ## 검증
 

@@ -1,4 +1,4 @@
-# RE7 OTS Explore v0.5.5-dev — 복수 에단 머리 제어
+# RE7 OTS Explore v0.5.6-dev — 머리 대상 재식별 수정
 
 탐색용 카메라 시제품입니다. 기존 관찰기와 달리 실제 카메라 위치를 바꿉니다. 켜고 평소처럼 플레이하면 상태와 카메라 로그를 자동 기록하므로, 별도 기록 시작은 필요하지 않습니다. 이번 버전의 F7은 어깨 전환입니다.
 
@@ -30,7 +30,7 @@ ZIP의 `BUILD_INFO.json`에는 소스 커밋과 버전, `SHA256SUMS`에는 파�
 
 Steam Input 버튼 하나에 키보드 **F6**을 지정하세요. 예전 F8 버튼을 F6으로 바꿔도 됩니다. 시작할 때 카메라는 항상 OFF입니다. 세이브를 불러오고 REFramework 메뉴를 닫은 상태에서 F6을 짧게 누르면 켜지며, 다시 누르면 꺼집니다. 끄기 입력은 상태 갱신 중단·메뉴 열림·포커스 이탈 중에도 유지되며, 상태가 회복돼도 자동으로 켜지지 않습니다.
 
-메뉴의 `Script Generated UI → RE7 OTS Explore v0.5.5-dev`에서도 `Exploration camera (F6)`를 켤 수 있습니다. `Script Generated UI`는 REFramework 기본 메뉴에 있는 항목입니다. 메뉴가 열려 있는 동안은 적용을 잠시 멈춥니다. `Distance`, `Shoulder`, `Height`로 거리를 조절하고 `Swap shoulder (F7)`로 어깨 방향을 바꿉니다. Steam Input에 F7을 추가 지정하면 플레이 중에도 전환할 수 있습니다. F7은 카메라 ON·최신 상태·게임 포커스·메뉴 닫힘 조건에서 한 번씩 작동합니다. 조절값과 기능 옵션은 저장되며 카메라 ON 상태는 저장되지 않습니다.
+메뉴의 `Script Generated UI → RE7 OTS Explore v0.5.6-dev`에서도 `Exploration camera (F6)`를 켤 수 있습니다. `Script Generated UI`는 REFramework 기본 메뉴에 있는 항목입니다. 메뉴가 열려 있는 동안은 적용을 잠시 멈춥니다. `Distance`, `Shoulder`, `Height`로 거리를 조절하고 `Swap shoulder (F7)`로 어깨 방향을 바꿉니다. Steam Input에 F7을 추가 지정하면 플레이 중에도 전환할 수 있습니다. F7은 카메라 ON·최신 상태·게임 포커스·메뉴 닫힘 조건에서 한 번씩 작동합니다. 조절값과 기능 옵션은 저장되며 카메라 ON 상태는 저장되지 않습니다.
 
 조준·인벤토리·상호작용 신호, 로딩 중 잘못된 값 또는 게임 포커스 이탈을 감지하면 적용을 멈춥니다. 정상 상태가 0.5초 이상 안정되면 다시 진입합니다. `Aim release hold (seconds)`는 마지막으로 조준이 관측된 시점부터 복귀를 보류하는 시간(기본 0.5초, 0~1.5초)이며, 0으로 낮춰도 기존 안정화 조건은 유지됩니다. `Camera return blend (seconds)`는 카메라가 뒤로 이동하는 시간(기본 0.15초, 0.05~0.8초)입니다. 조준 시 1인칭을 사용하며, 상태 샘플링에 따른 약 100ms와 스케줄링 지연이 있을 수 있습니다. 완전한 전투·연출 대응은 아직 확인하지 않았습니다.
 
@@ -84,6 +84,17 @@ v0.5.4 실기 로그에서 서로 다른 에단 머리 오브젝트 두 개가 �
 새 옵션은 필요 없습니다. 1인칭 얼굴 잔존과 F6 전환 시 머리 상태를 확인해 주세요.
 이번 수정은 모의 SDK에서 확인된 식별 실패를 해결하며, 실제 얼굴 렌더링은 실기 확인 전입니다.
 
+v0.5.5 실기에서는 두 머리의 발견 뒤 `WAIT_MODEL_TARGET`/`COMPONENT_ARRAY_ACCESS`로
+막혀 실제 숨김이 실행되지 않았습니다. v0.5.6은 게임 세대·플레이어 루트·GameObject·Transform·Mesh·프로필로
+대상을 식별합니다. getter가 반환하는 ResourceHolder와 Head Joint의 주소는 진단에만 사용하며,
+같은 머리의 재조회 때 반환 객체가 달라져도 식별값이 바뀌지 않습니다. 모델 경로·재질·관절 소유자 검증은 유지합니다.
+배열의 indexed API가 없을 때는 `Component.get_Chain`을 따라 전체 연결을 확인합니다. 소유자 불일치,
+잘못된 순환, API 누락, 64개 한도 초과를 거부하며, 같은 종류의 컴포넌트도 생략하지 않습니다.
+실기 로그에는 어떤 예전 식별 필드가 달라졌는지 없어, 전체 원인과 화면상 해결 여부는 아직 확정하지 않습니다.
+
+최신 제공 로그의 마지막에는 `RT head model (experimental)`이 OFF였습니다. 업데이트 후 이 옵션을
+켜 주세요. 전체 모델 묶음을 설치했다면 `Use full RT model pack (all supported characters)`도 켭니다.
+
 `Head binding detail`과 자동 로그에는 다음 구분이 추가됩니다.
 
 - `MULTIPLE_MESH_COMPONENTS`: 한 오브젝트의 메시 수, 서로 다른 메시 수, 최대 4개 메시 식별값.
@@ -91,6 +102,8 @@ v0.5.4 실기 로그에서 서로 다른 에단 머리 오브젝트 두 개가 �
 - `ETHAN_INSTANCE_LIMIT`: 검증된 에단 머리가 지원 한도 4개를 넘은 경우.
 - `SHARED_HEAD_MESH`: 서로 다른 머리 후보가 같은 메시 컴포넌트를 공유하는 경우.
 - `COMPONENT_ARRAY_*`: 배열 없음, 접근 API 누락, 잘못된 길이, 빈 원소 등의 구체적 중단 위치.
+- `COMPONENT_CHAIN_*`: 대체 조회의 타입·소유자·순환·한도 검사 실패.
+- `TARGET_IDENTITY_MISMATCH`: 저장한 대상과 현재 후보의 GameObject·Transform·Mesh·루트 비교.
 
 머리·몸체 공유 오브젝트, 중복 메시 참조, 다른 캐릭터의 중복 거부 조건은 유지합니다. 실제 부품 바인딩이 실패했으면 상위 표시도 `WAIT_MODEL_*`을
 보여 주며, 계열 이름만으로 `MATCHED`를 표시하지 않습니다.
@@ -109,6 +122,8 @@ v0.5.5 로그의 `model_part` 레코드 안 `model.parts`에는 한 객체의 �
 `scene_detail`에는 모델 요약과 단계 관측을 유지해 부품 증가로 기록 한도를 넘지 않게 합니다. v0.5.4 모델 식별 상세는 별도 `model_binding` 레코드의 `model.diagnostic` 또는
 `model.parts.<부품>`에 들어갑니다. 같은 `session`/`run`/`lua_clock_s`로 대응하며, 실패 상세가 있을 때만 기록합니다.
 `effective_draw`는 엔진 Draw 값이며 실제 픽셀 판정은 아닙니다. 조회 API가 없으면 생략합니다.
+v0.5.6의 `model_part`에는 대상 이름(조회 가능할 때만), Transform·루트·ResourceHolder·Head Joint 주소와
+컴포넌트 조회 방식(`array`/`chain`)도 남습니다. 이름만으로 일반 표시용/그림자용을 자동 판단하지 않습니다.
 각 머리의 독립 검증으로 SDK 호출과 로그 기록량이 늘어납니다. 로그 총량은 기존 4 MiB를 유지하며,
 같은 공간에 남는 플레이 시간은 짧아질 수 있습니다. Steam Deck 성능 영향과 얼굴 잔존 해결 여부는 아직 미확인입니다.
 
