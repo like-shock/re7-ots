@@ -2,7 +2,7 @@
 #define RE7_REF_MIN_H
 /* ABI-compatible prefix declarations, verified against official API.h.
    https://github.com/praydog/REFramework/blob/master/include/reframework/API.h
-   Only on_present and the existing log_* slots are used. No SDK hook API. */
+   Consumers use the existing Lua callback/lock, presentation and log slots. No SDK hook API. */
 typedef struct { int major,minor,patch; const char* game_name; } REFVersion;
 typedef struct {
  _Bool (*on_lua_created)(void(*)(void*));

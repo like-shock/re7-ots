@@ -58,7 +58,7 @@ for _,name in ipairs(head.materials) do assert(head.material_enabled[name]==true
 head.go.methods.get_Draw=function() return true end
 local restore_camera=tr.set_position
 tr.set_position=function(self,p,dirty)
- if p.z==3 then for _,name in ipairs(head.materials) do
+ if p.z==3 and (key or fixture and fixture.aim.raw==1) then for _,name in ipairs(head.materials) do
   assert(head.material_enabled[name]==false,'all materials hidden before FP restore')
  end end
  return restore_camera(self,p,dirty)

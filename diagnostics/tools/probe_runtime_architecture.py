@@ -42,7 +42,10 @@ local before=counts()
 for i=1,100 do
  assert(g:before_restore());assert(g:before_restore());assert(g:after_apply({1,3,5}))
 end
-report('OTS',before)
+report('Legacy OTS hide/show',before)
+before=counts()
+for i=1,100 do assert(g:after_apply({1,3,5})) end
+report('Persistent OTS model path',before)
 assert(g:before_restore());before=counts()
 for i=1,100 do assert(g:before_restore());assert(g:before_restore()) end
 report('FP',before)

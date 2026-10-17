@@ -71,7 +71,7 @@ local j=Journal.new(io_mock,json_mock,'test/',{kind='header'},1024)
 class ExploreAdapterTests(unittest.TestCase):
  def adapter(self,tail,before=''):
   parts=[]
-  for name,symbol in [('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
+  for name,symbol in [('explore/transport','Transport'),('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
                       ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
                       ('model/group','ModelGroup'),
                       ('explore/physics','Physics'),('explore/obstacle','Obstacle'),

@@ -31,8 +31,8 @@ local tr={get_address=function() return transform_id end,get_type_definition=fun
  get_position=function() return {x=position[1],y=position[2],z=position[3],w=1} end,
  get_rotation=function() return {x=rotation[1],y=rotation[2],z=rotation[3],w=rotation[4]} end,
  set_position=function(_,p,no_dirty)
-  assert(phase=='update' or phase=='gui' or phase=='lock' or phase=='reset','setter outside engine callback')
-  assert(no_dirty~=true,'scene not locked at configured callbacks');set_calls=set_calls+1
+  assert(phase=='update' or phase=='gui' or phase=='lock' or phase=='reset' or phase=='render','setter outside engine callback')
+  assert((no_dirty==true)==(phase=='render'),'no_dirty required only during locked rendering');set_calls=set_calls+1
   if fail_set then error('setter failed') end
   if not ignore_set then position={p.x,p.y,p.z} end
   if partial_set then partial_set=false;position[3]=p.z-0.4;error('partial apply') end

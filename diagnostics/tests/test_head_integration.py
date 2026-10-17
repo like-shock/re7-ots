@@ -11,12 +11,12 @@ class HeadIntegrationTests(unittest.TestCase):
 config.ethan_head=true
 local lookup=sdk.get_managed_singleton
 sdk.get_managed_singleton=function(n)
- assert(phase=='update' or phase=='gui' or phase=='lock' or phase=='reset','model SDK outside callback')
+ assert(phase=='update' or phase=='gui' or phase=='lock' or phase=='reset' or phase=='render','model SDK outside callback')
  return lookup(n)
 end
 local camera_set=tr.set_position
 tr.set_position=function(self,p,no_dirty)
- if p.z==3 then assert(not head.visible,'hide head BEFORE restoring FP camera') end
+ if p.z==3 and (phase=='reset' or phase=='render' or fixture and type(fixture.aim)=='table' and fixture.aim.raw==1) then assert(not head.visible,'hide head BEFORE actual FP cleanup') end
  return camera_set(self,p,no_dirty)
 end
 model_hook=function(n,v)
@@ -123,7 +123,7 @@ assert(not head.visible and not hair.visible)
 config.ethan_head=true;config.full_model_pack=true
 local camera_set=tr.set_position
 tr.set_position=function(self,p,dirty)
- if p.z==3 then assert(not head.visible and not hair.visible,'hide BOTH parts first') end
+ if p.z==3 and fixture and fixture.aim.raw==1 then assert(not head.visible and not hair.visible,'hide BOTH parts first') end
  return camera_set(self,p,dirty)
 end
 """)

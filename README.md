@@ -6,10 +6,13 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 the other reported issues have not improved. v0.5.9 is not a validated resolution.
 The [architecture reassessment (Korean)](docs/ARCHITECTURE_REASSESSMENT_KO.md) documents
 per-frame model churn, 31-layer obstacle queries, a consumer-delay fallback loop, and
-the criteria for a limited integration prototype. Runtime code is unchanged by this review.
+the criteria for a limited integration prototype. The subsequent native foundation is described in [migration notes](docs/NATIVE_FOUNDATION_KO.md).
 
-## Development version: Explore Lua v0.5.9-dev (state publication recovery)
+## Development version: Explore Lua v0.6.0-dev (native state bridge and persistent model visibility)
 
+- Direct native state/monotonic clock API, with explicit legacy-file compatibility.
+- Healthy OTS frames preserve model visibility; actual fallback still hides owned heads.
+- A render guard checks the final camera pose and handles a missed camera callback.
 - F6 toggles the exploration camera; every script load starts OFF.
 - Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
 - Configurable aim-release hold and camera return blend.
@@ -73,7 +76,7 @@ not implemented. It is not a complete port of the original Cheat Engine script.
 
 ## Build and test
 
-Linux x86_64 dependencies: clang 18+, lld-link, host C compiler, Python 3, liblua5.4.
+Linux x86_64 dependencies: clang 18+, lld-link, host C compiler, Python 3, liblua5.4 and MinGW x64 GCC (posix). The Explore build fetches hash-pinned Lua 5.4.3 source.
 
 ```bash
 cd diagnostics
@@ -99,7 +102,7 @@ The `diagnostics/` directory name is retained from the prototype's history. It n
 bindings. Install the matching external model package separately; model control and obstacle
 avoidance default OFF. The full pack uses exact path/material signatures for Ethan, Chris, Joe,
 Mia, Clancy and Zoe variants. Parts are hidden before first-person fallback and shown only after
-camera readback and clearance checks. Native DLL is v0.3.1; snapshot protocol remains v0.3.0.
+camera readback and clearance checks. Native DLL is v0.4.0; snapshot protocol remains v0.3.0.
 See [gameplay feedback fixes and limits](docs/GAMEPLAY_FEEDBACK_KO.md),
 [v0.5.0 implementation and evidence](docs/RUNTIME_EXPANSION_KO.md),
 [prior offline work](docs/OFFLINE_PROGRESS_KO.md) and [Ethan asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).

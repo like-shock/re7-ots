@@ -1,15 +1,21 @@
 -- Exploration camera with opt-in RT models and experimental obstacle avoidance.
-local VERSION='0.5.9-dev'
+local VERSION='0.6.0-dev'
 local DIR='RE7_OTS_Explore/'
+local transport=Transport.new(re7_ots_native,json,DIR)
+local function now() return transport:now() end
 local gate=Core.new()
-local head_session=ModelGroup.new(sdk)
+local head_session=ModelGroup.new(sdk,now)
 local physics=Physics.new(sdk)
-local prompt=Prompt.new(sdk)
+local prompt=Prompt.new(sdk,now)
 local prompt_available=false
 local prompt_context=nil
 local obstacle=Obstacle.new()
 local collision_report={status='DISABLED'}
 local cfg=Core.settings(nil)
+local function ready(t)
+    if transport.clock_failed then return false,'NATIVE_CLOCK_ERROR' end
+    return gate:ready(t,cfg)
+end
 local requested=false -- Never restore an enabled state from disk.
 local fault,callback_error,config_error=nil,nil,nil
 local state,restore_note='OFF','NONE'
@@ -22,30 +28,16 @@ local update_serial,processed_serial,update_at=0,-1,-math.huge
 local active_since=nil
 local early_serial,locked_serial=-1,-1
 local early_available=false
+local render_available=false
+local rendered_serial,preserve_serial=-1,-1
 local phase_probe,probe_serial,last_probe=nil,-1,-math.huge
 local key_was_down=false
 local shoulder_was_down=false
 local last_report={status='OFF'}
 local native_read={status='NONE',attempts=0,recovered_total=0,failed_total=0}
-local clock=os.clock or os.time
-local function now() return clock() end
 local run_id='lua_'..string.format('%.6f',now())
 local function read_native()
-    local r={attempts=0,recovered_total=native_read.recovered_total,failed_total=native_read.failed_total}
-    local value
-    for attempt=1,2 do
-        local ok,s=pcall(function() return json.load_file(DIR..'status.json') end)
-        r.attempts=attempt
-        r.status=not ok and 'READ_ERROR' or s==nil and 'EMPTY' or type(s)=='table' and 'DECODED' or 'INVALID_TYPE'
-        if ok and s~=nil then value=s;break end
-        if attempt==1 then r.first_failure=r.status end
-    end
-    -- No cached data is substituted. Every decoded result still passes through
-    -- the unchanged native identity, freshness and gameplay gates below.
-    if value==nil then r.failed_total=r.failed_total+1
-    elseif r.attempts==2 then r.recovered_total=r.recovered_total+1 end
-    native_read=r
-    return value
+    local value=transport:read();native_read=transport:status();return value
 end
 local function save_settings()
     local ok,result=pcall(function() return json.dump_file(DIR..'settings.json',cfg) end)
@@ -88,8 +80,8 @@ local function position_of(c)
     local xyz={p.x,p.y,p.z}
     return Core.vector(xyz,3,1000000) and xyz or nil
 end
-local function set_position(c,p)
-    c.tr:set_position(Vector4f.new(p[1],p[2],p[3],1),false)
+local function set_position(c,p,scene_locked)
+    c.tr:set_position(Vector4f.new(p[1],p[2],p[3],1),scene_locked==true)
 end
 local function latch(reason)
     fault=reason;requested=false;active_since=nil;obstacle:reset();gate:suspend(reason)
@@ -102,8 +94,7 @@ local function remember_mutation(owned,p)
     local ok,current=pcall(camera)
     if ok and current and current.id==owned.id then owned.target=p end
 end
-local function restore_owned()
-    prompt_context=nil;prompt:configure(false,nil);prompt:restore_all()
+local function prepare_model(keep_visible)
     -- Epoch preparation belongs to the model failure boundary too. Core retains
     -- health-invalid native snapshots for reporting; their player may be scalar.
     head_session:run(function()
@@ -111,14 +102,21 @@ local function restore_owned()
         local p=s and type(s.player)=='table' and s.player or nil
         local generation=p and p.generation
         local t=now()
-        local epoch=s and s.phase=='MONITORING' and s.build=='KNOWN_EXE_HASH_AND_PE'
+        local epoch=not transport.clock_failed and s and s.phase=='MONITORING' and s.build=='KNOWN_EXE_HASH_AND_PE'
             and gate.fresh and t>=gate.changed_at and t-gate.changed_at<=0.35
             and p and p.status=='READABLE_CANDIDATE'
             and Core.finite(generation,4294967295) and generation>0 and generation%1==0
             and (s.session..':'..generation) or nil
         head_session:configure(cfg.ethan_head,epoch,cfg.full_model_pack)
-        head_session:before_restore()
+        local keep=keep_visible and cfg.ethan_head and epoch and epoch==head_session.epoch
+            and head_session.mode==(cfg.full_model_pack==true) and not head_session.fault
+            and (head_session.state=='VISIBLE' or head_session.state=='RESTORED_BASELINE')
+        if not keep then head_session:before_restore() end
     end)
+end
+local function restore_owned(keep_visible,scene_locked)
+    prompt_context=nil;prompt:configure(false,nil);prompt:restore_all()
+    prepare_model(keep_visible)
     if not pending then return true end
     local owned=pending
     local ok,c=pcall(camera)
@@ -137,7 +135,7 @@ local function restore_owned()
     if Core.distance(p,owned.target)>0.001 then
         pending=nil;restore_note='OWNERSHIP_LOST';latch('FAULT_CAMERA_OWNERSHIP_LOST');return false
     end
-    local write_ok=pcall(set_position,c,owned.base)
+    local write_ok=pcall(set_position,c,owned.base,scene_locked)
     local check_ok,check=pcall(position_of,c)
     if not write_ok or not check_ok or not check or Core.distance(check,owned.base)>0.001 then
         if check_ok then remember_mutation(owned,check) end
@@ -161,8 +159,13 @@ local function observe_phase(name)
     end)
     if not ok then phase_probe.phases[name]={status='UNAVAILABLE'} end
 end
+local function healthy_ots(t)
+    return requested and not fault and not callback_error and not is_menu_open() and ready(t)
+end
 local function on_update()
+    local keep=render_available and rendered_serial==update_serial and state=='ACTIVE' and healthy_ots(now())
     update_serial=update_serial+1;update_at=now()
+    preserve_serial=keep and update_serial or -1
     if not requested or not gate.fresh or update_at-gate.changed_at>0.35 then
         phase_probe=nil;probe_serial=-1
     elseif update_at-last_probe>=0.5 then
@@ -170,7 +173,7 @@ local function on_update()
         phase_probe={serial=update_serial,lua_clock_s=update_at,early_camera=cfg.early_camera,phases={}}
         observe_phase('update_before')
     end
-    restore_owned()
+    restore_owned(keep)
     observe_phase('update_after_restore')
     if phase_probe and probe_serial==update_serial then
         if cfg.ethan_head and head_session.current_epoch then
@@ -200,6 +203,9 @@ local function transition_context(c,p)
         native_read=native_read,native_gate=gate.reset_evidence,publication=n.publication,collision_last=collision_report}
 end
 report=function(reason,c,p,target,after)
+    if reason~='ACTIVE' and (head_session.state=='VISIBLE' or head_session.state=='RESTORED_BASELINE') then
+        prepare_model(false)
+    end
     if reason~='ACTIVE' and reason~='ENTERING' and reason~='FIRST_PERSON_COLLISION'
         and not reason:match('^WAIT_COLLISION_') then
         obstacle:reset()
@@ -225,7 +231,7 @@ end
 local function on_camera()
     local t=now()
     if processed_serial==update_serial then
-        local ready,why=gate:ready(t,cfg)
+        local ready,why=ready(t)
         local reason=not requested and 'OFF' or is_menu_open() and 'PAUSED_MENU'
             or t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK' or not ready and why or nil
         if reason then
@@ -234,12 +240,12 @@ local function on_camera()
         return
     end
     processed_serial=update_serial
-    if not restore_owned() then report(fault or 'WAIT_RESTORE_CAMERA');gate:suspend(state);return end
+    if not restore_owned(preserve_serial==update_serial and healthy_ots(t)) then report(fault or 'WAIT_RESTORE_CAMERA');gate:suspend(state);return end
     if fault or callback_error then report(fault or callback_error);return end
     if not requested then report('OFF');active_since=nil;return end
     if update_serial==0 or t-update_at>0.25 then report('WAIT_UPDATE_CALLBACK');gate:suspend(state);return end
     if is_menu_open() then report('PAUSED_MENU');gate:suspend(state);active_since=nil;return end
-    local ready,why=gate:ready(t,cfg)
+    local ready,why=ready(t)
     if not ready then report(why);active_since=nil;return end
     local c,reason=camera()
     if not c then report(reason);gate:suspend(reason);active_since=nil;return end
@@ -273,7 +279,7 @@ local function on_camera()
     end
     if blend==0 then report('ENTERING',c,base,base,base);return end
     -- Capture ownership before invoking a setter: even an exception may have mutated.
-    pending={id=c.id,base=base,target=target,time=t}
+    pending={id=c.id,base=base,target=target,time=t,serial=update_serial}
     local ok=pcall(set_position,c,target)
     local read_ok,after=pcall(position_of,c)
     if not ok or not read_ok or not after or Core.distance(after,target)>0.001 then
@@ -298,7 +304,7 @@ local function on_camera()
 end
 local function on_frame()
     local t=now()
-    if t-last_poll>=0.05 then
+    if transport.clock_failed or t-last_poll>=0.05 then
         last_poll=t
         gate:ingest(read_native(),t)
         if gate.session and gate.native and journal_session~=gate.session then
@@ -376,7 +382,7 @@ local function draw_ui()
     local changed,value=imgui.checkbox('Exploration camera (F6)',requested)
     if changed then choose_enabled(value) end
     imgui.text('State: '..(callback_error or fault or state))
-    local _,native_reason=gate:ready(now(),cfg)
+    local _,native_reason=ready(now())
     imgui.text('Native: '..native_reason..' | Restore: '..restore_note)
     imgui.text('Last fallback: '..(last_fallback or 'NONE'))
     local native=gate.native
@@ -384,7 +390,7 @@ local function draw_ui()
     if type(monitor_version)~='string' or #monitor_version>16 or not monitor_version:match('^%d+%.%d+%.%d+$') then
         monitor_version='legacy / unavailable'
     end
-    imgui.text('Native monitor: '..monitor_version)
+    imgui.text('Native monitor: '..monitor_version..' | Transport: '..transport:status().mode)
     if event_error then imgui.text(event_error) end
     imgui.text('Automatic play log: '..(journal and journal.state or 'WAIT_NATIVE'))
     if config_error then imgui.text(config_error) end
@@ -407,7 +413,7 @@ local function draw_ui()
     end
     local model=head_session:status()
     imgui.text('Head: '..model.state..' | '..model.binding)
-    imgui.text('Head instances: '..tostring(model.instances))
+    imgui.text('Head instances: '..tostring(model.instances)..' | Persistence: '..(render_available and 'render guarded' or 'unavailable'))
     if model.diagnostic_kind then imgui.text('Head binding detail: '..model.diagnostic_kind) end
     for _,v in ipairs({{'distance','Distance',0.2,2},{'shoulder','Shoulder',-0.6,0.6},{'height','Height',-0.3,0.6},
         {'collision_clearance','Wall clearance',0.03,0.3},
@@ -429,10 +435,10 @@ local function draw_ui()
     imgui.text('Logs: reframework/data/RE7_OTS_Explore (play_0 + play_1)')
     imgui.tree_pop()
 end
-local function guarded(fn)
+local function guarded(fn,scene_locked)
     return function()
         local ok=pcall(fn)
-        if not ok then latch('FAULT_CALLBACK_EXCEPTION');pcall(restore_owned) end
+        if not ok then latch('FAULT_CALLBACK_EXCEPTION');pcall(restore_owned,false,scene_locked) end
     end
 end
 local function register(name,fn,entry)
@@ -474,6 +480,29 @@ local function on_lock_camera()
     on_camera()
     observe_phase('lock_after')
 end
+local function on_render()
+    local t=now()
+    if state=='ACTIVE' or pending then
+        local ready,why=ready(t)
+        local reason=not requested and 'OFF' or fault or callback_error
+            or is_menu_open() and 'PAUSED_MENU' or not ready and why
+            or t-update_at>0.25 and 'WAIT_UPDATE_CALLBACK'
+            or locked_serial~=update_serial and 'WAIT_RENDER_CAMERA'
+            or not pending and 'WAIT_RENDER_CAMERA'
+            or pending.serial~=update_serial and 'WAIT_RENDER_CAMERA' or nil
+        if not reason then
+            local c=camera();local p=c and position_of(c)
+            if not c or c.id~=pending.id or not p or Core.distance(p,pending.target)>0.001 then
+                reason='WAIT_RENDER_CAMERA'
+            end
+        end
+        if reason then
+            restore_owned(false,true);active_since=nil;report(fault or reason)
+        end
+    end
+    rendered_serial=update_serial
+    observe_phase('render')
+end
 local ok,game=pcall(function() return reframework:get_game_name() end)
 if not ok or type(game)~='string' or game:lower()~='re7' then callback_error='WAIT_RE7_RUNTIME' end
 register('on_pre_application_entry',on_update,'UpdateBehavior')
@@ -482,7 +511,8 @@ register('on_pre_application_entry',on_lock_camera,'LockScene')
 if re and type(re.on_pre_application_entry)=='function' then
     local registered,result=pcall(re.on_pre_application_entry,'PrerenderGUI',guarded(on_early_camera))
     early_available=registered and result~=false
-    pcall(re.on_pre_application_entry,'BeginRendering',function() observe_phase('render') end)
+    local render_ok,render_result=pcall(re.on_pre_application_entry,'BeginRendering',guarded(on_render,true))
+    render_available=render_ok and render_result~=false
 end
 -- GUI hooks operate on the final confirmed pose and restore their own screen
 -- control immediately after draw. Unsupported layouts keep the game's cursor.
@@ -492,7 +522,7 @@ if re and type(re.on_pre_gui_draw_element)=='function' and type(re.on_gui_draw_e
         local ok=pcall(function()
             if not prompt:is_candidate(element) then return end
             local context=prompt_context
-            local ready=gate:ready(now(),cfg)
+            local ready=ready(now())
             local enabled=prompt_available and cfg.prompt_correction and requested and state=='ACTIVE'
                 and context and context.serial==update_serial and ready and not is_menu_open()
             if enabled then

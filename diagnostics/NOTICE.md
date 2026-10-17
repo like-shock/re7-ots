@@ -20,3 +20,34 @@ The full RT placeholder archive credits AfroJackX. Mesh metadata was inspected u
 RE-Mesh-Editor (commit 622daa75b41ec622c3444ecb44ef31a651692687); its parser code and all model assets
 are external and are not copied or bundled here. See docs/RUNTIME_EXPANSION_KO.md in the source tree
 for API references, exact model scope and unverified runtime limits.
+
+
+## Lua 5.4.3 core (Explore native 0.4.0)
+
+The Explore DLL statically links the Lua core, following REFramework's example plugin.
+Pinned source: https://www.lua.org/ftp/lua-5.4.3.tar.gz
+SHA-256: `f8612276169e3bfcbcfb8f226195bfc6e466fe13042f1076cbde92b7ec96bbfb`.
+The core source is fetched into the build cache, not copied into this repository.
+Reference REFramework revision: `d052e8fd3fd41d0a1a33394fcf6e6c19be39b1ee`.
+The Windows DLL also uses the system msvcrt runtime; no Lua DLL or runtime installer is bundled.
+
+Copyright (C) 1994-2021 Lua.org, PUC-Rio.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

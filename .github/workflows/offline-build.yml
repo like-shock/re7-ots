@@ -30,7 +30,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y clang-18 lld-18 liblua5.4-0 gcc python3 git
+          sudo apt-get install --no-install-recommends -y clang-18 lld-18 liblua5.4-0 gcc gcc-mingw-w64-x86-64-posix python3 git
 
       - name: Build and run complete offline suite
         shell: bash

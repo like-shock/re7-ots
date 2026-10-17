@@ -91,7 +91,7 @@ local second=node(head_path);attach(rig,second)
 config.ethan_head=true;config.full_model_pack=true
 local camera_set=tr.set_position
 tr.set_position=function(self,p,dirty)
- if p.z==3 then for _,n in ipairs({head,second}) do
+ if p.z==3 and (key or fixture and fixture.aim.raw==1) then for _,n in ipairs({head,second}) do
   assert(not n.visible,'hide every copy before FP camera restore')
   for _,name in ipairs(n.materials) do assert(n.material_enabled[name]==false) end
  end end
