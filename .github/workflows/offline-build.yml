@@ -41,6 +41,7 @@ jobs:
       - name: Package tested source and binaries
         run: |
           python3 diagnostics/tools/package_explore.py dist
+          python3 diagnostics/tools/package_probe.py dist
           (cd dist && sha256sum *.zip > SHA256SUMS)
           printf 'Source commit: %s\n\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           printf 'Offline tests and packaging passed. In-game rendering remains unverified.\n' >> "$GITHUB_STEP_SUMMARY"

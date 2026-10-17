@@ -1,5 +1,12 @@
 # Attribution
 
+Native Hook Probe 0.1.0 uses MinHook v1.3.4, revision
+`c3fcafdc10146beb5919319d0683e44e3c30d537` (TsudaKageyu/minhook).
+Its BSD notices, including the HDE decoder attribution, are reproduced in
+MINHOOK_LICENSE.txt. Build inputs are individually hash-pinned in data/minhook.json.
+The probe installs process-local instruction detours and replays the original
+instructions. It does not modify camera/model/firing data or executable files.
+
 Byte patterns, restore-byte reference data, symbol names and offsets were extracted from the user-provided **Third-Person OTS Script — RE7 RT 8.02** (`re7.CT`, SHA-256 `4154ee807842eb17f51b84272c98c3fdf153082c252f176446aa0cd61fd0686d`). Original mod page: https://www.nexusmods.com/residentevil7/mods/12 . The included ORIGINAL_CREDITS.txt preserves the accompanying acknowledgements and the original author's invitation to reuse the script. This package is an independent camera prototype and diagnostic collection, not an official OTS or REFramework release. Explore v0.3.0 intentionally changes the camera position through the REFramework API. It contains no game executable, character model or game asset, and does not activate the original CT patches.
 
 REFramework / praydog supplies the plugin loader and documented API contract. A minimal, manually declared ABI prefix is used; the full framework is not bundled. References:
