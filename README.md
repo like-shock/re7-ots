@@ -2,6 +2,12 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
+**2026-10-17 field report:** third person is faster but remains slower than first person;
+the other reported issues have not improved. v0.5.9 is not a validated resolution.
+The [architecture reassessment (Korean)](docs/ARCHITECTURE_REASSESSMENT_KO.md) documents
+per-frame model churn, 31-layer obstacle queries, a consumer-delay fallback loop, and
+the criteria for a limited integration prototype. Runtime code is unchanged by this review.
+
 ## Development version: Explore Lua v0.5.9-dev (state publication recovery)
 
 - F6 toggles the exploration camera; every script load starts OFF.
