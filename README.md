@@ -2,6 +2,12 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
+**Current priority: native port of the original RT 8.02 control paths.**
+First-person face hiding is optional and is not a prerequisite for that port.
+The first [original-native increment (Korean)](docs/ORIGINAL_NATIVE_PORT_KO.md)
+implements and verifies C scalar view/coordinate/focus/firing behavior. It is
+not connected to game hooks yet; Explore v0.6.0-dev remains the runtime build.
+
 **2026-10-17 field report:** third person is faster but remains slower than first person;
 the other reported issues have not improved. v0.5.9 is not a validated resolution.
 The [architecture reassessment (Korean)](docs/ARCHITECTURE_REASSESSMENT_KO.md) documents

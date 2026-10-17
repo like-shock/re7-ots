@@ -13,6 +13,12 @@ REFramework / praydog supplies the plugin loader and documented API contract. A 
 
 The original diagnostic implementation (excluding original mod-derived reference data) is provided under the MIT License in LICENSE. No third-party license is replaced by this grant.
 
+The unconnected `original_scalar.c` native-port core also derives its view policy,
+coordinate expressions and focus transitions from cheezeit / goldedtoad's RT 8.02
+script. Original acknowledgements and reuse terms in ORIGINAL_CREDITS.txt apply
+to this derived work. The private-CT test extracts only numeric instructions
+locally; neither the CT nor its generated oracle is included in distribution.
+
 
 Runtime v0.5.0-dev includes independently implemented bindings based on supplied RT model metadata
 and public API usage in alphaZomega's EMV Engine (commit a8a89961fde640d542afc72bd66fd8e12f3b82b3).
