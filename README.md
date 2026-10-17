@@ -4,14 +4,15 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native Hook Probe 0.1.0 device build](diagnostics/probe/README_KO.md) now
-connects five original instruction sites with pass-through instrumentation.
-It collects the live object/order evidence needed before enabling original
-camera writes; it does not enable third person. Its installer backs up Explore
-and includes restoration. This is the current device-testing boundary.
-The first [original-native increment (Korean)](docs/ORIGINAL_NATIVE_PORT_KO.md)
-implements and verifies C scalar view/coordinate/focus/firing behavior. It is
-not enabled as gameplay control yet; Explore v0.6.0-dev remains the camera build.
+The [Native OTS 0.1.0 device build](diagnostics/native/README_KO.md) connects
+41 original instruction sites for actual camera, focus, firing, inspection,
+collision and model-transparency control. F6 enables/disables; F7 swaps shoulders.
+It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
+backs up Explore/Probe and preserves installed model assets. Automatic bounded
+diagnostics accompany the gameplay test; a separate Probe run is not required.
+See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
+This is an experimental device-test build, not a claim that the reported screen,
+FPS or switching issues are fixed. Explore remains available as the prior build.
 
 **2026-10-17 field report:** third person is faster but remains slower than first person;
 the other reported issues have not improved. v0.5.9 is not a validated resolution.

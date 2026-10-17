@@ -1,6 +1,6 @@
 # Attribution
 
-Native Hook Probe 0.1.0 uses MinHook v1.3.4, revision
+Native Hook Probe 0.1.0 and Native OTS 0.1.0 use MinHook v1.3.4, revision
 `c3fcafdc10146beb5919319d0683e44e3c30d537` (TsudaKageyu/minhook).
 Its BSD notices, including the HDE decoder attribution, are reproduced in
 MINHOOK_LICENSE.txt. Build inputs are individually hash-pinned in data/minhook.json.
@@ -20,9 +20,12 @@ REFramework / praydog supplies the plugin loader and documented API contract. A 
 
 The original diagnostic implementation (excluding original mod-derived reference data) is provided under the MIT License in LICENSE. No third-party license is replaced by this grant.
 
-The unconnected `original_scalar.c` native-port core also derives its view policy,
-coordinate expressions and focus transitions from cheezeit / goldedtoad's RT 8.02
-script. Original acknowledgements and reuse terms in ORIGINAL_CREDITS.txt apply
+The `original_scalar/state/collision/interaction/model/inputs` native-port modules
+and integrated `native_runtime.c` derive their behavior from cheezeit / goldedtoad's
+RT 8.02 script. Native OTS connects these modules to process-local instruction
+hooks and intentionally changes camera, firing, inspection and transparency
+data; this differs from the pass-through Probe. Original acknowledgements and
+reuse terms in ORIGINAL_CREDITS.txt apply
 to this derived work. The private-CT test extracts only numeric instructions
 locally; neither the CT nor its generated oracle is included in distribution.
 
