@@ -29,8 +29,9 @@ camera-attached light and normal color returns when RELit is disabled. This iden
 RELit use as the trigger in the tested setup. The user then clarified that
 **Enable Shadows was already OFF** while the problem occurred; disabling that
 option is not a working remedy. The precise rendering cause remains unresolved.
-The next distinction is whether the reported RELit-off comparison disabled an
-individual light or the entire script; those controls affect different paths.
+The user clarified that F8 disabled only the added light. This narrows the trigger
+to that light's contribution; it does not distinguish light placement, material
+response, or the game's exposure response to the changed illumination.
 FPS, aiming and remaining wall-clipping cases have not been confirmed by this report.
 See [field results and rendering investigation (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Explore remains available as the prior build.

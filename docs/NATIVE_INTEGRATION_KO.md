@@ -90,6 +90,8 @@ RELit를 끄면 정상 색이 된다고 확인했다. 이번 보고의 설치 �
 **`Enable Shadows`가 이미 OFF인 상태에서도 발생한다**고 명확히 했다.
 따라서 단순히 그림자 옵션이 켜져 있다는 가설과 같은 옵션을 다시 끄라는 안내는 제외한다.
 실제 렌더링 원인과 엔진의 다른 조명 경로까지 구분된 상태는 아니다.
+이어 사용자는 **F8로 조명만 OFF해서 정상 색으로 돌아왔다**고 확인했다.
+따라서 스크립트 전체 제거가 아니라 추가 조명 활성 상태에 따라 증상이 달라지는 비교다.
 
 확인한 [공개 RELit 소스](https://github.com/originalnicodr/RELit/blob/11231ea44ffc92225e7fcf92fd7e9efb64b5f921/RELit.lua)
 (`relitVersion = 1.2.1`)는 별도 SpotLight/PointLight를 생성하고 카메라에 부착한다.
@@ -100,9 +102,15 @@ RELit를 끄면 정상 색이 된다고 확인했다. 이번 보고의 설치 �
 
 `Lights`의 이름 옆 체크는 해당 조명 `set_Enabled`만 변경한다. 카메라 추적은 별도
 `attachedToCam` 조건으로, 수동 노출은 `customTonemapping.autoExposure`가 false일 때
-별도 프레임 콜백에서 처리한다. 따라서 앞선 RELit OFF가 개별 조명 체크인지 스크립트
-비활성화인지 먼저 구분해야 한다. 조명만 OFF해서 개선돼도 광량 변화에 따른 게임의
+별도 프레임 콜백에서 처리한다. 이번 사용자 확인은 조명만 OFF한 비교로 분류한다.
+조명만 OFF해서 개선돼도 광량 변화에 따른 게임의
 자동 노출 반응까지 배제되는 것은 아니다. `Show RELit UI`는 창 표시만 조절한다.
+
+공개 RELit의 카메라 추적은 primary camera GameObject의 Transform 위치·회전·WorldMatrix를
+조명 Transform에 복사한다. Native는 원본 카메라 쓰기 훅에서 좌표를 보정한다.
+두 경로의 코드가 존재한다는 사실만으로 같은 프레임에 같은 최종 좌표를 읽는다고
+보장할 수 없으며, 반대로 불일치가 이번 원인이라고 단정할 수도 없다.
+현재 자료에는 증상 시점의 실제 광원 위치·노출값·렌더링 결과가 없어 이 구분이 남아 있다.
 
 `Save settings as default`는 현재 조명 속성을 기본값에 복사해
 `reframework/data/RELit_config.json`에 저장한다. 그림자뿐 아니라 밝기·색상 등도 포함하며,
