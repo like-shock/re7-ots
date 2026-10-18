@@ -18,11 +18,17 @@ and original per-weapon exceptions remain. No separate Lua script is installed.
 See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Version 0.1.1 adds only the original third-person flashlight-shadow suppression
 path to investigate dark character rendering. It keeps camera, material, light-color,
-brightness and light-position behavior unchanged; an in-game improvement is unconfirmed.
+brightness and light-position behavior unchanged. This path targets the game's original
+flashlight, not custom RELit lights.
 **2026-10-18 Native 0.1.0 field report:** the user confirms the wall-hand problem,
 repeated first-/third-person switching and displaced interaction prompts are resolved
 in the tested gameplay. Center alignment also appears corrected. The character now
-looks mostly dark, with an apparently inverted-color appearance; its cause is unconfirmed.
+looked mostly dark, with an apparently inverted-color appearance.
+**Follow-up:** the user reports that the dark appearance persists with RELit's
+camera-attached light and normal color returns when RELit is disabled. This identifies
+RELit use as the trigger in the tested setup. RELit exposes a per-light
+**Edit > Shadow Settings > Enable Shadows** switch; turning it off for the attached
+light is the next targeted check. Its effect in this setup is not yet confirmed.
 FPS, aiming and remaining wall-clipping cases have not been confirmed by this report.
 See [field results and rendering investigation (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Explore remains available as the prior build.
