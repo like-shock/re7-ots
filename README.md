@@ -26,9 +26,11 @@ in the tested gameplay. Center alignment also appears corrected. The character n
 looked mostly dark, with an apparently inverted-color appearance.
 **Follow-up:** the user reports that the dark appearance persists with RELit's
 camera-attached light and normal color returns when RELit is disabled. This identifies
-RELit use as the trigger in the tested setup. RELit exposes a per-light
-**Edit > Shadow Settings > Enable Shadows** switch; turning it off for the attached
-light is the next targeted check. Its effect in this setup is not yet confirmed.
+RELit use as the trigger in the tested setup. The user then clarified that
+**Enable Shadows was already OFF** while the problem occurred; disabling that
+option is not a working remedy. The precise rendering cause remains unresolved.
+The next distinction is whether the reported RELit-off comparison disabled an
+individual light or the entire script; those controls affect different paths.
 FPS, aiming and remaining wall-clipping cases have not been confirmed by this report.
 See [field results and rendering investigation (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Explore remains available as the prior build.
