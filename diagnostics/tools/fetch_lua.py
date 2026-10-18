@@ -13,6 +13,26 @@ SHA256 = 'f8612276169e3bfcbcfb8f226195bfc6e466fe13042f1076cbde92b7ec96bbfb'
 ROOT = Path(__file__).resolve().parents[1]
 DEST = ROOT / 'build' / ('lua-' + VERSION)
 
+def source_hashes(build):
+    """Verify extracted C/headers against the authenticated upstream archive."""
+    build = Path(build)
+    data = (build / ('lua-' + VERSION + '.tar.gz')).read_bytes()
+    if hashlib.sha256(data).hexdigest() != SHA256:
+        raise ValueError('Lua source archive hash mismatch')
+    hashes = {}
+    with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as tar:
+        for member in tar.getmembers():
+            path = Path(member.name)
+            if (member.isfile() and len(path.parts) == 3 and path.parts[0] == 'lua-' + VERSION
+                    and path.parts[1] == 'src' and path.suffix in ('.c', '.h')):
+                digest = hashlib.sha256(tar.extractfile(member).read()).hexdigest()
+                if hashlib.sha256((build/path).read_bytes()).hexdigest() != digest:
+                    raise ValueError('Pinned Lua cache changed: ' + path.as_posix())
+                hashes[path.as_posix()] = digest
+    if not hashes:
+        raise ValueError('Lua source archive has no C inputs')
+    return hashes
+
 def fetch():
     archive = ROOT / 'build' / ('lua-' + VERSION + '.tar.gz')
     data = archive.read_bytes() if archive.exists() else b''

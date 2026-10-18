@@ -6,9 +6,10 @@ import pathlib
 import subprocess
 
 from package_explore import archive, sums
+import fetch_lua
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 MODE = 'ORIGINAL_NATIVE_OTS_EXPERIMENTAL'
 
 
@@ -56,6 +57,10 @@ def package(project, out):
             raise ValueError('Invalid pinned MinHook source path: ' + name)
         if hashlib.sha256((diag/'build/minhook'/name).read_bytes()).hexdigest() != digest:
             raise ValueError('Pinned MinHook cache changed: ' + name)
+    if (info.get('lua_version') != fetch_lua.VERSION or
+            info.get('lua_archive_sha256') != fetch_lua.SHA256 or
+            info.get('lua_sources') != fetch_lua.source_hashes(diag/'build')):
+        raise ValueError('Native build Lua provenance differs from pinned source')
     items = {
         'reframework/plugins/RE7_OTS_Native.dll': dll,
         'BUILD_INFO.json': (json.dumps(info, indent=2, sort_keys=True)+'\n').encode(),

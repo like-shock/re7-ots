@@ -13,12 +13,14 @@
 #include "ref_min.h"
 #include "observer.h"
 #include "native_runtime.h"
+#include "native_options.h"
+#include "native_options_ui.h"
 #include "MinHook.h"
 
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.1"
+#define NATIVE_VERSION "0.1.2"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -28,6 +30,7 @@ _Static_assert(NATIVE_SITE_COUNT <= NATIVE_MAX_SITES, "detour table capacity");
 enum { PHASE_VALIDATING, PHASE_INSTALLING, PHASE_READY, PHASE_BLOCKED };
 static const REFFunctions *ref;
 static NativeRuntime runtime;
+static NativeOptions options;
 static SRWLOCK runtime_lock = SRWLOCK_INIT;
 static _Atomic int phase, initialization;
 static _Atomic unsigned toggle_requests, shoulder_requests;
@@ -43,6 +46,15 @@ static int log_failed, log_full, minhook_initialized;
 static unsigned created_hooks;
 static char reason[128] = "VALIDATING";
 static uint8_t hash_buffer[1024 * 1024], pe_buffer[65536];
+
+int native_options_ui_get(int*value,int*save_status) {
+    if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
+    return native_options_get(&options,value,save_status);
+}
+int native_options_ui_set(int value) {
+    if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
+    return native_options_request(&options,value);
+}
 
 static int fail(const char *why) {
     snprintf(reason, sizeof reason, "%s", why);
@@ -172,6 +184,44 @@ static int setup_log(void) {
     logfile = CreateFileW(log_path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW,
                          FILE_ATTRIBUTE_NORMAL, NULL);
     return logfile != INVALID_HANDLE_VALUE ? 1 : fail("LOG_OPEN_FAILED");
+}
+static void load_options(void) {
+    WCHAR path[PATH_CAP];char data[64];DWORD count=0;int value=1;
+    if(!join(path,folder,L"\\settings.cfg")){native_options_load(&options,1);return;}
+    HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    if(file!=INVALID_HANDLE_VALUE){
+        int valid=ReadFile(file,data,sizeof data,&count,NULL)&&native_options_parse(data,count,&value);
+        CloseHandle(file);
+        if(!valid){value=1;message("Invalid/unreadable settings.cfg; using original melee auto-disable ON.");}
+    }else if(GetLastError()!=ERROR_FILE_NOT_FOUND){
+        message("Could not read settings.cfg; using original melee auto-disable ON.");
+    }
+    native_options_load(&options,value);
+}
+static int save_options(int value) {
+    WCHAR path[PATH_CAP],temp[PATH_CAP];char data[64];DWORD count=0;
+    size_t size=native_options_encode(value,data,sizeof data);
+    if(!size||!join(path,folder,L"\\settings.cfg")||!join(temp,folder,L"\\settings.cfg.tmp"))return 0;
+    HANDLE file=CreateFileW(temp,GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+    if(file==INVALID_HANDLE_VALUE)return 0;
+    int ok=WriteFile(file,data,(DWORD)size,&count,NULL)&&count==size&&FlushFileBuffers(file);
+    if(!CloseHandle(file))ok=0;
+    if(ok)ok=MoveFileExW(temp,path,MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0;
+    if(!ok)DeleteFileW(temp);
+    return ok;
+}
+/* Runtime lock is held by the caller. F6 resets must retain the UI preference. */
+static void reset_runtime(void) {
+    int value=1,status=0;native_options_get(&options,&value,&status);
+    native_runtime_init(&runtime,base,read_memory,write_memory,NULL);
+    native_runtime_set_melee_auto_disable(&runtime,value);
+}
+static void lua_created(void*state) {
+    ref->lock_lua();
+    int ok=native_options_ui_register(state);
+    ref->unlock_lua();
+    message(ok?"Settings available: Script Generated UI > RE7 OTS Native.":
+               "Settings UI registration failed; saved native preference remains active.");
 }
 static int conflicts(void) {
     static const WCHAR *modules[] = {
@@ -369,6 +419,7 @@ static void snapshot(uint64_t now) {
          "\"view_changes\":%llu,\"camera_matches\":%llu,\"read_failures\":%llu,\"write_failures\":%llu,"
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
          "\"flashlight_shadow_calls\":%llu,\"flashlight_shadow_applied\":%llu,"
+         "\"auto_disable_with_melee_weapons\":%s,"
          "\"calls\":[%s],\"applied\":[%s]}\n",
          (unsigned long long)(now - started), (unsigned long long)generation,
          atomic_load_explicit(&native_enabled, memory_order_acquire) ? "true" : "false",
@@ -382,7 +433,8 @@ static void snapshot(uint64_t now) {
          (unsigned long long)toggles, (unsigned long long)shoulders,
          camera[0], camera[1], camera[2], clip[0], clip[1], clip[2],
          (unsigned long long)state.calls[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
-         (unsigned long long)state.applied[NS_FLASHLIGHT_SHADOWS_Z_WRITE],calls,applied);
+         (unsigned long long)state.applied[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
+         state.melee_auto_disable?"true":"false",calls,applied);
 }
 static DWORD WINAPI worker(void *unused) {
     (void)unused;
@@ -390,6 +442,7 @@ static DWORD WINAPI worker(void *unused) {
     atomic_store_explicit(&native_enabled, 0, memory_order_release);
     started = GetTickCount64();
     if (!setup_log()) { block(); return 0; }
+    load_options();
     base = (uint64_t)(uintptr_t)GetModuleHandleW(NULL);
     line("{\"type\":\"header\",\"schema\":1,\"version\":\"" NATIVE_VERSION "\","
          "\"mode\":\"" NATIVE_MODE "\",\"source_commit\":\"" NATIVE_SOURCE_COMMIT "\","
@@ -402,7 +455,7 @@ static DWORD WINAPI worker(void *unused) {
              i, native_sites[i].name, native_sites[i].rva, native_sites[i].length);
     if (log_failed || !conflicts() || !known_build()) { if (log_failed) fail("LOG_WRITE_FAILED"); block(); goto done; }
     AcquireSRWLockExclusive(&runtime_lock);
-    native_runtime_init(&runtime, base, read_memory, write_memory, NULL);
+    reset_runtime();
     ReleaseSRWLockExclusive(&runtime_lock);
     atomic_store_explicit(&phase, PHASE_INSTALLING, memory_order_release);
     if (!install_hooks()) { block(); goto done; }
@@ -417,13 +470,24 @@ static DWORD WINAPI worker(void *unused) {
         if (atomic_load_explicit(&dispatch_fault, memory_order_acquire)) {
             fail("DISPATCH_TLS_FAILED"); block(); break;
         }
+        int melee_value;unsigned option_token;
+        if(native_options_pending(&options,&melee_value,&option_token)){
+            AcquireSRWLockExclusive(&runtime_lock);
+            native_runtime_set_melee_auto_disable(&runtime,melee_value);
+            ReleaseSRWLockExclusive(&runtime_lock);
+            int saved=save_options(melee_value);
+            native_options_complete(&options,option_token,saved);
+            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"saved\":%s}\n",
+                 melee_value?"true":"false",saved?"true":"false");
+            if(!saved)message("Could not save melee preference; session setting is applied.");
+        }
         unsigned requested = atomic_exchange_explicit(&toggle_requests, 0, memory_order_acq_rel);
         if (requested & 1u) {
             ++toggles;
             atomic_store_explicit(&native_enabled, 0, memory_order_release);
             if (!active && !conflicts()) { block(); break; }
             AcquireSRWLockExclusive(&runtime_lock);
-            if (!active) native_runtime_init(&runtime, base, read_memory, write_memory, NULL);
+            if (!active) reset_runtime();
             ReleaseSRWLockExclusive(&runtime_lock);
             active = !active;
             if (active) {
@@ -477,6 +541,7 @@ __declspec(dllexport) _Bool reframework_plugin_initialize(const REFInit *paramet
     if (!parameters || !parameters->functions || !parameters->functions->on_present || !native_cpu_init())
         goto failed;
     ref = parameters->functions;
+    native_options_init(&options);
     dispatch_tls = TlsAlloc();
     if (dispatch_tls == TLS_OUT_OF_INDEXES) goto failed;
     /* Never free this TLS slot: pinned detours may outlive logical disable. */
@@ -484,6 +549,8 @@ __declspec(dllexport) _Bool reframework_plugin_initialize(const REFInit *paramet
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
             (LPCWSTR)(uintptr_t)&reframework_plugin_initialize, &self)) goto failed;
     if (!ref->on_present(present)) goto failed;
+    if(!ref->on_lua_created||!ref->lock_lua||!ref->unlock_lua||!ref->on_lua_created(lua_created))
+        message("Lua UI callback unavailable; saved native preference remains active.");
     HANDLE thread = CreateThread(NULL, 0, worker, NULL, 0, NULL);
     if (!thread) goto failed;
     CloseHandle(thread);

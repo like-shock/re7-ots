@@ -50,11 +50,15 @@ void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeW
  re7_original_state_rates(&r->config,&r->params,60,&r->rates);
 }
 void native_runtime_shoulder(NativeRuntime*r){r->params.sidedis=r->params.sidedis<0?1:-1;}
+void native_runtime_set_melee_auto_disable(NativeRuntime*r,int enabled){
+ if(enabled==0||enabled==1)r->config.fpmeleeflag=(uint8_t)enabled;
+}
 void native_runtime_snapshot(const NativeRuntime*r,NativeSnapshot*s){
  *s=r->stats;s->camera_base=r->camera_base;s->input_valid=r->inputs.valid;s->input_failed=r->inputs.failed;s->input_observed=r->inputs.observed;
  s->frame=r->inputs.frametrack;s->loadarea=r->inputs.state.loadarea;s->ready=r->inputs.ready;
  s->firstperson=r->view.firstpersonflag;s->stopflag=r->state.stopflag;s->internalfp=r->state.internalfpflag;
  s->aim=r->inputs.state.aim;s->blockedgun=r->state.blockedgun;s->framerate=r->inputs.state.framerate;
+ s->melee_auto_disable=r->config.fpmeleeflag;
  s->clip[0]=r->params.camclipbehinddis;s->clip[1]=r->params.camclipsidedis;s->clip[2]=r->params.camclipheightdis;
 }
 static int camera_write(NativeRuntime*r,NativeFrame*f,void*fp){

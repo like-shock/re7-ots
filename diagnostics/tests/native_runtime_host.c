@@ -29,6 +29,15 @@ int main(void){
  ready(&r);f.rax=0x5000;f.rbp=0x3000;putf(0x5008,99);CHECK(native_runtime_dispatch(&r,NS_EOZ_AIM_POS_WRITE,&f,fp));CHECK(f.rax==bits(99)&&f.rcx==0x35d0);CHECK(getf(0x4538)==30);
  ready(&r);r.view.firstpersonflag=1;f.rbx=0x2000;f.rbp=0x3000;native_set_xmm_scalar(fp,0,10);native_set_xmm_scalar(fp,1,20);native_set_xmm_scalar(fp,2,30);CHECK(native_runtime_dispatch(&r,NS_CAM_WRITES,&f,fp));CHECK(getf(0x2030)==10&&getf(0x2034)==20&&getf(0x2038)==30);
  ready(&r);native_runtime_shoulder(&r);CHECK(r.params.sidedis==-1);native_runtime_shoulder(&r);CHECK(r.params.sidedis==1);
+ /* The UI option changes ONLY the original melee gate, not inventory/events. */
+ ready(&r);r.inputs.state.loadarea=5;r.inputs.state.player=(Re7OriginalVec){100,100,100};r.inputs.state.holdingmelee=1;
+ re7_original_state_policy(&r.config,&r.inputs.state,&r.state);CHECK(r.state.blockedgun==1);
+ native_runtime_set_melee_auto_disable(&r,0);
+ re7_original_state_policy(&r.config,&r.inputs.state,&r.state);CHECK(r.state.blockedgun==0&&r.config.fpmeleeflag==0);
+ r.inputs.state.inventory=1;re7_original_state_policy(&r.config,&r.inputs.state,&r.state);CHECK(r.state.blockedgun==1);
+ r.inputs.state.inventory=0;native_runtime_set_melee_auto_disable(&r,1);
+ re7_original_state_policy(&r.config,&r.inputs.state,&r.state);CHECK(r.state.blockedgun==1);
+ native_runtime_set_melee_auto_disable(&r,9);CHECK(r.config.fpmeleeflag==1);
  ready(&r);r.inputs.valid&=~RE7_INPUT_AREA;r.inputs.ready=0;f.rbx=0x2000;CHECK(!native_runtime_dispatch(&r,NS_CAM_WRITES,&f,fp));CHECK(!writes);
  /* Ordinary HEAD transforms publish source view policy with zero memory reads
   * when fpaim is off and no inspection latch can match. */

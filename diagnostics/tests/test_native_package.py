@@ -8,6 +8,14 @@ def seed_minhook(diag):
  (diag/'data').mkdir();(diag/'data/minhook.json').write_text(json.dumps(manifest))
  cache=diag/'build/minhook/src';cache.mkdir(parents=True);(cache/'hook.c').write_bytes(content)
  return manifest
+def seed_lua(diag):
+ import importlib.util
+ spec=importlib.util.spec_from_file_location('native_fetch_lua',ROOT/'tools/fetch_lua.py')
+ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+ shutil.copyfile(ROOT/'build/lua-5.4.3.tar.gz',diag/'build/lua-5.4.3.tar.gz')
+ shutil.copytree(ROOT/'build/lua-5.4.3',diag/'build/lua-5.4.3')
+ return {'lua_version':module.VERSION,'lua_archive_sha256':module.SHA256,
+         'lua_sources':module.source_hashes(diag/'build')}
 class NativeInstallTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
@@ -28,10 +36,12 @@ class NativeInstallTests(unittest.TestCase):
   for name in OLD:self.assertFalse((self.game/name).exists())
   self.assertEqual((self.game/self.dll).read_bytes(),b'new native')
   log=self.game/'reframework/data/RE7_OTS_Native/keep.jsonl';log.write_text('evidence')
+  config=log.parent/'settings.cfg';config.write_text('auto_disable_with_melee_weapons=0\n')
   self.run_script('uninstall.sh')
   self.assertFalse((self.game/self.dll).exists());self.assertEqual(log.read_text(),'evidence')
   for name in OLD:self.assertEqual((self.game/name).read_bytes(),name.encode())
   self.assertEqual(model.read_bytes(),b'user model')
+  self.assertEqual(config.read_text(),'auto_disable_with_melee_weapons=0\n')
  def test_corrupt_payload_is_rejected_before_moving_old_files(self):
   (self.pkg/self.dll).write_bytes(b'corrupt');self.run_script('install.sh',False)
   for name in OLD:self.assertEqual((self.game/name).read_bytes(),name.encode())
@@ -95,19 +105,19 @@ class NativeArchiveTests(unittest.TestCase):
    project=pathlib.Path(d)/'repo';diag=project/'diagnostics';diag.mkdir(parents=True)
    shutil.copytree(ROOT/'native',diag/'native')
    for name in ('MINHOOK_LICENSE.txt','NOTICE.md','ORIGINAL_CREDITS.txt','LICENSE'):shutil.copyfile(ROOT/name,diag/name)
-   pin=seed_minhook(diag)
+   pin=seed_minhook(diag);lua=seed_lua(diag)
    (project/'.gitignore').write_text('diagnostics/build/\n')
    subprocess.run(['git','init','-q',str(project)],check=True)
    subprocess.run(['git','-C',str(project),'add','.'],check=True)
    subprocess.run(['git','-C',str(project),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture'],check=True)
    sha=subprocess.check_output(['git','-C',str(project),'rev-parse','HEAD'],text=True).strip()
    build=diag/'build';build.mkdir(exist_ok=True);(build/'RE7_OTS_Native.dll').write_bytes(b'fixture DLL')
-   info={'schema':1,'version':'0.1.1','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,'dll_sha256':hashlib.sha256(b'fixture DLL').hexdigest(),
+   info={'schema':1,'version':'0.1.2','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,'dll_sha256':hashlib.sha256(b'fixture DLL').hexdigest(),
          'sources':{name:hashlib.sha256((diag/name).read_bytes()).hexdigest() for name in ('native/install.sh','data/minhook.json')},
-         'minhook_commit':pin['commit'],'minhook_sources':pin['files']}
+         'minhook_commit':pin['commit'],'minhook_sources':pin['files'],**lua}
    (build/'native-build.json').write_text(json.dumps(info))
    target=m.package(project,pathlib.Path(d)/'out')
-   self.assertEqual(target.name,'RE7_OTS_Native_v0.1.1_SteamDeck.zip')
+   self.assertEqual(target.name,'RE7_OTS_Native_v0.1.2_SteamDeck.zip')
    with zipfile.ZipFile(target) as z:
     self.assertFalse(any('Explore.dll' in p or p.endswith('.lua') for p in z.namelist()))
     self.assertEqual([p for p in z.namelist() if p.endswith('.dll')],['reframework/plugins/RE7_OTS_Native.dll'])
@@ -127,20 +137,21 @@ class NativeArchiveTests(unittest.TestCase):
    project=pathlib.Path(d)/'repo';diag=project/'diagnostics';diag.mkdir(parents=True)
    shutil.copytree(ROOT/'native',diag/'native')
    for name in ('MINHOOK_LICENSE.txt','NOTICE.md','ORIGINAL_CREDITS.txt','LICENSE'):shutil.copyfile(ROOT/name,diag/name)
-   pin=seed_minhook(diag)
+   pin=seed_minhook(diag);lua=seed_lua(diag)
    (project/'.gitignore').write_text('diagnostics/build/\n')
    subprocess.run(['git','init','-q',str(project)],check=True)
    subprocess.run(['git','-C',str(project),'add','.'],check=True)
    subprocess.run(['git','-C',str(project),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture'],check=True)
    sha=subprocess.check_output(['git','-C',str(project),'rev-parse','HEAD'],text=True).strip()
    build=diag/'build';build.mkdir(exist_ok=True);dll=build/'RE7_OTS_Native.dll';dll.write_bytes(b'fixture DLL')
-   good={'schema':1,'version':'0.1.1','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,
+   good={'schema':1,'version':'0.1.2','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,
          'dll_sha256':hashlib.sha256(dll.read_bytes()).hexdigest(),
          'sources':{name:hashlib.sha256((diag/name).read_bytes()).hexdigest() for name in ('native/install.sh','data/minhook.json')},
-         'minhook_commit':pin['commit'],'minhook_sources':pin['files']}
+         'minhook_commit':pin['commit'],'minhook_sources':pin['files'],**lua}
    mutations=[{'schema':2},{'version':'9.9.9'},{'mode':'PASS_THROUGH_HOOK_PROBE'},
               {'commit':'0'*40},{'dirty':True},{'dll_sha256':'0'*64},{'sources':{}},
               {'minhook_commit':'b'*40},{'minhook_sources':{}},
+              {'lua_version':'5.3'},{'lua_archive_sha256':'0'*64},{'lua_sources':{}},
               {'minhook_sources':{'src/hook.c':'0'*64}},
               {'sources':{'../.gitignore':hashlib.sha256((project/'.gitignore').read_bytes()).hexdigest()}}]
    for change in mutations:
@@ -151,6 +162,10 @@ class NativeArchiveTests(unittest.TestCase):
    (build/'native-build.json').write_text(json.dumps(good|{'sources':{'untracked.c':hashlib.sha256(untracked.read_bytes()).hexdigest()}}))
    with self.assertRaises(ValueError):m.package(project,pathlib.Path(d)/'bad')
    (build/'native-build.json').write_text(json.dumps(good))
+   lua_source=build/'lua-5.4.3/src/lapi.c';original_lua=lua_source.read_bytes()
+   lua_source.write_bytes(b'changed Lua core')
+   with self.assertRaises(ValueError):m.package(project,pathlib.Path(d)/'bad-lua')
+   lua_source.write_bytes(original_lua)
    (build/'minhook/src/hook.c').write_bytes(b'tampered cache')
    with self.assertRaises(ValueError):m.package(project,pathlib.Path(d)/'bad')
    (diag/'native/install.sh').write_text('dirty source')

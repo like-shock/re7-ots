@@ -1,6 +1,6 @@
 # Attribution
 
-Native Hook Probe 0.1.0 and Native OTS 0.1.0 use MinHook v1.3.4, revision
+Native Hook Probe 0.1.0 and Native OTS use MinHook v1.3.4, revision
 `c3fcafdc10146beb5919319d0683e44e3c30d537` (TsudaKageyu/minhook).
 Its BSD notices, including the HDE decoder attribution, are reproduced in
 MINHOOK_LICENSE.txt. Build inputs are individually hash-pinned in data/minhook.json.
@@ -38,9 +38,11 @@ are external and are not copied or bundled here. See docs/RUNTIME_EXPANSION_KO.m
 for API references, exact model scope and unverified runtime limits.
 
 
-## Lua 5.4.3 core (Explore native 0.4.0)
+## Lua 5.4.3 core (Explore native and Native OTS settings UI)
 
-The Explore DLL statically links the Lua core, following REFramework's example plugin.
+The Explore DLL and Native OTS 0.1.2 settings UI statically link the Lua core,
+following REFramework's example plugin. Native OTS uses Lua only for the menu;
+camera and model control remain native. No separate Lua script is installed.
 Pinned source: https://www.lua.org/ftp/lua-5.4.3.tar.gz
 SHA-256: `f8612276169e3bfcbcfb8f226195bfc6e466fe13042f1076cbde92b7ec96bbfb`.
 The core source is fetched into the build cache, not copied into this repository.

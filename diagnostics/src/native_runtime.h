@@ -13,7 +13,7 @@ typedef struct {
  uint64_t reads_failed,writes_failed,camera_matches,view_changes;
  uint64_t camera_base,input_valid,input_failed,input_observed;
  uint32_t frame,loadarea;
- uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun;
+ uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable;
  float camera[3],clip[3],framerate;
 } NativeSnapshot;
 typedef struct {
@@ -41,5 +41,6 @@ typedef struct {
 void native_runtime_init(NativeRuntime *,uint64_t,NativeMemory,NativeWrite,void*);
 int native_runtime_dispatch(NativeRuntime *,unsigned,NativeFrame *,void *);
 void native_runtime_shoulder(NativeRuntime *);
+void native_runtime_set_melee_auto_disable(NativeRuntime *,int enabled);
 void native_runtime_snapshot(const NativeRuntime *,NativeSnapshot *);
 #endif
