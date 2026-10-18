@@ -44,7 +44,8 @@ typedef enum {
  NS_EXAMINE_DOF_WRITE=38,
  NS_RUN_FLAG_OFF=39,
  NS_RUN_FLAG_ON=40,
- NATIVE_SITE_COUNT=41
+ NS_FLASHLIGHT_SHADOWS_Z_WRITE=41,
+ NATIVE_SITE_COUNT=42
 } NativeSite;
 typedef struct {const char*name;uint32_t rva;uint8_t length,expected[48];} NativeSiteDefinition;
 static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
@@ -89,5 +90,6 @@ static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
 {"EXAMINE_DOF_WRITE",0x17C469Fu,8,{0xF3,0x0F,0x11,0xBF,0x80,0x05,0x00,0x00}},
 {"RUN_FLAG_OFF",0x190D175u,6,{0x89,0x87,0xA8,0x00,0x00,0x00}},
 {"RUN_FLAG_ON",0x190D17Du,10,{0xC7,0x87,0xA8,0x00,0x00,0x00,0x01,0x00,0x00,0x00}},
+{"FLASHLIGHT_SHADOWS_Z_WRITE",0x2DEE559u,6,{0x89,0x8F,0xC8,0x00,0x00,0x00}},
 };
 #endif

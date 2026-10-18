@@ -159,6 +159,19 @@ static int model_write(NativeRuntime*r,unsigned site,NativeFrame*f){
  if(!out.byte_write_address||!write_at(r,out.byte_write_address,&out.byte_write_value,1))return 0;
  uint32_t value;if(!load(r,in.owner,0x3d0,&value,4))return 0;f->rax=value;return 1;
 }
+static int flashlight_shadow_write(NativeRuntime*r,NativeFrame*f){
+ /* RT 8.02 L10018-10038, tpflashshadowsdisable defaults to 1.
+  * Only [rdi+C8] == flashflagadd-448 belongs to the original flashlight.
+  * #9999 is a DWORD integer bit pattern, NOT float 9999. No light-color,
+  * brightness or coordinate edits. A zero return replays MOV [rdi+C8],ecx. */
+ uint64_t target,flag=r->inputs.flashlight_address;
+ if(!r->inputs.ready||r->view.firstpersonflag==1||
+    !(r->inputs.observed&(UINT64_C(1)<<NS_FLASHLIGHT_WRITE))||
+    !(r->inputs.valid&RE7_INPUT_FLASHLIGHT)||flag<0x10000+0x448||
+    f->rdi<0x10000||!offset(f->rdi,0xc8,&target)||target!=flag-0x448)return 0;
+ const uint32_t value=9999;
+ return write_at(r,target,&value,sizeof value);
+}
 static int autolook(NativeRuntime*r,NativeFrame*f){
  if(!r->inputs.ready||r->view.firstpersonflag==1)return 0;
  static const unsigned offsets[]={0x78,0x20,0x590,0x40,0x30,0x178};uint64_t p,value;
@@ -200,6 +213,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_EXAMINE_DOF_WRITE:{Re7OriginalCollisionFlags flags=clip_flags(r);re7_original_collision_examine_write(&r->collision,&flags,native_get_xmm_scalar(fp,7),1);break;}
  case NS_DOF_ORIGIN_ANGLE_WRITES:case NS_EOZ_DOF_ORIGIN_ANGLE_WRITES:case NS_NAH_DOF_ORIGIN_ANGLE_WRITES:handled=collision_write(r,site,f,fp);break;
  case NS_PLAYER_TRANS_READ:case NS_TRANS_GUN_WRITE:if(r->inputs.ready)handled=model_write(r,site,f);break;
+ case NS_FLASHLIGHT_SHADOWS_Z_WRITE:handled=flashlight_shadow_write(r,f);break;
  case NS_CUTSCENE_AUTOLOOK:handled=autolook(r,f);break;
  case NS_INTERACTABLE_FLAG_ON:r->inputs.state.interactableflag=1;break;
  case NS_INTERACTABLE_FLAG_OFF:r->inputs.state.interactableflag=0;break;

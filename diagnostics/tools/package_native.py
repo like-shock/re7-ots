@@ -8,7 +8,7 @@ import subprocess
 from package_explore import archive, sums
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 MODE = 'ORIGINAL_NATIVE_OTS_EXPERIMENTAL'
 
 

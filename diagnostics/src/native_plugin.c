@@ -18,7 +18,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.0"
+#define NATIVE_VERSION "0.1.1"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -368,6 +368,7 @@ static void snapshot(uint64_t now) {
          "\"firstperson\":%u,\"stopflag\":%u,\"internalfp\":%u,\"aim\":%u,\"blockedgun\":%u,"
          "\"view_changes\":%llu,\"camera_matches\":%llu,\"read_failures\":%llu,\"write_failures\":%llu,"
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
+         "\"flashlight_shadow_calls\":%llu,\"flashlight_shadow_applied\":%llu,"
          "\"calls\":[%s],\"applied\":[%s]}\n",
          (unsigned long long)(now - started), (unsigned long long)generation,
          atomic_load_explicit(&native_enabled, memory_order_acquire) ? "true" : "false",
@@ -379,7 +380,9 @@ static void snapshot(uint64_t now) {
          (unsigned long long)state.view_changes, (unsigned long long)state.camera_matches,
          (unsigned long long)state.reads_failed, (unsigned long long)state.writes_failed,
          (unsigned long long)toggles, (unsigned long long)shoulders,
-         camera[0], camera[1], camera[2], clip[0], clip[1], clip[2], calls, applied);
+         camera[0], camera[1], camera[2], clip[0], clip[1], clip[2],
+         (unsigned long long)state.calls[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
+         (unsigned long long)state.applied[NS_FLASHLIGHT_SHADOWS_Z_WRITE],calls,applied);
 }
 static DWORD WINAPI worker(void *unused) {
     (void)unused;
