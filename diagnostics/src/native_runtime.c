@@ -3,6 +3,7 @@
  * No Lua/SDK/model discovery, scene raycast, or new proximity-based FP switch. */
 #include "native_runtime.h"
 #include <string.h>
+_Static_assert(NATIVE_HEAD_ONLY_MASK == ((1ULL<<NS_HEAD_Y_WRITE)|(1ULL<<NS_CUTSCENE_AUTOLOOK)|(1ULL<<NS_CHARACTER_CMP)|(1ULL<<NS_LOADED_AREA)|(1ULL<<NS_FLASHLIGHT_WRITE)),"head-only bridge sites");
 static uint32_t bits(float f){uint32_t u;memcpy(&u,&f,4);return u;}
 static float scalar(uint32_t u){float f;memcpy(&f,&u,4);return f;}
 static int finite_value(float f){return (bits(f)&0x7f800000u)!=0x7f800000u;}
@@ -43,6 +44,7 @@ static void sync_input(NativeRuntime*r){
 }
 void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeWrite write,void*ctx){
  memset(r,0,sizeof *r);r->base=base;r->read=read;r->write=write;r->context=ctx;
+ r->camera_enabled=1;r->hide_head=1;
  re7_original_defaults(&r->params);re7_original_state_defaults(&r->config);
  re7_original_inputs_init(&r->inputs);re7_original_collision_defaults(&r->collision_config,&r->collision);
  r->interaction_input.tpinteractables=r->interaction_input.fixpaperscan=r->interaction_input.fixwormbox=1;
@@ -53,12 +55,28 @@ void native_runtime_shoulder(NativeRuntime*r){r->params.sidedis=r->params.sidedi
 void native_runtime_set_melee_auto_disable(NativeRuntime*r,int enabled){
  if(enabled==0||enabled==1)r->config.fpmeleeflag=(uint8_t)enabled;
 }
+void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
+ if(enabled!=0&&enabled!=1)return;
+ r->camera_enabled=(uint8_t)enabled;r->config.thirdpersonflag=(uint8_t)enabled;
+ if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;}
+ native_head_clear(&r->head);
+}
+void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
+ if(enabled!=0&&enabled!=1)return;
+ r->hide_head=(uint8_t)enabled;
+ if(!enabled)native_head_clear(&r->head);
+}
 void native_runtime_snapshot(const NativeRuntime*r,NativeSnapshot*s){
  *s=r->stats;s->camera_base=r->camera_base;s->input_valid=r->inputs.valid;s->input_failed=r->inputs.failed;s->input_observed=r->inputs.observed;
  s->frame=r->inputs.frametrack;s->loadarea=r->inputs.state.loadarea;s->ready=r->inputs.ready;
  s->firstperson=r->view.firstpersonflag;s->stopflag=r->state.stopflag;s->internalfp=r->state.internalfpflag;
  s->aim=r->inputs.state.aim;s->blockedgun=r->state.blockedgun;s->framerate=r->inputs.state.framerate;
  s->melee_auto_disable=r->config.fpmeleeflag;
+ s->camera_enabled=r->camera_enabled;s->hide_head=r->hide_head;s->head_target=r->head.head;
+ s->character_raw=r->inputs.pcharcflag;s->characters=r->inputs.state.characters;
+ s->character_observed=(r->inputs.observed&(1ULL<<NS_CHARACTER_CMP))!=0;
+ s->model_marker_available=r->inputs.state.model_marker_available;
+ s->model_marker=r->inputs.state.model_marker;s->assumeheadless=r->state.assumeheadless;
  s->clip[0]=r->params.camclipbehinddis;s->clip[1]=r->params.camclipsidedis;s->clip[2]=r->params.camclipheightdis;
 }
 static int camera_write(NativeRuntime*r,NativeFrame*f,void*fp){
@@ -184,8 +202,26 @@ static int autolook(NativeRuntime*r,NativeFrame*f){
  if(p!=f->rdx||!load(r,f->rcx,0x50,&value,8))return 0;
  f->rax=value;return 1;
 }
+static int head_allowed(const NativeRuntime*r){
+ return r->hide_head&&r->view.firstpersonflag==1&&
+  (!r->camera_enabled||(r->inputs.ready&&r->state.assumeheadless!=1))&&
+  (r->inputs.valid&RE7_INPUT_CHARACTER)!=0;
+}
+static int head_write(NativeRuntime*r,NativeFrame*f,void*fp){
+ if(!head_allowed(r))return 0;
+ unsigned kind=native_head_match(&r->head,r->base,f->rbx,r->inputs.state.characters,
+                                r->inputs.state.flashlightflag==1,read_cb,r);
+ if(!kind)return 0;
+ /* Original HEAD_Y_WRITE's complete 21-byte block. Only Y changes; X/Z/W,
+  * all saved registers/flags and extended state remain the engine's values. */
+ float out[4]={native_get_xmm_scalar(fp,9),-1000.0f,
+               native_get_xmm_scalar(fp,1),native_get_xmm_scalar(fp,2)};
+ if(!store(r,f->rbx,0x30,out,sizeof out))return 0;
+ r->stats.head_applied[kind-1]++;return 1;
+}
 int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  if(!r||!f||!fp||site>=NATIVE_SITE_COUNT)return 0;
+ if(!r->camera_enabled&&!((NATIVE_HEAD_ONLY_MASK>>site)&1))return 0;
  r->stats.calls[site]++;
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
@@ -205,9 +241,13 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_HEAD_Y_WRITE:{
   uint8_t previous=r->view.firstpersonflag;
   Re7OriginalViewInput in={r->state.stopflag,r->state.internalfpflag,r->config.thirdpersonflag,r->config.fpaimflag,r->inputs.state.aim};
-  if(r->inputs.ready)re7_original_view(&in,&r->view);
+  if(!r->camera_enabled)r->view.firstpersonflag=1;
+  else if(r->inputs.ready)re7_original_view(&in,&r->view);
   if(previous!=r->view.firstpersonflag)r->stats.view_changes++;
-  sync_input(r);handled=interaction_write(r,site,f,fp);break;
+  if(r->view.firstpersonflag!=1)native_head_clear(&r->head);
+  sync_input(r);handled=head_write(r,f,fp);
+  if(!handled&&r->camera_enabled)handled=interaction_write(r,site,f,fp);
+  break;
  }
  case NS_TP_INTERACTABLE_COORDS:handled=interaction_write(r,site,f,fp);break;
  case NS_DOF_DISTANCE_READ:{
@@ -218,7 +258,11 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_DOF_ORIGIN_ANGLE_WRITES:case NS_EOZ_DOF_ORIGIN_ANGLE_WRITES:case NS_NAH_DOF_ORIGIN_ANGLE_WRITES:handled=collision_write(r,site,f,fp);break;
  case NS_PLAYER_TRANS_READ:case NS_TRANS_GUN_WRITE:if(r->inputs.ready)handled=model_write(r,site,f);break;
  case NS_FLASHLIGHT_SHADOWS_Z_WRITE:handled=flashlight_shadow_write(r,f);break;
- case NS_CUTSCENE_AUTOLOOK:handled=autolook(r,f);break;
+ case NS_CUTSCENE_AUTOLOOK:
+  if(head_allowed(r))native_head_refresh(&r->head,r->base,r->inputs.head_address,r->inputs.state.characters,read_cb,r);
+  else native_head_clear(&r->head);
+  if(r->camera_enabled)handled=autolook(r,f);
+  break;
  case NS_INTERACTABLE_FLAG_ON:r->inputs.state.interactableflag=1;break;
  case NS_INTERACTABLE_FLAG_OFF:r->inputs.state.interactableflag=0;break;
  case NS_GET_SECONDARY_INTERACTABLE_R13_ADDRESS:{uint64_t a;if(re7_original_interaction_secondary(f->rax,read_cb,r,&a))r->interaction_input.secintadd=a;break;}

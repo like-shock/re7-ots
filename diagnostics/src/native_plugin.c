@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.2"
+#define NATIVE_VERSION "0.1.3"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -51,9 +51,9 @@ int native_options_ui_get(int*value,int*save_status) {
     if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
     return native_options_get(&options,value,save_status);
 }
-int native_options_ui_set(int value) {
+int native_options_ui_set(unsigned flag,int value) {
     if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
-    return native_options_request(&options,value);
+    return native_options_request_field(&options,flag,value);
 }
 
 static int fail(const char *why) {
@@ -186,15 +186,15 @@ static int setup_log(void) {
     return logfile != INVALID_HANDLE_VALUE ? 1 : fail("LOG_OPEN_FAILED");
 }
 static void load_options(void) {
-    WCHAR path[PATH_CAP];char data[64];DWORD count=0;int value=1;
-    if(!join(path,folder,L"\\settings.cfg")){native_options_load(&options,1);return;}
+    WCHAR path[PATH_CAP];char data[64];DWORD count=0;int value=NATIVE_OPTIONS_DEFAULT;
+    if(!join(path,folder,L"\\settings.cfg")){native_options_load(&options,NATIVE_OPTIONS_DEFAULT);return;}
     HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
     if(file!=INVALID_HANDLE_VALUE){
         int valid=ReadFile(file,data,sizeof data,&count,NULL)&&native_options_parse(data,count,&value);
         CloseHandle(file);
-        if(!valid){value=1;message("Invalid/unreadable settings.cfg; using original melee auto-disable ON.");}
+        if(!valid){value=NATIVE_OPTIONS_DEFAULT;message("Invalid/unreadable settings.cfg; using default native preferences.");}
     }else if(GetLastError()!=ERROR_FILE_NOT_FOUND){
-        message("Could not read settings.cfg; using original melee auto-disable ON.");
+        message("Could not read settings.cfg; using default native preferences.");
     }
     native_options_load(&options,value);
 }
@@ -212,9 +212,17 @@ static int save_options(int value) {
 }
 /* Runtime lock is held by the caller. F6 resets must retain the UI preference. */
 static void reset_runtime(void) {
-    int value=1,status=0;native_options_get(&options,&value,&status);
+    int value=NATIVE_OPTIONS_DEFAULT,status=0;native_options_get(&options,&value,&status);
     native_runtime_init(&runtime,base,read_memory,write_memory,NULL);
-    native_runtime_set_melee_auto_disable(&runtime,value);
+    native_runtime_set_melee_auto_disable(&runtime,(value&NATIVE_OPTION_MELEE)!=0);
+    native_runtime_set_hide_head(&runtime,(value&NATIVE_OPTION_HIDE_HEAD)!=0);
+    native_runtime_set_camera_enabled(&runtime,0);
+}
+/* Worker owns preference/camera transitions; faults always gate dispatch off. */
+static void publish_dispatch(int active) {
+    unsigned mode=active?1:runtime.hide_head?2:0;
+    if(atomic_load_explicit(&dispatch_fault,memory_order_acquire))mode=0;
+    atomic_store_explicit(&native_enabled,mode,memory_order_release);
 }
 static void lua_created(void*state) {
     ref->lock_lua();
@@ -404,7 +412,8 @@ static void snapshot(uint64_t now) {
     snapshot_time = presentation_time;
     snapshot_presented = presentation_frames;
     have_snapshot_time = 1;
-    char camera[3][32], clip[3][32], fps[32];
+    char camera[3][32], clip[3][32], fps[32], marker[32]="null";
+    if(state.model_marker_available)float_text(marker,state.model_marker);
     for (unsigned i = 0; i < 3; ++i) {
         float_text(camera[i], state.camera[i]);
         float_text(clip[i], state.clip[i]);
@@ -419,10 +428,13 @@ static void snapshot(uint64_t now) {
          "\"view_changes\":%llu,\"camera_matches\":%llu,\"read_failures\":%llu,\"write_failures\":%llu,"
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
          "\"flashlight_shadow_calls\":%llu,\"flashlight_shadow_applied\":%llu,"
-         "\"auto_disable_with_melee_weapons\":%s,"
+         "\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,"
+         "\"head_target\":\"0x%llx\",\"head_applied\":[%llu,%llu,%llu],"
+         "\"character_raw\":%u,\"characters\":%u,\"character_observed\":%s,"
+         "\"model_marker\":%s,\"assumeheadless\":%u,"
          "\"calls\":[%s],\"applied\":[%s]}\n",
          (unsigned long long)(now - started), (unsigned long long)generation,
-         atomic_load_explicit(&native_enabled, memory_order_acquire) ? "true" : "false",
+         atomic_load_explicit(&native_enabled, memory_order_acquire)==1 ? "true" : "false",
          (unsigned long long)presentation_frames, present_fps, (unsigned long long)window_ms,
          state.frame, state.loadarea, fps, (unsigned long long)state.camera_base,
          state.ready ? "true" : "false", (unsigned long long)state.input_valid,
@@ -434,7 +446,10 @@ static void snapshot(uint64_t now) {
          camera[0], camera[1], camera[2], clip[0], clip[1], clip[2],
          (unsigned long long)state.calls[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
          (unsigned long long)state.applied[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
-         state.melee_auto_disable?"true":"false",calls,applied);
+         state.melee_auto_disable?"true":"false",state.hide_head?"true":"false",
+         (unsigned long long)state.head_target,
+         (unsigned long long)state.head_applied[0],(unsigned long long)state.head_applied[1],(unsigned long long)state.head_applied[2],
+         state.character_raw,state.characters,state.character_observed?"true":"false",marker,state.assumeheadless,calls,applied);
 }
 static DWORD WINAPI worker(void *unused) {
     (void)unused;
@@ -446,7 +461,7 @@ static DWORD WINAPI worker(void *unused) {
     base = (uint64_t)(uintptr_t)GetModuleHandleW(NULL);
     line("{\"type\":\"header\",\"schema\":1,\"version\":\"" NATIVE_VERSION "\","
          "\"mode\":\"" NATIVE_MODE "\",\"source_commit\":\"" NATIVE_SOURCE_COMMIT "\","
-         "\"game_data_writes\":true,\"game_writes\":true,\"code_patches\":true,\"face_hiding\":false,"
+         "\"game_data_writes\":true,\"game_writes\":true,\"code_patches\":true,\"face_hiding\":true,"
          "\"starts_enabled\":false,\"limit_bytes\":8388608,\"limit_ms\":null,"
          "\"site_count\":%u,\"build_sha256\":\"" OBS_EXE_HASH "\",\"trampolines_retained\":true}\n",
          (unsigned)NATIVE_SITE_COUNT);
@@ -461,8 +476,9 @@ static DWORD WINAPI worker(void *unused) {
     if (!install_hooks()) { block(); goto done; }
     fail("READY_DISABLED");
     atomic_store_explicit(&phase, PHASE_READY, memory_order_release);
+    publish_dispatch(0);
     line("{\"type\":\"ready\",\"enabled\":false,\"created_hooks\":%u}\n", created_hooks);
-    message("Original native OTS test build ready, disabled. F6 toggles; F7 changes shoulder. Logs: reframework/data/RE7_OTS_Native.");
+    message("Native OTS ready. Camera starts OFF; saved first-person head hiding applies. F6 toggles camera; F7 changes shoulder. Logs: reframework/data/RE7_OTS_Native.");
     int active = 0, cap_announced = 0;
     uint64_t next_snapshot = 0, next_conflict = 0;
     for (;;) {
@@ -470,16 +486,18 @@ static DWORD WINAPI worker(void *unused) {
         if (atomic_load_explicit(&dispatch_fault, memory_order_acquire)) {
             fail("DISPATCH_TLS_FAILED"); block(); break;
         }
-        int melee_value;unsigned option_token;
-        if(native_options_pending(&options,&melee_value,&option_token)){
+        int option_value;unsigned option_token;
+        if(native_options_pending(&options,&option_value,&option_token)){
             AcquireSRWLockExclusive(&runtime_lock);
-            native_runtime_set_melee_auto_disable(&runtime,melee_value);
+            native_runtime_set_melee_auto_disable(&runtime,(option_value&NATIVE_OPTION_MELEE)!=0);
+            native_runtime_set_hide_head(&runtime,(option_value&NATIVE_OPTION_HIDE_HEAD)!=0);
             ReleaseSRWLockExclusive(&runtime_lock);
-            int saved=save_options(melee_value);
+            publish_dispatch(active);
+            int saved=save_options(option_value);
             native_options_complete(&options,option_token,saved);
-            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"saved\":%s}\n",
-                 melee_value?"true":"false",saved?"true":"false");
-            if(!saved)message("Could not save melee preference; session setting is applied.");
+            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"saved\":%s}\n",
+                 (option_value&NATIVE_OPTION_MELEE)?"true":"false",(option_value&NATIVE_OPTION_HIDE_HEAD)?"true":"false",saved?"true":"false");
+            if(!saved)message("Could not save native preferences; session settings are applied.");
         }
         unsigned requested = atomic_exchange_explicit(&toggle_requests, 0, memory_order_acq_rel);
         if (requested & 1u) {
@@ -488,16 +506,18 @@ static DWORD WINAPI worker(void *unused) {
             if (!active && !conflicts()) { block(); break; }
             AcquireSRWLockExclusive(&runtime_lock);
             if (!active) reset_runtime();
+            native_runtime_set_camera_enabled(&runtime,!active);
             ReleaseSRWLockExclusive(&runtime_lock);
             active = !active;
             if (active) {
                 ++generation;
-                atomic_store_explicit(&native_enabled, 1, memory_order_release);
+                /* Camera generation begins after the serialized reset. */
             }
+            publish_dispatch(active);
             line("{\"type\":\"toggle\",\"elapsed_ms\":%llu,\"generation\":%llu,\"enabled\":%s}\n",
                  (unsigned long long)(now - started), (unsigned long long)generation,
                  active ? "true" : "false");
-            message(active ? "Original native OTS enabled." : "Original native OTS disabled; original instructions replayed.");
+            message(active ? "Original native OTS enabled." : "Native OTS camera OFF; first-person head hiding follows its checkbox.");
         }
         requested = atomic_exchange_explicit(&shoulder_requests, 0, memory_order_acq_rel);
         if (requested & 1u) {

@@ -47,6 +47,6 @@ cp -- "$pkg/uninstall.sh" "$state/uninstall.sh"
 copied=1
 mv -- "$state/native.pending" "$game/$native"
 trap - ERR INT TERM
-echo 'Experimental native OTS installed. Starts disabled; F6 toggles third person, F7 changes shoulder.'
+echo 'Experimental native OTS installed. Camera starts OFF; F6 toggles third person, F7 changes shoulder. First-person head hiding follows its saved checkbox.'
 echo 'Diagnostics are automatic: reframework/data/RE7_OTS_Native/native_*.jsonl'
 echo "Restore after exiting the game: bash \"$state/uninstall.sh\" \"$game\""

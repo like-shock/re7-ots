@@ -1,6 +1,9 @@
 #ifndef RE7_NATIVE_BRIDGE_H
 #define RE7_NATIVE_BRIDGE_H
 #define NATIVE_MAX_SITES 48
+/* Camera+head=1, head-only=2; zero replays every original block.
+ * Head-only producers: HEAD, AUTOLOOK, CHARACTER, AREA, FLASHLIGHT. */
+#define NATIVE_HEAD_ONLY_MASK 0x1008080c0
 #ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <stdatomic.h>

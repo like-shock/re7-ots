@@ -244,7 +244,13 @@ void re7_original_inputs_capture(Re7OriginalInputs *i,unsigned site,
  if(!f||!read){i->ready=0;return;}
  Access a={i,read,ctx};uint32_t u;uint64_t address;float value;int ok;
  switch(site){
-  case NS_CUTSCENE_AUTOLOOK:pointers(&a,base);break;
+  case NS_CUTSCENE_AUTOLOOK:
+   pointers(&a,base);
+   /* ID 3 needs player Z. Its event can precede pointer acquisition;
+    * head-only mode has no policy/timescale retry sites. Retry only this
+    * failed, previously observed input after its dependency is refreshed. */
+   if((i->failed&RE7_INPUT_CHARACTER)&&i->character_address)character(&a);
+   break;
   case NS_AFTER_ADAPTIVE_DIFF:flags(&a,base);retry_failed(&a,config);model_marker(&a,config);break;
   case NS_HEAD_Y_WRITE:
    if(config&&config->fpaimflag!=0)byte(&a,i->aim_address,0,&i->state.aim,RE7_INPUT_AIM);

@@ -5,15 +5,15 @@ int main(void){
  NativeOptions o;native_options_init(&o);int value=0,status=99;unsigned token;
  assert(!native_options_get(&o,&value,&status));
  assert(!native_options_request(&o,0));
- assert(native_options_parse("auto_disable_with_melee_weapons=0\n",34,&value)&&value==0);
- assert(native_options_parse("auto_disable_with_melee_weapons=1\n",34,&value)&&value==1);
+ assert(native_options_parse("auto_disable_with_melee_weapons=0\n",34,&value)&&value==2);
+ assert(native_options_parse("auto_disable_with_melee_weapons=1\n",34,&value)&&value==3);
  assert(!native_options_parse("auto_disable_with_melee_weapons=2\n",34,&value));
  assert(!native_options_parse("auto_disable_with_melee_weapons=0\nx",35,&value));
  assert(!native_options_parse("",0,&value));
  native_options_load(&o,0);
  assert(native_options_get(&o,&value,&status)&&value==0&&status==1);
  assert(!native_options_pending(&o,&value,&token));
- assert(!native_options_request(&o,2));
+ assert(!native_options_request(&o,4));
  assert(native_options_request(&o,1));
  assert(native_options_get(&o,&value,&status)&&value==1&&status==0);
  assert(native_options_pending(&o,&value,&token)&&value==1);
@@ -28,9 +28,23 @@ int main(void){
  assert(native_options_request(&o,0)); /* explicit retry of failed same value */
  assert(native_options_pending(&o,&value,&token));native_options_complete(&o,token,1);
  assert(native_options_get(&o,&value,&status)&&value==0&&status==1);
+ /* Two checkbox updates must preserve the other setting, even before save. */
+ assert(native_options_request(&o,3));
+ assert(native_options_request_field(&o,1,0));
+ assert(native_options_get(&o,&value,&status)&&value==2);
+ assert(native_options_request_field(&o,2,0));
+ assert(native_options_get(&o,&value,&status)&&value==0);
+ assert(!native_options_request_field(&o,3,1));
+ assert(!native_options_request_field(&o,2,7));
  char buffer[64];size_t size=native_options_encode(0,buffer,sizeof buffer);
- assert(size==34&&native_options_parse(buffer,size,&value)&&value==0);
+ assert(size==62&&native_options_parse(buffer,size,&value)&&value==0);
  assert(!native_options_encode(0,buffer,1));
+ for(int mask=0;mask<4;mask++){
+  size=native_options_encode(mask,buffer,sizeof buffer);
+  assert(size==62&&native_options_parse(buffer,size,&value)&&value==mask);
+ }
+ assert(!native_options_parse("auto_disable_with_melee_weapons=0\nhide_head_in_first_person=2\n",62,&value));
+ value=0;
  NativeOptions restart;native_options_init(&restart);native_options_load(&restart,value);
  assert(native_options_get(&restart,&value,&status)&&value==0&&status==1);
  return 0;

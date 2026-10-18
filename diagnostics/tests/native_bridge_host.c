@@ -34,16 +34,16 @@ int main(void){
  for(unsigned padding=0;padding<=8;padding+=8){game_stack_padding=padding;
  for(unsigned site=0;site<NATIVE_MAX_SITES;site++){
   want_site=site;test_hook=native_detours[site];native_trampolines[site]=(void*)test_original;native_returns[site]=(void*)test_handled;native_original_ips[site]=(void*)(uintptr_t)(UINT64_C(0x140000000)+site*0x1000);
-  for(unsigned path=0;path<3;path++){
-   native_enabled=path!=0;handled=path==2;calls=0;exit_path=0;exercise();
-   assert(calls==(path!=0));assert(exit_path==(path==2?2:1));
+  for(unsigned path=0;path<4;path++){
+   native_enabled=path==3?2:path!=0;handled=path==2;calls=0;exit_path=0;exercise();
+   assert(calls==(path==3?(site==6||site==7||site==15||site==23||site==32):(path!=0)));assert(exit_path==(path==2?2:1));
    for(unsigned i=0;i<15;i++)assert(after_regs[i]==0x120000+i);
    assert((after_flags&0xcd5)==(0x646&0xcd5));assert(before_rsp==after_rsp);
    assert(!memcmp(before_fp,after_fp,512));
    if(have_avx)assert(!memcmp(test_vectors,after_vectors,512));
   }
  }
- modify=1;handled=1;exercise();assert(after_regs[0]==123);
+ native_enabled=1;modify=1;handled=1;exercise();assert(after_regs[0]==123);
  float value;memcpy(&value,after_fp+160,4);assert(value==42.0f);
  for(unsigned i=164;i<176;i++)assert(after_fp[i]==0); /* movss memory load clears high 96 */
  for(unsigned i=1;i<15;i++)assert(after_regs[i]==0x120000+i);

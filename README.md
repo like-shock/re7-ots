@@ -4,9 +4,9 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.2 device build](diagnostics/native/README_KO.md) connects
+The [Native OTS 0.1.3 device build](diagnostics/native/README_KO.md) connects
 42 original instruction sites for actual camera, focus, firing, inspection,
-collision and model-transparency control. F6 enables/disables; F7 swaps shoulders.
+collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
 diagnostics accompany the gameplay test; a separate Probe run is not required.
@@ -15,6 +15,14 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.3 adds **Hide Head in First Person**, default ON and saved independently,
+including with F6 camera OFF. It uses the original neck/head/helmet transform writes,
+flashlight head-shadow and present-Mia hair targets, with live ownership checks.
+Third-person frames skip this concealment path. No broad SDK model scanning is added.
+Natural playable Mia/Clancy/Chris/Joe/Zoe support has regression coverage and character
+state logging; complete visible models require the external full RT model pack.
+See [character support and model requirements](docs/NATIVE_CHARACTERS_KO.md).
+Actual face concealment, other-character rendering and device performance remain unverified.
 See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Version 0.1.1 adds only the original third-person flashlight-shadow suppression
 path to investigate dark character rendering. It keeps camera, material, light-color,

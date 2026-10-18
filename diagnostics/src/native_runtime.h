@@ -6,13 +6,17 @@
 #include "original_collision.h"
 #include "original_interaction.h"
 #include "original_model.h"
+#include "native_head.h"
 typedef int (*NativeMemory)(void *,uint64_t,void *,size_t);
 typedef int (*NativeWrite)(void *,uint64_t,const void *,size_t);
 typedef struct {
  uint64_t calls[NATIVE_MAX_SITES],applied[NATIVE_MAX_SITES];
  uint64_t reads_failed,writes_failed,camera_matches,view_changes;
  uint64_t camera_base,input_valid,input_failed,input_observed;
- uint32_t frame,loadarea;
+ uint64_t head_applied[3],head_target;
+ uint32_t frame,loadarea,character_raw,characters;
+ uint8_t camera_enabled,hide_head,character_observed,model_marker_available,assumeheadless;
+ float model_marker;
  uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable;
  float camera[3],clip[3],framerate;
 } NativeSnapshot;
@@ -30,6 +34,8 @@ typedef struct {
  Re7OriginalCollisionState collision;
  Re7OriginalInteractionInput interaction_input;
  Re7OriginalInteractionState interaction;
+ NativeHeadTargets head;
+ uint8_t camera_enabled,hide_head;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;
  uint32_t fov_frame;
@@ -42,5 +48,7 @@ void native_runtime_init(NativeRuntime *,uint64_t,NativeMemory,NativeWrite,void*
 int native_runtime_dispatch(NativeRuntime *,unsigned,NativeFrame *,void *);
 void native_runtime_shoulder(NativeRuntime *);
 void native_runtime_set_melee_auto_disable(NativeRuntime *,int enabled);
+void native_runtime_set_camera_enabled(NativeRuntime *,int enabled);
+void native_runtime_set_hide_head(NativeRuntime *,int enabled);
 void native_runtime_snapshot(const NativeRuntime *,NativeSnapshot *);
 #endif

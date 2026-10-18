@@ -178,6 +178,10 @@ native_body_\n:
 #endif
  cmpl $0,native_enabled(%rip)
  je native_prepare_original_\n
+ .if (NATIVE_HEAD_ONLY_MASK & (1 << \n)) == 0
+ cmpl $2,native_enabled(%rip)
+ je native_prepare_original_\n
+ .endif
  mov native_xsave_bytes(%rip),%eax
  add $192,%eax
 .Lprobe\n:
