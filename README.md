@@ -11,10 +11,15 @@ It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
 diagnostics accompany the gameplay test; a separate Probe run is not required.
 See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
-This is an experimental device-test build, not a claim that the reported screen,
-FPS or switching issues are fixed. Explore remains available as the prior build.
+**2026-10-18 Native 0.1.0 field report:** the user confirms the wall-hand problem,
+repeated first-/third-person switching and displaced interaction prompts are resolved
+in the tested gameplay. Center alignment also appears corrected. The character now
+looks mostly dark, with an apparently inverted-color appearance; its cause is unconfirmed.
+FPS, aiming and remaining wall-clipping cases have not been confirmed by this report.
+See [field results and rendering investigation (Korean)](docs/NATIVE_INTEGRATION_KO.md).
+Explore remains available as the prior build.
 
-**2026-10-17 field report:** third person is faster but remains slower than first person;
+**Previous Explore field report, 2026-10-17:** third person is faster but remains slower than first person;
 the other reported issues have not improved. v0.5.9 is not a validated resolution.
 The [architecture reassessment (Korean)](docs/ARCHITECTURE_REASSESSMENT_KO.md) documents
 per-frame model churn, 31-layer obstacle queries, a consumer-delay fallback loop, and
