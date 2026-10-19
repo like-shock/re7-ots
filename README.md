@@ -4,8 +4,8 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.4 device build](diagnostics/native/README_KO.md) connects
-43 original instruction sites for actual camera, focus, firing, inspection,
+The [Native OTS 0.1.10 device build](diagnostics/native/README_KO.md) connects
+78 original instruction sites for actual camera, focus, firing, inspection,
 collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
@@ -15,6 +15,41 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.10 adds independently configurable Mia hair hiding (ON under the
+parent head option), forced custom shader (OFF, shader1), Fullbright (OFF,
+white RGB/brightness1), and two unassigned controller shortcuts with 24 named
+source inputs. Fullbright temporarily overrides shadow darkening without
+rewriting the saved contrast preference. The worker checks XInput connection
+changes before consuming button edges; reconnect/load/rebind requires release
+then press. Controller camera toggle also works with F6/head hiding OFF.
+Version 0.1.9 adds original menu FOV and running FOV defaults: third-person
+run widening uses 20%, 7-second increase and 0.7-second decay; first-person run
+widening and custom FOV stay OFF. Aim/cutscene ratios follow source policy.
+REFramework FOV writes immediately return control, with a three-frame grace
+before replacement resumes. Engine stores are suppressed only after a live,
+validated replacement; F6, loading and pointer changes release that control.
+Steam Deck FOV visuals remain pending.
+Version 0.1.8 ports the Not A Hero HUD: third-person hiding preserves oxygen,
+contamination indicators, filter/night-vision/RAMROD notices and original story
+transmissions. Ammo-only transitions retain the original one-frame hide. HUD
+owners are revalidated, loading preserves story entry rules, and F6 or area
+changes require fresh observations. Steam Deck HUD visuals remain pending.
+Version 0.1.7 adds original blood coverage and hurt-filter defaults. Blood uses
+source x87 HP/10 rounding and unsigned threshold bits (FP100/TP0); puzzle blood
+cancellation takes priority. Hurt filters use FP0/TP2 and the original forced
+comparison flags. Head concealment remains for the source two-tick delay when
+leaving the stopped-blood interaction state. HP and head targets are revalidated;
+loading, missing inputs and F6 clear this temporary authority. Independent F6-off
+head hiding remains available. Steam Deck visuals remain pending.
+Version 0.1.6 connects Critter item detection to EOZ camera policy, suppresses
+third-person vignette and ordinary chromatic distortion, preserves psycho intensity
+at first-person 1x/third-person 2x, and restores the original NAH aiming crosshair
+and third-person critical-health effect policy. Loading, missing inputs and F6 reset
+transient item/psycho state. Steam Deck screen checks remain pending.
+Version 0.1.5 adds the original default flashlight position/brightness/beam/steady
+corrections, player-focused environmental audio, third-person head-bob suppression,
+cutscene blur suppression and targeted VHS filters. Original first-person, menu
+and transition exceptions are preserved. Steam Deck visual/audio checks remain pending.
 Version 0.1.4 adds **Limit Light Source Contrast in Third Person**, default ON, from
 original v7.17/RT 8.02. It caps the original light-contrast read at 0.735 in third
 person, with a saved ON/OFF comparison option and sample/application diagnostics.

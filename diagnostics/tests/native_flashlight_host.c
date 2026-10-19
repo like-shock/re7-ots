@@ -68,7 +68,10 @@ int main(void){
  CHECK(!native_runtime_dispatch(&r,site,&f,fp)&&!writes);
  r.inputs.state.loadscreenflag=0;r.inputs.valid&=~RE7_INPUT_PLAYER;
  CHECK(!native_runtime_dispatch(&r,site,&f,fp)&&!writes);
- r.inputs.valid|=RE7_INPUT_PLAYER;fail_write=1;
+ r.inputs.valid|=RE7_INPUT_PLAYER;
+ CHECK(!native_runtime_dispatch(&r,site,&f,fp)&&!writes);
+ CHECK(!native_runtime_dispatch(&r,NS_FLASHLIGHT_WRITE,&producer,fp));
+ fail_write=1;
  original=f;memcpy(saved_fp,fp,sizeof fp);
  CHECK(!native_runtime_dispatch(&r,site,&f,fp));
  CHECK(writes==1&&r.stats.writes_failed==1);

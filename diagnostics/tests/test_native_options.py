@@ -6,6 +6,8 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 class NativeOptionsTests(unittest.TestCase):
+    def test_optional_migration_validation_and_atomic_save_races(self):
+        self.compile_run("native_settings_host",False)
     def test_persisted_values_pending_changes_and_save_failures(self):
         self.compile_run('native_options_host',False)
     def test_embedded_checkbox_registration_click_and_lua_reset(self):

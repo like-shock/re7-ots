@@ -43,14 +43,19 @@ typedef struct {
  uint64_t head_address, grab_address, oldaim_address, flashlight_address;
  uint64_t weapon_address, character_address, crouch_address, telescope_address;
  uint64_t nogun_address, guard_address, guard_r9;
- uint64_t valid, failed, observed, frame;
- uint64_t producer_calls[48], read_failures; /* all supplied site invocations */
+ uint64_t valid, failed, observed, observed_high, frame;
+ uint64_t producer_calls[NATIVE_MAX_SITES], read_failures; /* all supplied site invocations */
  uint32_t heldweaponid, weapon_raw, pcharcflag, frametrack, gbaimcheck;
  uint32_t extendedgrabframes, igtupcheck, updateigt;
  float timescale;
  uint8_t ready, igtpaused;
 } Re7OriginalInputs;
 
+/* Resolve the source aim chain again and require the current leaf to match
+ * the observed producer address. A cached scalar alone never authorizes a
+ * screen effect; failure leaves the caller's output untouched. */
+int re7_original_inputs_live_aim(Re7OriginalInputs *,uint64_t module_base,
+ Re7OriginalInputsRead,void *context,uint8_t *value);
 void re7_original_inputs_init(Re7OriginalInputs *inputs);
 void re7_original_inputs_capture(Re7OriginalInputs *inputs, unsigned site,
  const NativeFrame *frame, const void *fp, uint64_t module_base,

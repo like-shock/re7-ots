@@ -227,6 +227,16 @@ static void ready(Re7OriginalInputs *i) {
  i->ready=(uint8_t)((i->valid&RE7_INPUT_REQUIRED)==RE7_INPUT_REQUIRED&&
   !(i->failed&~(uint64_t)RE7_INPUT_MODEL)&&i->state.player_available&&i->state.loadscreenflag!=1);
 }
+int re7_original_inputs_live_aim(Re7OriginalInputs *i,uint64_t base,
+ Re7OriginalInputsRead read,void *ctx,uint8_t *value) {
+ static const uint32_t offsets[]={0x20,0x88,0x10,0xA8};
+ Access a={i,read,ctx};uint64_t address,confirmed;uint8_t next;
+ if(!(i->valid&RE7_INPUT_AIM)||!i->aim_address||
+    !chain(&a,base,0x8FBB610,offsets,4,0x20,&address)||address!=i->aim_address||
+    !get(&a,address,0,&next,1)||
+    !chain(&a,base,0x8FBB610,offsets,4,0x20,&confirmed)||confirmed!=address)return 0;
+ *value=next;return 1;
+}
 void re7_original_inputs_init(Re7OriginalInputs *i) {
  if(!i)return;
  *i=(Re7OriginalInputs){0};
@@ -240,7 +250,9 @@ void re7_original_inputs_capture(Re7OriginalInputs *i,unsigned site,
  const NativeFrame *f,const void *fp,uint64_t base,
  Re7OriginalInputsRead read,void *ctx,const Re7OriginalStateConfig *config) {
  if(!i||site>=NATIVE_SITE_COUNT)return;
- i->observed|=UINT64_C(1)<<site;i->producer_calls[site]++;
+ if(site<64)i->observed|=UINT64_C(1)<<site;
+ else i->observed_high|=UINT64_C(1)<<(site-64);
+ i->producer_calls[site]++;
  if(!f||!read){i->ready=0;return;}
  Access a={i,read,ctx};uint32_t u;uint64_t address;float value;int ok;
  switch(site){
