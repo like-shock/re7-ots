@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def compile_host(tmp, host=None, extra=()):
-    names = ['native_runtime', 'native_hud', 'native_screen', 'native_av', 'native_head',
+    names = ['native_runtime','native_fullbright','native_controller', 'native_hud', 'native_screen', 'native_av', 'native_head',
              'native_bridge', 'original_scalar', 'original_state', 'original_inputs',
              'original_collision', 'original_interaction', 'original_model']
     if (ROOT/'src/native_fov.c').exists():
@@ -18,7 +18,7 @@ def compile_host(tmp, host=None, extra=()):
     if platform.system() == 'Darwin':
         flags = ['-arch', 'x86_64']
         bridge = tmp/'unexecuted_detours.c'
-        bridge.write_text('\n'.join(f'void native_detour_{i}(void){{}}' for i in range(67)))
+        bridge.write_text('\n'.join(f'void native_detour_{i}(void){{}}' for i in range(78)))
     exe = tmp/'fov'
     result = subprocess.run(['cc', *flags, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
                              '-ffp-contract=off', '-fno-fast-math', '-I'+str(ROOT/'src'),
@@ -53,9 +53,13 @@ class FovPluginLifecycleTests(unittest.TestCase):
         # Compile the actual reset function used by the F6 worker, replacing
         # only process memory callbacks. Runtime and preferences remain real.
         plugin = (ROOT/'src/native_plugin.c').read_text()
-        start = plugin.index('static void reset_runtime(void) {')
-        end = plugin.index('\n}', start)+2
+        start = plugin.index('static void apply_runtime_settings(')
+        reset_start = plugin.index('static void reset_runtime(void) {')
+        end = plugin.index('\n}', reset_start)+2
         reset_function = plugin[start:end]
+        mode_start=plugin.index('static void publish_dispatch(int active) {')
+        mode_end=plugin.index('\n}', mode_start)+2
+        reset_function+='\nstatic _Atomic int dispatch_fault;\n'+plugin[mode_start:mode_end]
         host = r'''#define main adapter_cases_main
 #include "native_fov_host.c"
 #undef main
@@ -84,6 +88,17 @@ int main(void){
  CHECK(call("TRUE_FOV_REFERENCE"));save();CHECK(!tick());unchanged();CHECK(!writes&&get(TARGET)==bits(111));
  save();CHECK(!tick());unchanged();CHECK(!writes&&get(TARGET)==bits(111));
  CHECK(tick());CHECK(get(TARGET)==bits(90));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_HAIR,0));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_FILTER,1));CHECK(native_settings_request(&options,NATIVE_SETTING_SHADER,15));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_FULLBRIGHT,1));CHECK(native_settings_request(&options,NATIVE_SETTING_RGB,0x804020));CHECK(native_settings_request(&options,NATIVE_SETTING_BRIGHTNESS,2.5));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_BUTTON,0));CHECK(native_settings_request(&options,NATIVE_SETTING_SHOULDER_BUTTON,23));
+ reset_runtime();CHECK(!r.hide_mia_hair&&r.custom_filter&&r.custom_shader==15&&r.fullbright.enabled&&r.fullbright.rgb==0x804020&&r.fullbright.brightness==2.5f&&r.controller.camera_button==0&&r.controller.shoulder_button==23);
+ publish_dispatch(0);CHECK(atomic_load(&native_enabled)==4);
+ native_runtime_set_hide_head(&r,0);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==3);
+ publish_dispatch(1);CHECK(atomic_load(&native_enabled)==1);
+ native_runtime_set_controller_bindings(&r,-1,-1);publish_dispatch(0);CHECK(!atomic_load(&native_enabled));
+ native_runtime_set_hide_head(&r,1);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==2);
+ atomic_store(&dispatch_fault,1);publish_dispatch(1);CHECK(!atomic_load(&native_enabled));
  puts("actual plugin F6 reinitialization: PASS");return 0;
 }
 '''

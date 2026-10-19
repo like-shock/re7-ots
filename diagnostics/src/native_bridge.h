@@ -1,16 +1,22 @@
 #ifndef RE7_NATIVE_BRIDGE_H
 #define RE7_NATIVE_BRIDGE_H
-#define NATIVE_MAX_SITES 67
+#define NATIVE_MAX_SITES 78
 /* Completed bridge only: NativeFrame128 + immutable XMM160 + GPR64 +
  * machine-frame RSP24. The machine frame stores the pre-detour game RSP. */
 #define NATIVE_FRAME_GAME_RSP_OFFSET 376
-/* Camera+head=1, head-only=2; zero replays every original block.
+/* Camera+effects=1, head-only=2; zero replays every original block.
  * Head-only producers: HEAD, AUTOLOOK, CHARACTER, AREA, FLASHLIGHT. */
 #define NATIVE_HEAD_ONLY_MASK 0x1008080c0
+/* Controller observers: AUTOLOOK, TIMER, AREA, BETTER_TIMER; input sites 69/70.
+ * Mode 3=input only, 4=head plus input. No effect sites in either allowlist. */
+#define NATIVE_INPUT_ONLY_MASK 0x2804080
+#define NATIVE_INPUT_ONLY_HIGH_MASK 0x60
 #ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <stdatomic.h>
 #include <stddef.h>
+static inline int native_head_only_site(unsigned site){return site<64&&((NATIVE_HEAD_ONLY_MASK>>site)&1);}
+static inline int native_input_only_site(unsigned site){return site<64?((NATIVE_INPUT_ONLY_MASK>>site)&1):site<128&&((NATIVE_INPUT_ONLY_HIGH_MASK>>(site-64))&1);}
 typedef struct {
  uint64_t r15,r14,r13,r12,r11,r10,r9,r8,rbp,rdi,rsi,rdx,rcx,rbx,rax,flags;
 } NativeFrame;

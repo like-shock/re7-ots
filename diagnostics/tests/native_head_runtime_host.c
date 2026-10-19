@@ -27,6 +27,7 @@ int main(void){
  q(0x200d8,0x21000);q(0x21018,0x22000);
  q(0x10020,0x23000);q(0x23088,0x24000);q(0x24010,0x25000);q(0x250a8,0x26000);
  q(0x27208,0x28000);q(0x28058,0x29000);q(0x29148,0x2a000);q(0x2a030,0x2b000);q(0x2b048,0x2c000);
+ q(0x11068,0x1a000);q(0x1a088,0x1b000);q(0x1b010,0x1c000);q(0x1c0c0,0x1d000);q(0x1d0c0,0x1e000);
  native_runtime_init(&r,0x10000,rd,wr,NULL);
  native_runtime_set_camera_enabled(&r,0);
  assert(!native_runtime_dispatch(&r,NS_CUTSCENE_AUTOLOOK,&f,fp));
@@ -38,10 +39,19 @@ int main(void){
   assert(number_at(a+0x30)==11&&number_at(a+0x34)==-1000&&number_at(a+0x38)==33&&number_at(a+0x3c)==44);
   assert(!memcmp(&before,&f,sizeof f)&&!memcmp(saved,fp,sizeof fp));
  }
+ /* Missing camera readiness must preserve head-only flashlight collection,
+  * including its OFF/ON shadow gate, while AV remains disabled. */
+ assert(!r.inputs.ready&&r.head.shadow==0x1e034);
+ f.rcx=0x1f000;f.rbp=0;assert(!native_runtime_dispatch(&r,NS_FLASHLIGHT_WRITE,&f,fp));
+ assert(r.inputs.flashlight_address==0x1f060&&(r.inputs.valid&RE7_INPUT_FLASHLIGHT)&&r.inputs.state.flashlightflag==0);
+ f.rbx=0x1e000;writes=0;assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&!writes);
+ f.rbp=1;assert(!native_runtime_dispatch(&r,NS_FLASHLIGHT_WRITE,&f,fp));
+ assert(r.inputs.state.flashlightflag==1&&(r.inputs.observed&(1ULL<<NS_FLASHLIGHT_WRITE)));
+ assert(native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&number_at(0x1e034)==-1000);
  /* The unrelated transform and every camera site must pass through F6 OFF. */
  reads=writes=0;f.rbx=0x19000;
  assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&!reads&&!writes);
- for(unsigned site=0;site<NATIVE_SITE_COUNT;site++)if(!((NATIVE_HEAD_ONLY_MASK>>site)&1)){
+ for(unsigned site=0;site<NATIVE_SITE_COUNT;site++)if(!native_head_only_site(site)){
   assert(!native_runtime_dispatch(&r,site,&f,fp)&&!reads&&!writes);
  }
  f.rbx=0x16000;fail_write=1;assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp));fail_write=0;
@@ -71,5 +81,15 @@ int main(void){
  assert(!native_runtime_dispatch(&r,NS_CUTSCENE_AUTOLOOK,&f,fp));
  f.rbx=0x16000;assert(native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp));
  assert(r.inputs.state.characters==(1u<<RE7_ORIGINAL_CHAR_MAIN_CLANCY));
+ /* Hair OFF must not turn the independently enabled head hiding OFF. */
+ q(0x12080,0x1a000);q(0x1a010,0x1b000);q(0x1b018,0x1c000);q(0x1c0c0,0x1d000);q(0x181e8,2);
+ native_runtime_init(&r,0x10000,rd,wr,NULL);native_runtime_set_camera_enabled(&r,0);
+ f.rdi=0x18000;assert(!native_runtime_dispatch(&r,NS_CHARACTER_CMP,&f,fp));assert(!native_runtime_dispatch(&r,NS_CUTSCENE_AUTOLOOK,&f,fp));
+ f.rbx=0x1d180;assert(native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp));assert(number_at(0x1d1b4)==-1000);
+ native_runtime_set_hide_mia_hair(&r,0);number(0x1d1b4,22);writes=0;
+ assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&!writes&&number_at(0x1d1b4)==22);
+ f.rbx=0x16000;assert(native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp));
+ native_runtime_set_hide_head(&r,0);native_runtime_set_hide_mia_hair(&r,1);writes=0;
+ assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&!writes);f.rbx=0x1d180;assert(!native_runtime_dispatch(&r,NS_HEAD_Y_WRITE,&f,fp)&&!writes);
  puts("native head runtime passed");return 0;
 }

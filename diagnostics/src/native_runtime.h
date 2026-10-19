@@ -11,6 +11,8 @@
 #include "native_screen.h"
 #include "native_hud.h"
 #include "native_fov.h"
+#include "native_fullbright.h"
+#include "native_controller.h"
 typedef int (*NativeMemory)(void *,uint64_t,void *,size_t);
 typedef int (*NativeWrite)(void *,uint64_t,const void *,size_t);
 typedef struct {
@@ -45,6 +47,9 @@ typedef struct NativeRuntime {
  NativeScreenState screen;
  NativeHudState hud;
  NativeFovState fov;
+ NativeFullbrightState fullbright;
+ NativeControllerState controller;
+ uint8_t hide_mia_hair,custom_filter,custom_shader;
  uint8_t camera_enabled,hide_head,limit_light_contrast;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;
@@ -61,5 +66,9 @@ void native_runtime_set_melee_auto_disable(NativeRuntime *,int enabled);
 void native_runtime_set_camera_enabled(NativeRuntime *,int enabled);
 void native_runtime_set_hide_head(NativeRuntime *,int enabled);
 void native_runtime_set_light_contrast(NativeRuntime *,int enabled);
+void native_runtime_set_hide_mia_hair(NativeRuntime*,int);
+int native_runtime_set_custom_filter(NativeRuntime*,int,int);
+int native_runtime_set_fullbright(NativeRuntime*,int,uint32_t,float);
+int native_runtime_set_controller_bindings(NativeRuntime*,int,int);
 void native_runtime_snapshot(const NativeRuntime *,NativeSnapshot *);
 #endif

@@ -16,8 +16,16 @@ static int read_at(NativeRuntime*r,uint64_t a,uint64_t d,void*out,size_t n){
 static int write_at(NativeRuntime*r,uint64_t a,uint64_t d,const void*in,size_t n){
  uint64_t p;if(!add(a,d,&p)||p>UINT64_MAX-n||!r->write||!r->write(r->context,p,in,n)){r->stats.writes_failed++;return 0;}return 1;
 }
-static int flash_target(const NativeRuntime*r,uint64_t target,uint64_t delta){
- return (r->inputs.observed&(1ULL<<NS_FLASHLIGHT_WRITE))&&
+void native_av_reset(NativeRuntime*r){
+ /* Every readiness/F6 boundary revokes effect authority immediately. Shared
+  * character/flashlight inputs still serve independently enabled head hiding. */
+ r->camera_valid=0;r->camera_base=0;r->camera_attempt=(Re7OriginalVec){0};
+ r->inputs.state.camera=(Re7OriginalVec){0};r->yawx=r->yawz=r->pitch=0;
+ r->av=(NativeAvState){0};
+}
+int native_av_flash_target(const NativeRuntime*r,uint64_t target,uint64_t delta){
+ return r->av.flashlight_address&&r->av.flashlight_address==r->inputs.flashlight_address&&
+  (r->inputs.observed&(1ULL<<NS_FLASHLIGHT_WRITE))&&
   (r->inputs.valid&RE7_INPUT_FLASHLIGHT)&&r->inputs.flashlight_address>=delta&&
   target==r->inputs.flashlight_address-delta;
 }
@@ -60,7 +68,7 @@ static float color_factor(float channel,float brightness){
  return store32((long double)quantized*step*brightness);
 }
 static int flashlight_color(NativeRuntime*r,NativeFrame*f,void*fp){
- if(!flash_target(r,f->rax,0x4d0))return 0;
+ if(!native_av_flash_target(r,f->rax,0x4d0))return 0;
  float rgb[3],x0[4],x2[4],x1[4],zero[4]={0};
  if(!read_at(r,f->rax,0,rgb,sizeof rgb))return 0;
  native_get_xmm_vector(fp,0,x0);native_get_xmm_vector(fp,2,x2);memcpy(x1,x2,sizeof x1);
@@ -106,7 +114,7 @@ int native_av_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  case NS_FLASHLIGHT_ALT_WRITE:return flashlight_position(r,f,fp);
  case NS_FLASHLIGHT_COLORS_FLOAT_READS:return flashlight_color(r,f,fp);
  case NS_FLASH_BEAM_WIDTH:{
-  uint64_t target;if(r->view.firstpersonflag==1||!add(f->rdi,0xac,&target)||!flash_target(r,target,0x464))return 0;
+  uint64_t target;if(r->view.firstpersonflag==1||!add(f->rdi,0xac,&target)||!native_av_flash_target(r,target,0x464))return 0;
   const float width=10;return write_at(r,target,0,&width,4);
  }
  case NS_CAM_SOUND_COORDS_WRITE:return audio_coords(r,f);

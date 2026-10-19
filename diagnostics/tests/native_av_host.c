@@ -5,11 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(c) do{if(!(c)){fprintf(stderr,"line %d: %s\n",__LINE__,#c);exit(1);}}while(0)
-static unsigned char memory[0x10000],fp[1024],saved_fp[1024];
+#define FLASH 0x15000
+static unsigned char memory[0x20000],fp[1024],saved_fp[1024];
 static NativeRuntime r;static NativeFrame f,saved;
 static uint64_t bad_read;static int bad_write,reads,writes;
 static int rd(void*c,uint64_t a,void*out,size_t n){
- (void)c;reads++;if(a==bad_read||a>=sizeof memory||n>sizeof memory-a)return 0;
+ (void)c;reads++;if(a==bad_read)return 0;
+ if(a==UINT64_C(0x148fb17f0)&&n==8){uint64_t pointer=0;memcpy(out,&pointer,8);return 1;}
+ if(a>=sizeof memory||n>sizeof memory-a)return 0;
  memcpy(out,memory+a,n);return 1;
 }
 static int wr(void*c,uint64_t a,const void*in,size_t n){
@@ -37,9 +40,9 @@ static void setup(void){
  r.inputs.ready=1;r.camera_valid=1;r.camera_base=0x1000;
  r.camera_attempt=(Re7OriginalVec){10,20,30};r.params.pitchmul=1;
  number(0x1000,.8f);number(0x1008,.6f);number(0x1024,.1f);
- r.inputs.flashlight_address=0x5000;r.inputs.observed|=1ULL<<NS_FLASHLIGHT_WRITE;
+ f.rcx=FLASH-0x60;f.rbp=1;CHECK(!call(NS_FLASHLIGHT_WRITE));
  r.inputs.state.loadarea=4;r.inputs.pcharcflag=3;
- f.flags=0x202;
+ f=(NativeFrame){.flags=0x202};
 }
 static void fallback_guards(unsigned s){
  setup();native_runtime_set_camera_enabled(&r,0);save();CHECK(!call(s));unchanged();CHECK(!reads&&!writes);
@@ -65,14 +68,14 @@ static void position(void){
  r.view.firstpersonflag=1;save();CHECK(!call(s));unchanged();
  r.state.gbunzoomingprocessflag=1;CHECK(call(s));r.state.gbunzoomingprocessflag=0;
  r.state.readjustxyzfp=2;CHECK(call(s)); /* first two transition ticks */
- NativeFrame light=f;
- CHECK(!call(NS_TIMESCALE_MULTIPLIER));CHECK(r.av.transition_frames==1);
- /* This tick's intentionally unavailable scene inputs must be reacquired. */
- r.inputs.failed=0;r.inputs.valid=RE7_INPUT_REQUIRED|RE7_INPUT_CHARACTER|RE7_INPUT_FLASHLIGHT;
- r.inputs.state.player_available=1;f=light;CHECK(call(s));
- CHECK(!call(NS_TIMESCALE_MULTIPLIER));CHECK(r.av.transition_frames==2);
- r.inputs.failed=0;r.inputs.valid=RE7_INPUT_REQUIRED|RE7_INPUT_CHARACTER|RE7_INPUT_FLASHLIGHT;
- r.inputs.state.player_available=1;f=light;save();CHECK(!call(s));unchanged();
+ /* Actual TIMESCALE ticks need valid current inputs; manually reviving only
+  * ready bits after failed captures must not restore the old AV authority. */
+ r.inputs.player_base=0x10000;r.inputs.aim_address=0x11000;r.inputs.inventory_address=0x12000;
+ number(0x10030,100);number(0x10034,100);number(0x10038,100);
+ memory[0x11000]=memory[0x12000]=0;r.inputs.valid|=RE7_INPUT_FRAMERATE;
+ f.rbx=0x13000;number(f.rbx+0x348,1);
+ CHECK(!call(NS_TIMESCALE_MULTIPLIER));CHECK(r.inputs.ready&&r.av.transition_frames==1);CHECK(call(s));
+ CHECK(!call(NS_TIMESCALE_MULTIPLIER));CHECK(r.inputs.ready&&r.av.transition_frames==2);save();CHECK(!call(s));unchanged();
  r.state.gbunzoomingprocessflag=1;CHECK(call(s));r.state.gbunzoomingprocessflag=0;
  for(int i=0;i<8;i++){native_av_tick(&r);}
  CHECK(r.av.transition_frames==5);
@@ -82,7 +85,7 @@ static void position(void){
  bad_read=0x1000;save();CHECK(!call(s));unchanged();fallback_guards(s);
 }
 static void color(void){
- unsigned s=site("FLASHLIGHT_COLORS_FLOAT_READS");setup();f.rax=0x5000-0x4d0;
+ unsigned s=site("FLASHLIGHT_COLORS_FLOAT_READS");setup();f.rax=FLASH-0x4d0;
  number(f.rax,1);number(f.rax+4,.5f);number(f.rax+8,0);
  lanes(0,3,11,12,13);lanes(1,20,21,22,23);lanes(2,4,31,32,33);lanes(11,9,9,9,9);save();
  CHECK(call(s));CHECK(native_get_xmm_scalar(fp,0)==6);
@@ -98,7 +101,7 @@ static void color(void){
  r.inputs.observed&=~(1ULL<<NS_FLASHLIGHT_WRITE);save();CHECK(!call(s));unchanged();fallback_guards(s);
 }
 static void beam(void){
- unsigned s=site("FLASH_BEAM_WIDTH");setup();f.rdi=0x5000-0x464-0xac;save();
+ unsigned s=site("FLASH_BEAM_WIDTH");setup();f.rdi=FLASH-0x464-0xac;save();
  CHECK(call(s));CHECK(value(f.rdi+0xac)==10);unchanged();
  f.rdi++;CHECK(!call(s));f.rdi--;r.view.firstpersonflag=1;CHECK(!call(s));r.view.firstpersonflag=0;
  r.inputs.observed&=~(1ULL<<NS_FLASHLIGHT_WRITE);CHECK(!call(s));fallback_guards(s);

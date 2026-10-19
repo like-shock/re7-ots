@@ -34,9 +34,9 @@ def verify_minhook():
 class NativeSiteTests(unittest.TestCase):
     def test_all_sites_have_complete_original_spans_and_distinct_metadata(self):
         rows = site_rows()
-        self.assertEqual(len(rows), 67)
-        self.assertEqual(len({name for name, _, _, _ in rows}), 67)
-        self.assertEqual(len({rva for _, rva, _, _ in rows}), 67)
+        self.assertEqual(len(rows), 78)
+        self.assertEqual(len({name for name, _, _, _ in rows}), 78)
+        self.assertEqual(len({rva for _, rva, _, _ in rows}), 78)
         enum = dict(re.findall(r'\bNS_([A-Z0-9_]+)=(\d+)',
                                (ROOT/'src/native_sites.h').read_text()))
         self.assertEqual(set(enum), {name for name, _, _, _ in rows})
@@ -62,7 +62,7 @@ class NativeSiteTests(unittest.TestCase):
         for name, rva in probe:
             self.assertEqual(by_name[name], int(rva, 16))
 
-    def test_real_minhook_relocates_all_67_prefixes_and_decodes_full_restore_spans(self):
+    def test_real_minhook_relocates_all_78_prefixes_and_decodes_full_restore_spans(self):
         verify_minhook()
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -86,7 +86,7 @@ typedef uint32_t* PUINT32;typedef int BOOL;
 #include <stdio.h>
 BOOL IsExecutableAddress(LPVOID p){(void)p;return TRUE;}
 int main(void){
- assert(NATIVE_SITE_COUNT==67);
+ assert(NATIVE_SITE_COUNT==78);
  for(unsigned i=0;i<NATIVE_SITE_COUNT;i++){
   unsigned char target[80]={0},buf[80]={0},boundaries[16]={0};
   memcpy(target,native_sites[i].expected,native_sites[i].length);
@@ -96,7 +96,7 @@ int main(void){
    hde64s instruction;unsigned n=hde64_disasm(target+total,&instruction);
    assert(n&&!(instruction.flags&F_ERROR));
    assert(total+n<=native_sites[i].length); /* complete restore span */
-   assert(!(instruction.flags&F_RELATIVE)||(i==NS_HEAD_BOB_FLAG_CMP&&total==3));
+   assert(!(instruction.flags&F_RELATIVE)||((i==NS_HEAD_BOB_FLAG_CMP&&total==3)||((i==NS_XINPUT_FLOATS||i==NS_EXAMINE_LIGHT_CMP_1||i==NS_EXAMINE_LIGHT_CMP_2)&&total==4)));
    assert((instruction.modrm&0xC7)!=0x05); /* no RIP-relative fixture */
    if(total<5){boundaries[count++]=(unsigned char)total;prefix=total+n;}
    total+=n;
@@ -117,6 +117,15 @@ int main(void){
    assert(branch==(uintptr_t)target+9+0x2b1);
    assert(native_sites[i].rva+9+0x2b1==native_handled_rva(i));
    relocated=19;
+  }else if(i==NS_XINPUT_FLOATS||i==NS_EXAMINE_LIGHT_CMP_1||i==NS_EXAMINE_LIGHT_CMP_2){
+   assert(count==2&&prefix==(i==NS_EXAMINE_LIGHT_CMP_2?6:10));
+   assert(!memcmp(buf,target,4)&&buf[4]==(i==NS_XINPUT_FLOATS?0x72:0x74)&&buf[5]==14);
+   assert(buf[6]==0xff&&buf[7]==0x25);
+   uintptr_t branch;memcpy(&branch,buf+12,8);
+   unsigned displacement=i==NS_XINPUT_FLOATS?0x1b2:i==NS_EXAMINE_LIGHT_CMP_1?0xf2:0x10;
+   assert(branch==(uintptr_t)target+prefix+displacement);relocated=20;
+   assert(native_handled_rva(i)==native_sites[i].rva+native_sites[i].length);
+   if(i==NS_EXAMINE_LIGHT_CMP_2)assert(native_sites[i].rva+prefix+displacement==0x2e5463b);
   }else{
    assert(!memcmp(buf,target,prefix));
    assert(native_handled_rva(i)==native_sites[i].rva+native_sites[i].length);
@@ -130,7 +139,7 @@ int main(void){
   uintptr_t detour;memcpy(&detour,(unsigned char*)ct.pRelay+6,8);
   assert(detour==(uintptr_t)ct.pDetour);
  }
- puts("native sites: 67 complete spans and real MinHook relocations PASS");return 0;
+ puts("native sites: 78 complete spans and real MinHook relocations PASS");return 0;
 }
 ''')
             mh = ROOT/'build/minhook/src'
@@ -139,7 +148,7 @@ int main(void){
                             str(mh/'trampoline.c'), str(mh/'hde/hde64.c'),
                             '-o', str(tmp/'check')], check=True)
             result = subprocess.run([str(tmp/'check')], check=True, capture_output=True, text=True)
-            self.assertIn('67 complete spans and real MinHook relocations PASS', result.stdout)
+            self.assertIn('78 complete spans and real MinHook relocations PASS', result.stdout)
 
     def test_pinned_dependency_rejects_tampered_cache(self):
         fetch = verify_minhook()

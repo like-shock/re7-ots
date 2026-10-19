@@ -14,7 +14,7 @@ class HudTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.tmp.cleanup)
         cls.exe = pathlib.Path(cls.tmp.name)/'hud'
-        names = ['native_runtime', 'native_fov', 'native_screen', 'native_av', 'native_head', 'native_bridge',
+        names = ['native_runtime','native_fullbright','native_controller', 'native_fov', 'native_screen', 'native_av', 'native_head', 'native_bridge',
                  'original_scalar', 'original_state', 'original_inputs', 'original_collision',
                  'original_interaction', 'original_model']
         if (ROOT/'src/native_hud.c').exists():
@@ -24,7 +24,7 @@ class HudTests(unittest.TestCase):
         if platform.system() == 'Darwin':
             flags = ['-arch', 'x86_64']
             stub = pathlib.Path(cls.tmp.name)/'unexecuted_detours.c'
-            stub.write_text('\n'.join(f'void native_detour_{i}(void){{}}' for i in range(67)))
+            stub.write_text('\n'.join(f'void native_detour_{i}(void){{}}' for i in range(78)))
             extra = [str(stub)]
         result = subprocess.run(['cc', *flags, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
                                  '-ffp-contract=off', '-fno-fast-math', '-I'+str(ROOT/'src'),

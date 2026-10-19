@@ -106,9 +106,22 @@ static int distortion(NativeRuntime*r,NativeFrame*f,void*fp){
  const float vector[4]={result,0,0,0};native_set_xmm_vector(fp,2,vector);
  f->rax=target;return 1;
 }
+static int custom_filter(NativeRuntime*r,unsigned site,NativeFrame*f){
+ if(r->screen.hurtfilterframes)return 0;
+ uint32_t original,other;int second=site==NS_FLASHBACK_FILTER_READ_2;
+ if(!read_at(r,second?f->rcx:f->rdi,second?0x28:0x64,&original,4))return 0;
+ if(!r->custom_filter){r->screen.attemptedfilter=original;return 0;}
+ if(!read_at(r,f->rcx,second?0x38:0x14,&other,4))return 0;
+ uint32_t left=second?r->custom_shader:other,right=second?other:r->custom_shader;
+ uint64_t flags;
+ __asm__ volatile("cmpl %2,%1; pushfq; popq %0":"=r"(flags):"r"(left),"r"(right):"cc");
+ f->rax=r->custom_shader;f->flags=(f->flags&~UINT64_C(0x8d5))|(flags&0x8d5);
+ r->screen.attemptedfilter=99;return 1;
+}
 int native_screen_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  if(!r->camera_enabled||!r->inputs.ready)return 0;
  switch(site){
+ case NS_FLASHBACK_FILTER_READ:case NS_FLASHBACK_FILTER_READ_2:return custom_filter(r,site,f);
  case NS_SCREEN_BLOOD_WRITE_FOLLOW:return blood(r,fp);
  case NS_HURT_FILTER_READ:return hurt(r,f);
  case NS_VIGNETTE:

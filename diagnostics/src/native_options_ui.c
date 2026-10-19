@@ -8,10 +8,12 @@ _Static_assert(sizeof(lua_Integer)==8&&sizeof(lua_Number)==8,"REFramework Lua nu
 static const char menu[]=
  "local api=...\n"
  "assert(type(re)=='table' and type(re.on_draw_ui)=='function')\n"
- "assert(type(imgui)=='table' and type(imgui.tree_node)=='function' and type(imgui.checkbox)=='function' and type(imgui.text)=='function' and type(imgui.tree_pop)=='function')\n"
+ "assert(type(imgui)=='table' and type(imgui.tree_node)=='function' and type(imgui.checkbox)=='function' and type(imgui.text)=='function' and type(imgui.tree_pop)=='function' and type(imgui.combo)=='function' and type(imgui.slider_int)=='function' and type(imgui.slider_float)=='function')\n"
+ "local shaders={[0]='Critical Health',[1]='Main Menu',[2]='Death Grayscale',[3]='Birthday VHS',[4]='Flashback',[5]='Unnamed 5',[6]='Mia VHS',[7]='Old House',[8]='Testing Area',[9]='Guest House',[10]='Wrecked Ship',[11]='Docks',[12]='Lucas Room',[13]='Safe Room',[14]='Baker House',[15]='Outside Finale'}\n"
+ "local buttons={[-1]='Unassigned',[0]='D-pad Up',[1]='D-pad Right',[2]='D-pad Down',[3]='D-pad Left',[4]='Y',[5]='B',[6]='A',[7]='X',[8]='Left Shoulder',[9]='Left Trigger',[10]='Right Shoulder',[11]='Right Trigger',[12]='Left Stick Click',[13]='Right Stick Click',[14]='View',[15]='Menu',[16]='Left Stick Up',[17]='Left Stick Right',[18]='Left Stick Down',[19]='Left Stick Left',[20]='Right Stick Up',[21]='Right Stick Right',[22]='Right Stick Down',[23]='Right Stick Left'}\n"
  "re.on_draw_ui(function()\n"
  " if imgui.tree_node('RE7 OTS Native') then\n"
- "  local ready,melee,head,contrast,status=api.get()\n"
+ "  local ready,melee,head,contrast,status,hair,filter,shader,bright,rgb,power,cam,shoulder=api.get()\n"
  "  if ready then\n"
  "   local changed,new_value=imgui.checkbox('Auto-Disable with Melee Weapons',melee)\n"
  "   if changed then api.set(1,new_value) end\n"
@@ -22,6 +24,30 @@ static const char menu[]=
  "   changed,new_value=imgui.checkbox('Limit Light Source Contrast in Third Person',contrast)\n"
  "   if changed then api.set(4,new_value) end\n"
  "   imgui.text('Limits light-driven darkening in third person. Compare ON/OFF at the same camera angle.')\n"
+ "   changed,new_value=imgui.checkbox('Hide Mia Hair in First Person',hair)\n"
+ "   if changed then api.set(8,new_value) end\n"
+ "   imgui.text('Requires Hide Head in First Person. Turn off for incompatible custom Mia hair.')\n"
+ "   changed,new_value=imgui.checkbox('Force Custom Screen Shader',filter)\n"
+ "   if changed then api.set(9,new_value) end\n"
+ "   changed,new_value=imgui.combo('Custom Screen Shader',shader,shaders)\n"
+ "   if changed then api.set(10,new_value) end\n"
+ "   imgui.text('Critical-health shader takes priority. Shader and Fullbright apply while F6 is ON.')\n"
+ "   changed,new_value=imgui.checkbox('Fullbright',bright)\n"
+ "   if changed then api.set(11,new_value) end\n"
+ "   local red=(rgb>>16)&255; local green=(rgb>>8)&255; local blue=rgb&255\n"
+ "   changed,new_value=imgui.slider_int('Fullbright Red',red,0,255)\n"
+ "   if changed then red=new_value; api.set(12,(red<<16)|(green<<8)|blue) end\n"
+ "   changed,new_value=imgui.slider_int('Fullbright Green',green,0,255)\n"
+ "   if changed then green=new_value; api.set(12,(red<<16)|(green<<8)|blue) end\n"
+ "   changed,new_value=imgui.slider_int('Fullbright Blue',blue,0,255)\n"
+ "   if changed then blue=new_value; api.set(12,(red<<16)|(green<<8)|blue) end\n"
+ "   changed,new_value=imgui.slider_float('Fullbright Brightness',power,0,10)\n"
+ "   if changed then api.set(13,new_value) end\n"
+ "   changed,new_value=imgui.combo('Controller Camera Toggle',cam,buttons)\n"
+ "   if changed then api.set(14,new_value) end\n"
+ "   changed,new_value=imgui.combo('Controller Shoulder Switch',shoulder,buttons)\n"
+ "   if changed then api.set(15,new_value) end\n"
+ "   imgui.text('Unassigned by default. Release then press after binding, loading or reconnecting. Camera toggle works with F6 OFF.')\n"
  "   if status==-1 then imgui.text('Could not save. This change applies to this session only.')\n"
  "   elseif status==0 then imgui.text('Saving setting...') end\n"
  "  else imgui.text('Native settings are not ready.') end\n"
@@ -29,12 +55,18 @@ static const char menu[]=
  " end\n"
  "end)\n";
 static int get(lua_State*L){
- int value=NATIVE_OPTIONS_DEFAULT,status=0,ready=native_options_ui_get(&value,&status);
- lua_pushboolean(L,ready);lua_pushboolean(L,value&NATIVE_OPTION_MELEE);lua_pushboolean(L,value&NATIVE_OPTION_HIDE_HEAD);lua_pushboolean(L,value&NATIVE_OPTION_LIGHT_CONTRAST);lua_pushinteger(L,status);return 5;
+ NativeSettings s=native_settings_defaults();int status=0,ready=native_options_ui_get_settings(&s,&status);
+ lua_pushboolean(L,ready);lua_pushboolean(L,s.flags&NATIVE_OPTION_MELEE);lua_pushboolean(L,s.flags&NATIVE_OPTION_HIDE_HEAD);lua_pushboolean(L,s.flags&NATIVE_OPTION_LIGHT_CONTRAST);lua_pushinteger(L,status);
+ lua_pushboolean(L,s.hide_mia_hair);lua_pushboolean(L,s.custom_filter);lua_pushinteger(L,s.shader);lua_pushboolean(L,s.fullbright);lua_pushinteger(L,s.rgb);lua_pushnumber(L,s.brightness);lua_pushinteger(L,s.camera_button);lua_pushinteger(L,s.shoulder_button);return 13;
 }
 static int set(lua_State*L){
- int ok=lua_isinteger(L,1)&&(lua_tointeger(L,1)==1||lua_tointeger(L,1)==2||lua_tointeger(L,1)==4)&&
-        lua_type(L,2)==LUA_TBOOLEAN&&native_options_ui_set((unsigned)lua_tointeger(L,1),lua_toboolean(L,2));
+ int ok=0;
+ if(lua_isinteger(L,1)){
+  lua_Integer id=lua_tointeger(L,1);
+  if(id==1||id==2||id==4)ok=lua_type(L,2)==LUA_TBOOLEAN&&native_options_ui_set((unsigned)id,lua_toboolean(L,2));
+  else if(id==8||id==9||id==11)ok=lua_type(L,2)==LUA_TBOOLEAN&&native_options_ui_set_setting((unsigned)id,lua_toboolean(L,2));
+  else if(id>=10&&id<=15)ok=lua_type(L,2)==LUA_TNUMBER&&native_options_ui_set_setting((unsigned)id,lua_tonumber(L,2));
+ }
  lua_pushboolean(L,ok);return 1;
 }
 static const char*reader(lua_State*L,void*ctx,size_t*size){

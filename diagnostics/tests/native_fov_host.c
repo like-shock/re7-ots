@@ -135,7 +135,7 @@ static void reset(void){
  }
 }
 static void counts(void){
- setup();CHECK(NATIVE_SITE_COUNT==67);NativeSnapshot snap;
+ setup();CHECK(NATIVE_SITE_COUNT==78);NativeSnapshot snap;
  const unsigned indexes[]={64,66};
  for(unsigned j=0;j<2;j++){unsigned s=indexes[j];save();CHECK(!native_runtime_dispatch(&r,s,&f,fp));unchanged();CHECK(r.inputs.producer_calls[s]==1);native_runtime_snapshot(&r,&snap);CHECK(snap.calls[s]==1);CHECK(snap.input_observed_high&(UINT64_C(1)<<(s-64)));}
  CHECK(r.inputs.observed==0); /* high sites must never wrap into low word */

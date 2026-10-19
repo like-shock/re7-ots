@@ -3,6 +3,8 @@
  * No Lua/SDK/model discovery, scene raycast, or new proximity-based FP switch. */
 #include "native_runtime.h"
 #include <string.h>
+_Static_assert(NATIVE_INPUT_ONLY_MASK == ((1ULL<<NS_CUTSCENE_AUTOLOOK)|(1ULL<<NS_TIMER_AOB)|(1ULL<<NS_LOADED_AREA)|(1ULL<<NS_BETTER_TIMER)),"input-only bridge low sites");
+_Static_assert(NATIVE_INPUT_ONLY_HIGH_MASK == ((1ULL<<(NS_XINPUT_WRITE-64))|(1ULL<<(NS_XINPUT_FLOATS-64))),"input-only bridge high sites");
 _Static_assert(NATIVE_HEAD_ONLY_MASK == ((1ULL<<NS_HEAD_Y_WRITE)|(1ULL<<NS_CUTSCENE_AUTOLOOK)|(1ULL<<NS_CHARACTER_CMP)|(1ULL<<NS_LOADED_AREA)|(1ULL<<NS_FLASHLIGHT_WRITE)),"head-only bridge sites");
 static uint32_t bits(float f){uint32_t u;memcpy(&u,&f,4);return u;}
 static float scalar(uint32_t u){float f;memcpy(&f,&u,4);return f;}
@@ -44,7 +46,9 @@ static void sync_input(NativeRuntime*r){
 }
 void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeWrite write,void*ctx){
  memset(r,0,sizeof *r);r->base=base;r->read=read;r->write=write;r->context=ctx;
- r->camera_enabled=1;r->hide_head=1;r->limit_light_contrast=1;
+ r->camera_enabled=1;r->hide_head=1;r->hide_mia_hair=1;r->limit_light_contrast=1;
+ r->custom_shader=1;r->fullbright.rgb=0xffffff;r->fullbright.brightness=1;
+ r->controller.camera_button=r->controller.shoulder_button=-1;
  r->fov=(NativeFovState){.tprunfov=1,.custom_fov=110,.runningfovmax=20,
   .fovrunincbaserate=7,.fovrundecbaserate=.7f,.reframeworkfovframes=100};
  re7_original_defaults(&r->params);re7_original_state_defaults(&r->config);
@@ -60,8 +64,9 @@ void native_runtime_set_melee_auto_disable(NativeRuntime*r,int enabled){
 void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  if(enabled!=0&&enabled!=1)return;
  r->camera_enabled=(uint8_t)enabled;r->config.thirdpersonflag=(uint8_t)enabled;
- if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}
+ if(!enabled){r->view.firstpersonflag=1;native_av_reset(r);}
  native_screen_reset(r);
+ native_fullbright_reset(r);native_controller_reset(r);
  native_hud_reset(r);
  native_fov_reset(r);
  native_head_clear(&r->head);
@@ -195,11 +200,10 @@ static int flashlight_shadow_write(NativeRuntime*r,NativeFrame*f){
   * Only [rdi+C8] == flashflagadd-448 belongs to the original flashlight.
   * #9999 is a DWORD integer bit pattern, NOT float 9999. No light-color,
   * brightness or coordinate edits. A zero return replays MOV [rdi+C8],ecx. */
- uint64_t target,flag=r->inputs.flashlight_address;
+ uint64_t target;
  if(!r->inputs.ready||r->view.firstpersonflag==1||
-    !(r->inputs.observed&(UINT64_C(1)<<NS_FLASHLIGHT_WRITE))||
-    !(r->inputs.valid&RE7_INPUT_FLASHLIGHT)||flag<0x10000+0x448||
-    f->rdi<0x10000||!offset(f->rdi,0xc8,&target)||target!=flag-0x448)return 0;
+    f->rdi<0x10000||!offset(f->rdi,0xc8,&target)||
+    !native_av_flash_target(r,target,0x448))return 0;
  const uint32_t value=9999;
  return write_at(r,target,&value,sizeof value);
 }
@@ -207,9 +211,10 @@ static int light_contrast_read(NativeRuntime*r,NativeFrame*f){
  /* RT 8.02 L10198-10226, limittplightfade defaults to 1. The source
   * CMP/JBE compares unsigned DWORD bits, including negative/NaN encodings.
   * Substitute only MOV eax,[r14+228]'s result; never edit the light's field.
-  * Fullbright's separate disableshadowdarken override is intentionally absent.
   * Native input readiness additionally prevents changes during loading/failure. */
- if(!r->limit_light_contrast||!r->inputs.ready||r->view.firstpersonflag==1)return 0;
+ if(!r->inputs.ready)return 0;
+ if(r->fullbright.enabled&&r->fullbright.shadow_override){f->rax=0;return 1;}
+ if(!r->limit_light_contrast||r->view.firstpersonflag==1)return 0;
  uint32_t value;const uint32_t cap=0x3f3c28f6u; /* float 0.735 */
  if(!load(r,f->r14,0x228,&value,sizeof value))return 0;
  r->stats.light_contrast_samples++;
@@ -237,7 +242,7 @@ static int head_write(NativeRuntime*r,NativeFrame*f,void*fp){
  if(!head_allowed(r))return 0;
  unsigned kind=native_head_match(&r->head,r->base,f->rbx,r->inputs.state.characters,
                                 r->inputs.state.flashlightflag==1,read_cb,r);
- if(!kind)return 0;
+ if(!kind||(kind==NATIVE_HEAD_HAIR&&!r->hide_mia_hair))return 0;
  /* Original HEAD_Y_WRITE's complete 21-byte block. Only Y changes; X/Z/W,
   * all saved registers/flags and extended state remain the engine's values. */
  float out[4]={native_get_xmm_scalar(fp,9),-1000.0f,
@@ -247,22 +252,29 @@ static int head_write(NativeRuntime*r,NativeFrame*f,void*fp){
 }
 int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  if(!r||!f||!fp||site>=NATIVE_SITE_COUNT)return 0;
- if(!r->camera_enabled&&!(site<64&&((NATIVE_HEAD_ONLY_MASK>>site)&1)))return 0;
+ if(!r->camera_enabled&&!((r->hide_head&&native_head_only_site(site))||
+    (native_controller_configured(r)&&native_input_only_site(site))))return 0;
  r->stats.calls[site]++;
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
  re7_original_inputs_capture(&r->inputs,site,f,fp,r->base,read_cb,r,&r->config);
  if(!r->inputs.ready){
-  native_screen_reset(r);
+  native_av_reset(r);
+  native_screen_reset(r);native_fullbright_reset(r);
   if(r->camera_enabled)native_head_clear(&r->head);
+ }else if(r->camera_enabled&&site==NS_FLASHLIGHT_WRITE&&(r->inputs.valid&RE7_INPUT_FLASHLIGHT)){
+  r->av.flashlight_address=r->inputs.flashlight_address;
  }
  if(r->head.characters!=r->inputs.state.characters)native_head_clear(&r->head);
  r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);
- int handled=native_fov_dispatch(r,site,f,fp);
+ native_controller_dispatch(r,site,f,fp);
+ int handled=native_fullbright_dispatch(r,site,f,fp);
+ if(!handled)handled=native_fov_dispatch(r,site,f,fp);
  if(!handled)handled=native_hud_dispatch(r,site,f,fp);
  if(handled){r->stats.applied[site]++;return 1;}
  switch(site){
  case NS_CAM_AFTER_1000_READ:
+  if(!r->inputs.ready)break;
   if(f->rdi>=0xa0){uint64_t candidate=f->rdi-0xa0;float values[16];
    if(read_at(r,candidate,values,sizeof values)&&finite_value(values[0])&&finite_value(values[2])&&finite_value(values[9])&&finite_value(values[12])&&finite_value(values[13])&&finite_value(values[14])){
     if(candidate!=r->camera_base){r->camera_valid=0;r->av.alt_flash_red_address=0;}
@@ -309,10 +321,11 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
     &r->interaction_input.scrapexamine,&r->config.critterexamine);
   break;
  case NS_TIMESCALE_MULTIPLIER:
-  native_av_tick(r);native_screen_tick(r);
+  if(r->inputs.ready)native_av_tick(r);
+  native_screen_tick(r);
   if(r->inputs.valid&RE7_INPUT_PLAYER)r->inputs.state.lockboxflag=re7_original_interaction_lockbox(r->inputs.state.loadarea,r->inputs.state.player.x,r->inputs.state.player.y,r->inputs.state.player.z);
   re7_original_interaction_loadscreen(&r->interaction,r->inputs.state.loadscreenflag);
-  if(r->inputs.state.loadscreenflag){r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}break;
+  if(r->inputs.state.loadscreenflag)native_av_reset(r);break;
  case NS_TRUE_FOV_READ:
   break;
  case NS_AFTER_ADAPTIVE_DIFF:
@@ -325,4 +338,9 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  }
  if(handled)r->stats.applied[site]++;
  return handled;
+}
+void native_runtime_set_hide_mia_hair(NativeRuntime*r,int e){if(e==0||e==1)r->hide_mia_hair=(uint8_t)e;}
+int native_runtime_set_custom_filter(NativeRuntime*r,int e,int id){
+ if((e!=0&&e!=1)||id<0||id>15)return 0;
+ r->custom_filter=(uint8_t)e;r->custom_shader=(uint8_t)id;return 1;
 }
