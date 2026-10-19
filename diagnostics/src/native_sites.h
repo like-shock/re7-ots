@@ -61,7 +61,10 @@ typedef enum {
  NS_NAH_CRIT_HP_EFFECT_CMP=55,
  NS_SCREEN_BLOOD_WRITE_FOLLOW=56,
  NS_HURT_FILTER_READ=57,
- NATIVE_SITE_COUNT=58
+ NS_NAH_OXYGEN_REF=58,
+ NS_NAH_HUD_WRITE=59,
+ NS_NAH_OXYGEN_HUD_SWITCH=60,
+ NATIVE_SITE_COUNT=61
 } NativeSite;
 typedef struct {const char*name;uint32_t rva;uint8_t length,expected[48];} NativeSiteDefinition;
 static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
@@ -123,6 +126,9 @@ static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
 {"NAH_CRIT_HP_EFFECT_CMP",0xA1ED19u,7,{0x80,0xBB,0xF1,0x00,0x00,0x00,0x00}},
 {"SCREEN_BLOOD_WRITE_FOLLOW",0x1FBCE9Du,5,{0xF3,0x0F,0x10,0x47,0x48}},
 {"HURT_FILTER_READ",0x18CCA12u,8,{0x44,0x8B,0x46,0x18,0x44,0x3B,0x47,0x64}},
+{"NAH_OXYGEN_REF",0xA903E5u,5,{0xF3,0x0F,0x10,0x53,0x18}},
+{"NAH_HUD_WRITE",0x281DB8Bu,9,{0x44,0x88,0x67,0x20,0x4C,0x8B,0x64,0x24,0x38}},
+{"NAH_OXYGEN_HUD_SWITCH",0xA90BC3u,7,{0x44,0x89,0xB3,0x70,0x01,0x00,0x00}},
 };
 /* HEAD_BOB handled path emulates CMP AX,AX followed by the taken JE. */
 static inline uint32_t native_handled_rva(unsigned site){

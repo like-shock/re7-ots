@@ -9,7 +9,7 @@ from package_explore import archive, sums
 import fetch_lua
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-VERSION = '0.1.7'
+VERSION = '0.1.8'
 MODE = 'ORIGINAL_NATIVE_OTS_EXPERIMENTAL'
 
 

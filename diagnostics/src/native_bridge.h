@@ -1,6 +1,9 @@
 #ifndef RE7_NATIVE_BRIDGE_H
 #define RE7_NATIVE_BRIDGE_H
-#define NATIVE_MAX_SITES 58
+#define NATIVE_MAX_SITES 61
+/* Completed bridge only: NativeFrame128 + immutable XMM160 + GPR64 +
+ * machine-frame RSP24. The machine frame stores the pre-detour game RSP. */
+#define NATIVE_FRAME_GAME_RSP_OFFSET 376
 /* Camera+head=1, head-only=2; zero replays every original block.
  * Head-only producers: HEAD, AUTOLOOK, CHARACTER, AREA, FLASHLIGHT. */
 #define NATIVE_HEAD_ONLY_MASK 0x1008080c0
@@ -25,6 +28,7 @@ extern void *native_trampolines[NATIVE_MAX_SITES],*native_returns[NATIVE_MAX_SIT
 extern void *native_original_ips[NATIVE_MAX_SITES];
 extern void *const native_detours[NATIVE_MAX_SITES];
 int native_cpu_init(void);
+uint64_t native_frame_game_rsp(const NativeFrame *);
 void native_set_xmm_scalar(void *extended_state,unsigned reg,float value);
 float native_get_xmm_scalar(const void *extended_state,unsigned reg);
 void native_get_xmm_vector(const void *,unsigned,float out[4]);

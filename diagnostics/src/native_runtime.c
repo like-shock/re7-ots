@@ -60,6 +60,7 @@ void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  r->camera_enabled=(uint8_t)enabled;r->config.thirdpersonflag=(uint8_t)enabled;
  if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}
  native_screen_reset(r);
+ native_hud_reset(r);
  native_head_clear(&r->head);
 }
 void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
@@ -253,7 +254,9 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
   if(r->camera_enabled)native_head_clear(&r->head);
  }
  if(r->head.characters!=r->inputs.state.characters)native_head_clear(&r->head);
- r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);int handled=0;
+ r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);
+ int handled=native_hud_dispatch(r,site,f,fp);
+ if(handled){r->stats.applied[site]++;return 1;}
  switch(site){
  case NS_CAM_AFTER_1000_READ:
   if(f->rdi>=0xa0){uint64_t candidate=f->rdi-0xa0;float values[16];

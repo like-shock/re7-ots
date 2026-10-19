@@ -9,6 +9,7 @@
 #include "native_head.h"
 #include "native_av.h"
 #include "native_screen.h"
+#include "native_hud.h"
 typedef int (*NativeMemory)(void *,uint64_t,void *,size_t);
 typedef int (*NativeWrite)(void *,uint64_t,const void *,size_t);
 typedef struct {
@@ -41,6 +42,7 @@ typedef struct NativeRuntime {
  NativeHeadTargets head;
  NativeAvState av;
  NativeScreenState screen;
+ NativeHudState hud;
  uint8_t camera_enabled,hide_head,limit_light_contrast;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;

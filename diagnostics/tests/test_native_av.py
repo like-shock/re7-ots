@@ -14,7 +14,7 @@ class AudiovisualTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.tmp.cleanup)
         cls.exe = pathlib.Path(cls.tmp.name)/'av'
-        names = ['native_runtime','native_screen', 'native_head', 'native_bridge', 'original_scalar',
+        names = ['native_runtime','native_hud','native_screen', 'native_head', 'native_bridge', 'original_scalar',
                  'original_state', 'original_inputs', 'original_collision',
                  'original_interaction', 'original_model']
         if (ROOT/'src/native_av.c').exists():

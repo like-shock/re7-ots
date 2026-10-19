@@ -16,6 +16,7 @@ int __attribute__((ms_abi)) native_dispatch(unsigned site,NativeFrame*f,void*fp)
  assert(((uintptr_t)f&15)==0);
  uint64_t machine_pc,machine_rsp;memcpy(&machine_pc,(char*)f+352,8);memcpy(&machine_rsp,(char*)f+376,8);
  assert(machine_pc==(uintptr_t)native_original_ips[site]);assert(machine_rsp==before_rsp);
+ assert(native_frame_game_rsp(f)==before_rsp);
  assert(*(uint64_t*)(uintptr_t)before_rsp==UINT64_C(0xBADBADBADBADBAD));
  for(unsigned reg=6;reg<16;reg++)assert(!memcmp((char*)f+128+(reg-6)*16,test_vectors+reg*32,16));
  assert(*(uint64_t*)((char*)f+320)==UINT64_C(0x12000b));

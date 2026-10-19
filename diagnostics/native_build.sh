@@ -18,7 +18,7 @@ paths += [root/p for p in ('native_build.sh','data/minhook.json','tools/fetch_mi
 PYINPUTS
 NATIVE_FLAGS=("-DNATIVE_SOURCE_COMMIT=\"$NATIVE_REVISION\"" -std=c11 -O2 -Wall -Wextra -fno-ident -ffp-contract=off -fno-fast-math -ffunction-sections -fdata-sections -Isrc -Ibuild/minhook/include -Ibuild/lua-5.4.3/src)
 NATIVE_OBJECTS=()
-for name in core observer original_scalar original_state original_collision original_interaction original_model original_inputs native_bridge native_head native_av native_screen native_runtime native_options native_options_ui native_plugin; do
+for name in core observer original_scalar original_state original_collision original_interaction original_model original_inputs native_bridge native_head native_av native_screen native_hud native_runtime native_options native_options_ui native_plugin; do
  "$NATIVE_CC" "${NATIVE_FLAGS[@]}" -Werror -MMD -MF "build/native/$name.d" -c "src/$name.c" -o "build/native/$name.o"
  NATIVE_OBJECTS+=("build/native/$name.o")
 done
@@ -63,7 +63,7 @@ sources={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in s
 before=json.loads((root/'build/native-inputs-before.json').read_text())
 changed=[name for name,digest in sources.items() if before.get(name)!=digest]
 assert not changed, 'Sources changed during native build: '+', '.join(changed)
-info={'schema':1,'version':'0.1.7','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL',
+info={'schema':1,'version':'0.1.8','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL',
       'commit':commit,'source_commit':commit,
       'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],text=True)),
       'game_data_writes':True,'game_writes':True,'code_patches':True,'face_hiding':True,

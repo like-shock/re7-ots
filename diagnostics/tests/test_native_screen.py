@@ -13,7 +13,7 @@ class ScreenTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.tmp.cleanup)
         cls.exe = pathlib.Path(cls.tmp.name)/'screen'
-        names = ['native_runtime', 'native_av', 'native_head', 'native_bridge',
+        names = ['native_runtime','native_hud', 'native_av', 'native_head', 'native_bridge',
                  'original_scalar', 'original_state', 'original_inputs',
                  'original_collision', 'original_interaction', 'original_model']
         if (ROOT/'src/native_screen.c').exists():
