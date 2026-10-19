@@ -22,12 +22,16 @@ Third-person frames skip this concealment path. No broad SDK model scanning is a
 Natural playable Mia/Clancy/Chris/Joe/Zoe support has regression coverage and character
 state logging; complete visible models require the external full RT model pack.
 See [character support and model requirements](docs/NATIVE_CHARACTERS_KO.md).
-Actual face concealment, other-character rendering and device performance remain unverified.
+**2026-10-19 field report:** the user confirms first-person face concealment works.
+Other playable characters have not yet been tested; this does not validate all scenes or performance.
 See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
 Version 0.1.1 adds only the original third-person flashlight-shadow suppression
 path to investigate dark character rendering. It keeps camera, material, light-color,
 brightness and light-position behavior unchanged. This path targets the game's original
 flashlight, not custom RELit lights.
+The 2026-10-19 review recommends retaining it for the original flashlight self-shadow
+problem. It suppresses that flashlight's shadows in third person, independently of
+first-person face concealment. No RELit material/color workaround was added to Native.
 **2026-10-18 Native 0.1.0 field report:** the user confirms the wall-hand problem,
 repeated first-/third-person switching and displaced interaction prompts are resolved
 in the tested gameplay. Center alignment also appears corrected. The character now
