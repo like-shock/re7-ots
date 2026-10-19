@@ -77,7 +77,10 @@ static void run(void){
 }
 static void overshoot(void){
  setup();producers();r.inputs.state.framerate=1;r.inputs.state.runflag=1;
- for(unsigned j=0;j<8;j++)CHECK(tick());CHECK(get(TARGET)==0x42dd2492u); /* 90 + 8*(18/7) */
+ for(unsigned j=0;j<8;j++){
+  CHECK(tick());
+ }
+ CHECK(get(TARGET)==0x42dd2492u); /* 90 + 8*(18/7) */
  CHECK(tick());CHECK(get(TARGET)==0x42dd2492u); /* unsigned >max, no clamp */
 }
 static void authority(void){
