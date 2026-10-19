@@ -44,7 +44,7 @@ static void sync_input(NativeRuntime*r){
 }
 void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeWrite write,void*ctx){
  memset(r,0,sizeof *r);r->base=base;r->read=read;r->write=write;r->context=ctx;
- r->camera_enabled=1;r->hide_head=1;
+ r->camera_enabled=1;r->hide_head=1;r->limit_light_contrast=1;
  re7_original_defaults(&r->params);re7_original_state_defaults(&r->config);
  re7_original_inputs_init(&r->inputs);re7_original_collision_defaults(&r->collision_config,&r->collision);
  r->interaction_input.tpinteractables=r->interaction_input.fixpaperscan=r->interaction_input.fixwormbox=1;
@@ -66,12 +66,16 @@ void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
  r->hide_head=(uint8_t)enabled;
  if(!enabled)native_head_clear(&r->head);
 }
+void native_runtime_set_light_contrast(NativeRuntime*r,int enabled){
+ if(enabled==0||enabled==1)r->limit_light_contrast=(uint8_t)enabled;
+}
 void native_runtime_snapshot(const NativeRuntime*r,NativeSnapshot*s){
  *s=r->stats;s->camera_base=r->camera_base;s->input_valid=r->inputs.valid;s->input_failed=r->inputs.failed;s->input_observed=r->inputs.observed;
  s->frame=r->inputs.frametrack;s->loadarea=r->inputs.state.loadarea;s->ready=r->inputs.ready;
  s->firstperson=r->view.firstpersonflag;s->stopflag=r->state.stopflag;s->internalfp=r->state.internalfpflag;
  s->aim=r->inputs.state.aim;s->blockedgun=r->state.blockedgun;s->framerate=r->inputs.state.framerate;
  s->melee_auto_disable=r->config.fpmeleeflag;
+ s->limit_light_contrast=r->limit_light_contrast;
  s->camera_enabled=r->camera_enabled;s->hide_head=r->hide_head;s->head_target=r->head.head;
  s->character_raw=r->inputs.pcharcflag;s->characters=r->inputs.state.characters;
  s->character_observed=(r->inputs.observed&(1ULL<<NS_CHARACTER_CMP))!=0;
@@ -194,6 +198,22 @@ static int flashlight_shadow_write(NativeRuntime*r,NativeFrame*f){
  const uint32_t value=9999;
  return write_at(r,target,&value,sizeof value);
 }
+static int light_contrast_read(NativeRuntime*r,NativeFrame*f){
+ /* RT 8.02 L10198-10226, limittplightfade defaults to 1. The source
+  * CMP/JBE compares unsigned DWORD bits, including negative/NaN encodings.
+  * Substitute only MOV eax,[r14+228]'s result; never edit the light's field.
+  * Fullbright's separate disableshadowdarken override is intentionally absent.
+  * Native input readiness additionally prevents changes during loading/failure. */
+ if(!r->limit_light_contrast||!r->inputs.ready||r->view.firstpersonflag==1)return 0;
+ uint32_t value;const uint32_t cap=0x3f3c28f6u; /* float 0.735 */
+ if(!load(r,f->r14,0x228,&value,sizeof value))return 0;
+ r->stats.light_contrast_samples++;
+ r->stats.light_contrast_input_bits=value;
+ r->stats.light_contrast_output_bits=value>cap?cap:value;
+ if(value<=cap)return 0;
+ f->rax=cap; /* MOV eax zero-extends RAX. Flags/other registers stay intact. */
+ return 1;
+}
 static int autolook(NativeRuntime*r,NativeFrame*f){
  if(!r->inputs.ready||r->view.firstpersonflag==1)return 0;
  static const unsigned offsets[]={0x78,0x20,0x590,0x40,0x30,0x178};uint64_t p,value;
@@ -258,6 +278,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_DOF_ORIGIN_ANGLE_WRITES:case NS_EOZ_DOF_ORIGIN_ANGLE_WRITES:case NS_NAH_DOF_ORIGIN_ANGLE_WRITES:handled=collision_write(r,site,f,fp);break;
  case NS_PLAYER_TRANS_READ:case NS_TRANS_GUN_WRITE:if(r->inputs.ready)handled=model_write(r,site,f);break;
  case NS_FLASHLIGHT_SHADOWS_Z_WRITE:handled=flashlight_shadow_write(r,f);break;
+ case NS_OLD_HOUSE_BRIGHTNESS_READ:handled=light_contrast_read(r,f);break;
  case NS_CUTSCENE_AUTOLOOK:
   if(head_allowed(r))native_head_refresh(&r->head,r->base,r->inputs.head_address,r->inputs.state.characters,read_cb,r);
   else native_head_clear(&r->head);

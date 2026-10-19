@@ -11,7 +11,7 @@ static const char menu[]=
  "assert(type(imgui)=='table' and type(imgui.tree_node)=='function' and type(imgui.checkbox)=='function' and type(imgui.text)=='function' and type(imgui.tree_pop)=='function')\n"
  "re.on_draw_ui(function()\n"
  " if imgui.tree_node('RE7 OTS Native') then\n"
- "  local ready,melee,head,status=api.get()\n"
+ "  local ready,melee,head,contrast,status=api.get()\n"
  "  if ready then\n"
  "   local changed,new_value=imgui.checkbox('Auto-Disable with Melee Weapons',melee)\n"
  "   if changed then api.set(1,new_value) end\n"
@@ -19,6 +19,9 @@ static const char menu[]=
  "   changed,new_value=imgui.checkbox('Hide Head in First Person',head)\n"
  "   if changed then api.set(2,new_value) end\n"
  "   imgui.text('Also applies with F6 OFF. Disable to compare the original head rendering.')\n"
+ "   changed,new_value=imgui.checkbox('Limit Light Source Contrast in Third Person',contrast)\n"
+ "   if changed then api.set(4,new_value) end\n"
+ "   imgui.text('Limits light-driven darkening in third person. Compare ON/OFF at the same camera angle.')\n"
  "   if status==-1 then imgui.text('Could not save. This change applies to this session only.')\n"
  "   elseif status==0 then imgui.text('Saving setting...') end\n"
  "  else imgui.text('Native settings are not ready.') end\n"
@@ -27,10 +30,10 @@ static const char menu[]=
  "end)\n";
 static int get(lua_State*L){
  int value=NATIVE_OPTIONS_DEFAULT,status=0,ready=native_options_ui_get(&value,&status);
- lua_pushboolean(L,ready);lua_pushboolean(L,value&NATIVE_OPTION_MELEE);lua_pushboolean(L,value&NATIVE_OPTION_HIDE_HEAD);lua_pushinteger(L,status);return 4;
+ lua_pushboolean(L,ready);lua_pushboolean(L,value&NATIVE_OPTION_MELEE);lua_pushboolean(L,value&NATIVE_OPTION_HIDE_HEAD);lua_pushboolean(L,value&NATIVE_OPTION_LIGHT_CONTRAST);lua_pushinteger(L,status);return 5;
 }
 static int set(lua_State*L){
- int ok=lua_isinteger(L,1)&&(lua_tointeger(L,1)==1||lua_tointeger(L,1)==2)&&
+ int ok=lua_isinteger(L,1)&&(lua_tointeger(L,1)==1||lua_tointeger(L,1)==2||lua_tointeger(L,1)==4)&&
         lua_type(L,2)==LUA_TBOOLEAN&&native_options_ui_set((unsigned)lua_tointeger(L,1),lua_toboolean(L,2));
  lua_pushboolean(L,ok);return 1;
 }

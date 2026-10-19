@@ -5,8 +5,10 @@
 #include <stdatomic.h>
 #define NATIVE_OPTION_MELEE 1u
 #define NATIVE_OPTION_HIDE_HEAD 2u
-#define NATIVE_OPTIONS_DEFAULT 3u
-/* Values are a mask of the two independent preferences.
+#define NATIVE_OPTION_LIGHT_CONTRAST 4u
+#define NATIVE_OPTIONS_MASK 7u
+#define NATIVE_OPTIONS_DEFAULT NATIVE_OPTIONS_MASK
+/* Values are a mask of the three independent preferences.
  * UI requests are atomic. One worker loads/persists/completes them; no file
  * IO or game-memory operations occur in the UI or in these helpers. */
 typedef struct {

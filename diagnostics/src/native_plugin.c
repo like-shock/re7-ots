@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.3"
+#define NATIVE_VERSION "0.1.4"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -186,7 +186,7 @@ static int setup_log(void) {
     return logfile != INVALID_HANDLE_VALUE ? 1 : fail("LOG_OPEN_FAILED");
 }
 static void load_options(void) {
-    WCHAR path[PATH_CAP];char data[64];DWORD count=0;int value=NATIVE_OPTIONS_DEFAULT;
+    WCHAR path[PATH_CAP];char data[128];DWORD count=0;int value=NATIVE_OPTIONS_DEFAULT;
     if(!join(path,folder,L"\\settings.cfg")){native_options_load(&options,NATIVE_OPTIONS_DEFAULT);return;}
     HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
     if(file!=INVALID_HANDLE_VALUE){
@@ -199,7 +199,7 @@ static void load_options(void) {
     native_options_load(&options,value);
 }
 static int save_options(int value) {
-    WCHAR path[PATH_CAP],temp[PATH_CAP];char data[64];DWORD count=0;
+    WCHAR path[PATH_CAP],temp[PATH_CAP];char data[128];DWORD count=0;
     size_t size=native_options_encode(value,data,sizeof data);
     if(!size||!join(path,folder,L"\\settings.cfg")||!join(temp,folder,L"\\settings.cfg.tmp"))return 0;
     HANDLE file=CreateFileW(temp,GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
@@ -216,6 +216,7 @@ static void reset_runtime(void) {
     native_runtime_init(&runtime,base,read_memory,write_memory,NULL);
     native_runtime_set_melee_auto_disable(&runtime,(value&NATIVE_OPTION_MELEE)!=0);
     native_runtime_set_hide_head(&runtime,(value&NATIVE_OPTION_HIDE_HEAD)!=0);
+    native_runtime_set_light_contrast(&runtime,(value&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
     native_runtime_set_camera_enabled(&runtime,0);
 }
 /* Worker owns preference/camera transitions; faults always gate dispatch off. */
@@ -429,6 +430,9 @@ static void snapshot(uint64_t now) {
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
          "\"flashlight_shadow_calls\":%llu,\"flashlight_shadow_applied\":%llu,"
          "\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,"
+         "\"limit_light_source_contrast_in_third_person\":%s,"
+         "\"light_contrast_calls\":%llu,\"light_contrast_applied\":%llu,\"light_contrast_samples\":%llu,"
+         "\"light_contrast_input_bits\":\"0x%08x\",\"light_contrast_output_bits\":\"0x%08x\","
          "\"head_target\":\"0x%llx\",\"head_applied\":[%llu,%llu,%llu],"
          "\"character_raw\":%u,\"characters\":%u,\"character_observed\":%s,"
          "\"model_marker\":%s,\"assumeheadless\":%u,"
@@ -447,6 +451,11 @@ static void snapshot(uint64_t now) {
          (unsigned long long)state.calls[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
          (unsigned long long)state.applied[NS_FLASHLIGHT_SHADOWS_Z_WRITE],
          state.melee_auto_disable?"true":"false",state.hide_head?"true":"false",
+         state.limit_light_contrast?"true":"false",
+         (unsigned long long)state.calls[NS_OLD_HOUSE_BRIGHTNESS_READ],
+         (unsigned long long)state.applied[NS_OLD_HOUSE_BRIGHTNESS_READ],
+         (unsigned long long)state.light_contrast_samples,
+         state.light_contrast_input_bits,state.light_contrast_output_bits,
          (unsigned long long)state.head_target,
          (unsigned long long)state.head_applied[0],(unsigned long long)state.head_applied[1],(unsigned long long)state.head_applied[2],
          state.character_raw,state.characters,state.character_observed?"true":"false",marker,state.assumeheadless,calls,applied);
@@ -491,12 +500,14 @@ static DWORD WINAPI worker(void *unused) {
             AcquireSRWLockExclusive(&runtime_lock);
             native_runtime_set_melee_auto_disable(&runtime,(option_value&NATIVE_OPTION_MELEE)!=0);
             native_runtime_set_hide_head(&runtime,(option_value&NATIVE_OPTION_HIDE_HEAD)!=0);
+            native_runtime_set_light_contrast(&runtime,(option_value&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
             ReleaseSRWLockExclusive(&runtime_lock);
             publish_dispatch(active);
             int saved=save_options(option_value);
             native_options_complete(&options,option_token,saved);
-            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"saved\":%s}\n",
-                 (option_value&NATIVE_OPTION_MELEE)?"true":"false",(option_value&NATIVE_OPTION_HIDE_HEAD)?"true":"false",saved?"true":"false");
+            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"limit_light_source_contrast_in_third_person\":%s,\"saved\":%s}\n",
+                 (option_value&NATIVE_OPTION_MELEE)?"true":"false",(option_value&NATIVE_OPTION_HIDE_HEAD)?"true":"false",
+                 (option_value&NATIVE_OPTION_LIGHT_CONTRAST)?"true":"false",saved?"true":"false");
             if(!saved)message("Could not save native preferences; session settings are applied.");
         }
         unsigned requested = atomic_exchange_explicit(&toggle_requests, 0, memory_order_acq_rel);

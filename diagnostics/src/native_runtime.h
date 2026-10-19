@@ -14,10 +14,12 @@ typedef struct {
  uint64_t reads_failed,writes_failed,camera_matches,view_changes;
  uint64_t camera_base,input_valid,input_failed,input_observed;
  uint64_t head_applied[3],head_target;
+ uint64_t light_contrast_samples;
+ uint32_t light_contrast_input_bits,light_contrast_output_bits;
  uint32_t frame,loadarea,character_raw,characters;
  uint8_t camera_enabled,hide_head,character_observed,model_marker_available,assumeheadless;
  float model_marker;
- uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable;
+ uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable,limit_light_contrast;
  float camera[3],clip[3],framerate;
 } NativeSnapshot;
 typedef struct {
@@ -35,7 +37,7 @@ typedef struct {
  Re7OriginalInteractionInput interaction_input;
  Re7OriginalInteractionState interaction;
  NativeHeadTargets head;
- uint8_t camera_enabled,hide_head;
+ uint8_t camera_enabled,hide_head,limit_light_contrast;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;
  uint32_t fov_frame;
@@ -50,5 +52,6 @@ void native_runtime_shoulder(NativeRuntime *);
 void native_runtime_set_melee_auto_disable(NativeRuntime *,int enabled);
 void native_runtime_set_camera_enabled(NativeRuntime *,int enabled);
 void native_runtime_set_hide_head(NativeRuntime *,int enabled);
+void native_runtime_set_light_contrast(NativeRuntime *,int enabled);
 void native_runtime_snapshot(const NativeRuntime *,NativeSnapshot *);
 #endif
