@@ -4,8 +4,8 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.6 device build](diagnostics/native/README_KO.md) connects
-56 original instruction sites for actual camera, focus, firing, inspection,
+The [Native OTS 0.1.7 device build](diagnostics/native/README_KO.md) connects
+58 original instruction sites for actual camera, focus, firing, inspection,
 collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
@@ -15,6 +15,13 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.7 adds original blood coverage and hurt-filter defaults. Blood uses
+source x87 HP/10 rounding and unsigned threshold bits (FP100/TP0); puzzle blood
+cancellation takes priority. Hurt filters use FP0/TP2 and the original forced
+comparison flags. Head concealment remains for the source two-tick delay when
+leaving the stopped-blood interaction state. HP and head targets are revalidated;
+loading, missing inputs and F6 clear this temporary authority. Independent F6-off
+head hiding remains available. Steam Deck visuals remain pending.
 Version 0.1.6 connects Critter item detection to EOZ camera policy, suppresses
 third-person vignette and ordinary chromatic distortion, preserves psycho intensity
 at first-person 1x/third-person 2x, and restores the original NAH aiming crosshair

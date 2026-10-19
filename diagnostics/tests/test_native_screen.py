@@ -45,3 +45,12 @@ class ScreenTests(unittest.TestCase):
     def test_nah_dot_uses_live_aim_and_preserves_original_lea(self): self.check_case('dot')
     def test_nah_redline_sets_cmp_equal_flags(self): self.check_case('redline')
     def test_f6_loading_and_missing_readiness_clear_transient_state(self): self.check_case('reset')
+
+    def test_blood_uses_unsigned_source_hp_divide_thresholds(self): self.check_case('blood')
+    def test_blood_requires_observed_and_revalidated_hp_identity(self): self.check_case('blood_identity')
+    def test_hurt_preserves_full_frame_and_forces_cmp_ax_one_zero_flags(self): self.check_case('hurt')
+    def test_head_delay_uses_timescale_cadence_and_retains_tp_targets(self): self.check_case('head_delay')
+    def test_head_delay_rejects_character_owner_load_f6_and_marker_changes(self): self.check_case('head_invalid')
+
+    def test_hurt_status_refreshes_and_expires_only_on_source_filter_paths(self): self.check_case('hurt_status')
+    def test_reset_drops_stopped_blood_authority_until_new_policy(self): self.check_case('blood_reset')

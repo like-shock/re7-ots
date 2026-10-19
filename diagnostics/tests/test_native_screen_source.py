@@ -21,14 +21,15 @@ class OriginalScreenTests(unittest.TestCase):
             raise ValueError('Original RT 8.02 hash mismatch')
         cls.text = raw.decode('utf-8-sig').replace('\r\n', '\n')
 
-    def test_five_complete_spans_match_source_disassembly(self):
+    def test_seven_complete_spans_match_source_disassembly(self):
         from test_native_sites import site_rows
         instructions = {int(a, 16): bytes.fromhex(b) for a, b in
                         re.findall(r're7.exe\+([A-F0-9]+): ([0-9A-F ]+?)\s+- ', self.text)}
         rows = [row for row in site_rows() if row[0] in {
             'VIGNETTE', 'PSYCHO_TIMER', 'CLOSE_DISTORTION',
-            'NAH_DOT_FORCE', 'NAH_CRIT_HP_EFFECT_CMP'}]
-        self.assertEqual(len(rows), 5)
+            'NAH_DOT_FORCE', 'NAH_CRIT_HP_EFFECT_CMP',
+            'SCREEN_BLOOD_WRITE_FOLLOW', 'HURT_FILTER_READ'}]
+        self.assertEqual(len(rows), 7)
         for name, rva, size, expected in rows:
             with self.subTest(site=name):
                 actual = b''
@@ -103,3 +104,64 @@ int main(void){
             result = subprocess.run([str(tmp/'check')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertIn('4000 source-extracted psycho cases passed',result.stdout)
+
+    def test_blood_threshold_matches_extracted_x87_divide_and_unsigned_cmp(self):
+        block = self.text.split('calcbloodhp:')[1].split('cancelblood:')[0]
+        instructions = re.findall(r'(?m)^\s*(fld|fdiv|fstp) \[(\w+)\]', block)
+        self.assertEqual(instructions, [('fld', 'fstorage2'), ('fdiv', 'fstorage'),
+                                        ('fstp', 'fstorage')])
+        self.assertIn('cmp [fstorage3],ebx', block)
+        self.assertRegex(block, r'jbe @f\s+jmp code4\s*$')
+        defaults = [re.findall(r'(?m)^'+name+r':\n\s+dd \(float\)([^\n]+)',
+                               self.text)[0].strip() for name in ('tpbloodperc', 'fpbloodperc')]
+        self.assertEqual(defaults, ['0', '100'])
+        darwin = platform.system() == 'Darwin'
+        symbol = ('_' if darwin else '')+'blood_oracle'
+        assembly = ['.text', '.globl '+symbol, symbol+':']
+        for op, operand in instructions:
+            assembly.append({'fld': 'flds', 'fdiv': 'fdivs', 'fstp': 'fstps'}[op] +
+                            (' 0(%rdi)' if operand == 'fstorage2' else ' 4(%rdi)'))
+        assembly += ['mov 4(%rdi),%eax', 'cmp %eax,8(%rdi)', 'setbe %al',
+                     'movzbl %al,%eax', 'ret']
+        if not darwin:
+            assembly.append('.section .note.GNU-stack,"",@progbits')
+        c = '''#define main adapter_cases_main
+#include "native_screen_host.c"
+#undef main
+int blood_oracle(float*);
+int main(void){
+ const uint32_t edges[]={0,0x80000000,1,0x80000001,0x007fffff,0x807fffff,
+  0x00800000,0x80800000,0x4479ffff,0x447a0000,0x447a0001,0x7f7fffff,
+  0xff7fffff,0x7f800000,0xff800000,0x7fc12345,0xffc12345,0x7f812345};
+ unsigned s=site("SCREEN_BLOOD_WRITE_FOLLOW");
+ for(unsigned j=0;j<4096;j++)for(unsigned first=0;first<2;first++){
+  setup();player_chains();observe();r.view.firstpersonflag=(uint8_t)first;
+  uint32_t hp=j<sizeof edges/sizeof edges[0]?edges[j]:j*2654435761u;
+  float oracle[]={0,10,first?100:0};memcpy(oracle,&hp,4);int want=blood_oracle(oracle);
+  dword(M+0x4014,hp);f.rdi=M+0xf000;save();CHECK(call(s)==want);
+  if(want){const float zero[4]={0};memcpy(saved_fp+160,zero,16);saved_fp[512]|=2;}
+  unchanged();
+ }
+ puts("8192 source-extracted blood cases passed");return 0;
+}'''
+        with tempfile.TemporaryDirectory() as directory:
+            tmp = Path(directory)
+            (tmp/'oracle.S').write_text('\n'.join(assembly)+'\n')
+            (tmp/'check.c').write_text(c)
+            bridge = ROOT/'src/native_bridge.S'
+            if darwin:
+                bridge = tmp/'unexecuted_detours.c'
+                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(64)))
+            names = ['native_runtime', 'native_screen', 'native_av', 'native_head', 'native_bridge',
+                     'original_scalar', 'original_state', 'original_inputs',
+                     'original_collision', 'original_interaction', 'original_model']
+            result = subprocess.run(['cc', *(['-arch', 'x86_64'] if darwin else []), '-std=c11',
+                                     '-O2', '-Wall', '-Wextra', '-Werror', '-ffp-contract=off',
+                                     '-fno-fast-math', '-I'+str(ROOT/'src'), '-I'+str(ROOT/'tests'),
+                                     str(tmp/'check.c'), str(tmp/'oracle.S'), str(bridge),
+                                     *[str(ROOT/'src'/f'{name}.c') for name in names],
+                                     '-lm', '-o', str(tmp/'check')], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = subprocess.run([str(tmp/'check')], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('8192 source-extracted blood cases passed', result.stdout)

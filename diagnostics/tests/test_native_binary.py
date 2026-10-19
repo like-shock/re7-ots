@@ -182,17 +182,17 @@ class NativeBinaryTests(unittest.TestCase):
         self.assertEqual({p.cstr(p.raw(p.u32(names+4*i))) for i in range(2)},
                          {'reframework_plugin_required_version', 'reframework_plugin_initialize'})
 
-    def test_all_56_completed_frames_execute_linked_unwind_to_original_hook_and_game_rsp(self):
+    def test_all_58_completed_frames_execute_linked_unwind_to_original_hook_and_game_rsp(self):
         p = self.pe
         symbols = p.symbols()
         bridges = {name: rva for name, rva in symbols.items() if re.fullmatch(r'native_detour_\d+', name)}
-        self.assertEqual(set(bridges), {f'native_detour_{n}' for n in range(56)})
+        self.assertEqual(set(bridges), {f'native_detour_{n}' for n in range(58)})
         self.assertTrue('native_original_ips' in symbols, 'Original hook PC table is required')
         functions = p.runtime_functions()
         table = p.raw(symbols['native_detours'])
         saved = {3: 288, 5: 296, 6: 304, 7: 312, 12: 320, 13: 328, 14: 336, 15: 344}
         mutable = {3: 104, 5: 64, 6: 80, 7: 72, 12: 24, 13: 16, 14: 8, 15: 0}
-        for n in range(56):
+        for n in range(58):
             with self.subTest(bridge=n):
                 entry = symbols[f'native_detour_{n}']
                 self.assertEqual(p.u64(table+8*n), p.imagebase+entry)
@@ -249,7 +249,7 @@ class NativeBinaryTests(unittest.TestCase):
     def test_partial_setup_unwind_and_explicit_landing_transfer_boundaries(self):
         p, symbols = self.pe, self.pe.symbols()
         functions = p.runtime_functions()
-        for n in range(56):
+        for n in range(58):
             entry, setup = symbols[f'native_detour_{n}'], symbols[f'native_setup_{n}']
             code = p.data[p.raw(entry):p.raw(entry)+6]
             self.assertEqual(code[:2], bytes.fromhex('FF 35'))
@@ -293,7 +293,7 @@ class NativeBinaryTests(unittest.TestCase):
         symbols = p.symbols()
         # Validate linked instruction operands, not source spelling. Each XSAVE
         # and XRSTOR consumes EDX:EAX loaded from both halves of the same mask.
-        for n in range(56):
+        for n in range(58):
             with self.subTest(bridge=n):
                 begin = symbols[f'native_detour_{n}']
                 code = p.data[p.raw(begin):p.raw(begin)+(symbols[f'native_end_{n}']-begin)]

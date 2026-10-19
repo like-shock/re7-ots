@@ -14,7 +14,8 @@ typedef struct {
 enum { NATIVE_HEAD_NONE, NATIVE_HEAD_HEAD, NATIVE_HEAD_SHADOW, NATIVE_HEAD_HAIR };
 
 void native_head_clear(NativeHeadTargets *targets);
-/* Call only in first person at CUTSCENE_AUTOLOOK, after original_inputs has
+/* Call only when head hiding is permitted at CUTSCENE_AUTOLOOK (FP or the
+ * source stopped-blood delay), after original_inputs has
  * validated the current head chain. Invalid inputs clear the entire cache;
  * a missing optional chain leaves the generic head usable. */
 void native_head_refresh(NativeHeadTargets *targets, uint64_t image_base,

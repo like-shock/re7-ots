@@ -59,7 +59,9 @@ typedef enum {
  NS_CLOSE_DISTORTION=53,
  NS_NAH_DOT_FORCE=54,
  NS_NAH_CRIT_HP_EFFECT_CMP=55,
- NATIVE_SITE_COUNT=56
+ NS_SCREEN_BLOOD_WRITE_FOLLOW=56,
+ NS_HURT_FILTER_READ=57,
+ NATIVE_SITE_COUNT=58
 } NativeSite;
 typedef struct {const char*name;uint32_t rva;uint8_t length,expected[48];} NativeSiteDefinition;
 static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
@@ -119,6 +121,8 @@ static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
 {"CLOSE_DISTORTION",0x2E9FAA0u,7,{0x48,0x8B,0x41,0x18,0x0F,0x28,0xD1}},
 {"NAH_DOT_FORCE",0x23F27FCu,7,{0x8B,0x69,0x18,0x41,0x8D,0x46,0xCF}},
 {"NAH_CRIT_HP_EFFECT_CMP",0xA1ED19u,7,{0x80,0xBB,0xF1,0x00,0x00,0x00,0x00}},
+{"SCREEN_BLOOD_WRITE_FOLLOW",0x1FBCE9Du,5,{0xF3,0x0F,0x10,0x47,0x48}},
+{"HURT_FILTER_READ",0x18CCA12u,8,{0x44,0x8B,0x46,0x18,0x44,0x3B,0x47,0x64}},
 };
 /* HEAD_BOB handled path emulates CMP AX,AX followed by the taken JE. */
 static inline uint32_t native_handled_rva(unsigned site){

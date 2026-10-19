@@ -224,7 +224,8 @@ static int autolook(NativeRuntime*r,NativeFrame*f){
  f->rax=value;return 1;
 }
 static int head_allowed(const NativeRuntime*r){
- return r->hide_head&&r->view.firstpersonflag==1&&
+ return r->hide_head&&(r->view.firstpersonflag==1||
+  (r->camera_enabled&&r->screen.stoppedbloodheaddelay>0))&&
   (!r->camera_enabled||(r->inputs.ready&&r->state.assumeheadless!=1))&&
   (r->inputs.valid&RE7_INPUT_CHARACTER)!=0;
 }
@@ -247,7 +248,11 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
  re7_original_inputs_capture(&r->inputs,site,f,fp,r->base,read_cb,r,&r->config);
- if(!r->inputs.ready)native_screen_reset(r);
+ if(!r->inputs.ready){
+  native_screen_reset(r);
+  if(r->camera_enabled)native_head_clear(&r->head);
+ }
+ if(r->head.characters!=r->inputs.state.characters)native_head_clear(&r->head);
  r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);int handled=0;
  switch(site){
  case NS_CAM_AFTER_1000_READ:
@@ -266,7 +271,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
   if(!r->camera_enabled)r->view.firstpersonflag=1;
   else if(r->inputs.ready)re7_original_view(&in,&r->view);
   if(previous!=r->view.firstpersonflag)r->stats.view_changes++;
-  if(r->view.firstpersonflag!=1)native_head_clear(&r->head);
+  if(!head_allowed(r))native_head_clear(&r->head);
   sync_input(r);handled=head_write(r,f,fp);
   if(!handled&&r->camera_enabled)handled=interaction_write(r,site,f,fp);
   break;
@@ -282,6 +287,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_FLASHLIGHT_SHADOWS_Z_WRITE:handled=flashlight_shadow_write(r,f);break;
  case NS_OLD_HOUSE_BRIGHTNESS_READ:handled=light_contrast_read(r,f);break;
  case NS_CUTSCENE_AUTOLOOK:
+  native_screen_observe_player(r);
   if(head_allowed(r))native_head_refresh(&r->head,r->base,r->inputs.head_address,r->inputs.state.characters,read_cb,r);
   else native_head_clear(&r->head);
   if(r->camera_enabled)handled=autolook(r,f);
@@ -296,7 +302,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
     &r->interaction_input.scrapexamine,&r->config.critterexamine);
   break;
  case NS_TIMESCALE_MULTIPLIER:
-  native_av_tick(r);
+  native_av_tick(r);native_screen_tick(r);
   if(r->inputs.valid&RE7_INPUT_PLAYER)r->inputs.state.lockboxflag=re7_original_interaction_lockbox(r->inputs.state.loadarea,r->inputs.state.player.x,r->inputs.state.player.y,r->inputs.state.player.z);
   re7_original_interaction_loadscreen(&r->interaction,r->inputs.state.loadscreenflag);
   if(r->inputs.state.loadscreenflag){r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}break;
