@@ -7,6 +7,7 @@
 #include "original_interaction.h"
 #include "original_model.h"
 #include "native_head.h"
+#include "native_av.h"
 typedef int (*NativeMemory)(void *,uint64_t,void *,size_t);
 typedef int (*NativeWrite)(void *,uint64_t,const void *,size_t);
 typedef struct {
@@ -22,7 +23,7 @@ typedef struct {
  uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable,limit_light_contrast;
  float camera[3],clip[3],framerate;
 } NativeSnapshot;
-typedef struct {
+typedef struct NativeRuntime {
  uint64_t base,camera_base;
  NativeMemory read; NativeWrite write; void *context;
  Re7OriginalParams params;
@@ -37,6 +38,7 @@ typedef struct {
  Re7OriginalInteractionInput interaction_input;
  Re7OriginalInteractionState interaction;
  NativeHeadTargets head;
+ NativeAvState av;
  uint8_t camera_enabled,hide_head,limit_light_contrast;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;

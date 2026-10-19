@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.4"
+#define NATIVE_VERSION "0.1.5"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -320,7 +320,7 @@ static int install_hooks(void) {
     /* All continuation pointers are published before ANY hook can run. */
     for (unsigned i = 0; i < NATIVE_SITE_COUNT; ++i) {
         native_original_ips[i] = (void *)(uintptr_t)(base + native_sites[i].rva);
-        native_returns[i] = (void *)(uintptr_t)(base + native_sites[i].rva + native_sites[i].length);
+        native_returns[i] = (void *)(uintptr_t)(base + native_handled_rva(i));
     }
     for (unsigned i = 0; i < NATIVE_SITE_COUNT; ++i) {
         status = MH_CreateHook((void *)(uintptr_t)(base + native_sites[i].rva),

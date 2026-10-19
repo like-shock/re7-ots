@@ -58,7 +58,7 @@ void native_runtime_set_melee_auto_disable(NativeRuntime*r,int enabled){
 void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  if(enabled!=0&&enabled!=1)return;
  r->camera_enabled=(uint8_t)enabled;r->config.thirdpersonflag=(uint8_t)enabled;
- if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;}
+ if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}
  native_head_clear(&r->head);
 }
 void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
@@ -251,7 +251,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_CAM_AFTER_1000_READ:
   if(f->rdi>=0xa0){uint64_t candidate=f->rdi-0xa0;float values[16];
    if(read_at(r,candidate,values,sizeof values)&&finite_value(values[0])&&finite_value(values[2])&&finite_value(values[9])&&finite_value(values[12])&&finite_value(values[13])&&finite_value(values[14])){
-    if(candidate!=r->camera_base)r->camera_valid=0;
+    if(candidate!=r->camera_base){r->camera_valid=0;r->av.alt_flash_red_address=0;}
     r->camera_base=candidate;r->yawz=values[0];r->yawx=values[2];r->pitch=values[9];
     memcpy(r->stats.camera,values+12,3*sizeof(float));
    }else{r->camera_base=0;r->camera_valid=0;}
@@ -290,16 +290,17 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_FPROMPT_CMP:re7_original_interaction_prompt_seen(&r->interaction,r->inputs.state.interactableflag);break;
  case NS_INVENTORY_HIGHLIGHTED_ITEM_ID:r->interaction_input.scrapexamine=re7_original_interaction_scrap(f->rbx,read_cb,r);break;
  case NS_TIMESCALE_MULTIPLIER:
+  native_av_tick(r);
   if(r->inputs.valid&RE7_INPUT_PLAYER)r->inputs.state.lockboxflag=re7_original_interaction_lockbox(r->inputs.state.loadarea,r->inputs.state.player.x,r->inputs.state.player.y,r->inputs.state.player.z);
   re7_original_interaction_loadscreen(&r->interaction,r->inputs.state.loadscreenflag);
-  if(r->inputs.state.loadscreenflag){r->camera_valid=0;r->camera_base=0;}break;
+  if(r->inputs.state.loadscreenflag){r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}break;
  case NS_TRUE_FOV_READ:
   if(r->inputs.ready)re7_original_state_frame(&r->config,&r->inputs.state,&r->state,&r->params,&r->rates);
   break;
  case NS_AFTER_ADAPTIVE_DIFF:
   if(r->inputs.ready)re7_original_state_policy(&r->config,&r->inputs.state,&r->state);
   break;
- default:break;
+ default:handled=native_av_dispatch(r,site,f,fp);break;
  }
  if(handled)r->stats.applied[site]++;
  return handled;

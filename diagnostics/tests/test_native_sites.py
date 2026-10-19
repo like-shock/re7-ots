@@ -1,7 +1,8 @@
 """Validate native hook metadata and execute the pinned MinHook decoder/relocator.
 
 These checks validate source spans and relocation, not live game RVA identity.
-The full device diagnostic containing the 43 RVAs is not a repository fixture.
+The earlier 43 RVAs came from the device diagnostic. Eight audiovisual RVAs
+come from the supplied CT disassembly, with the same full byte/hash gate.
 """
 import importlib.util
 import json
@@ -33,9 +34,9 @@ def verify_minhook():
 class NativeSiteTests(unittest.TestCase):
     def test_all_sites_have_complete_original_spans_and_distinct_metadata(self):
         rows = site_rows()
-        self.assertEqual(len(rows), 43)
-        self.assertEqual(len({name for name, _, _, _ in rows}), 43)
-        self.assertEqual(len({rva for _, rva, _, _ in rows}), 43)
+        self.assertEqual(len(rows), 51)
+        self.assertEqual(len({name for name, _, _, _ in rows}), 51)
+        self.assertEqual(len({rva for _, rva, _, _ in rows}), 51)
         enum = dict(re.findall(r'\bNS_([A-Z0-9_]+)=(\d+)',
                                (ROOT/'src/native_sites.h').read_text()))
         self.assertEqual(set(enum), {name for name, _, _, _ in rows})
@@ -61,7 +62,7 @@ class NativeSiteTests(unittest.TestCase):
         for name, rva in probe:
             self.assertEqual(by_name[name], int(rva, 16))
 
-    def test_real_minhook_relocates_all_43_prefixes_and_decodes_full_restore_spans(self):
+    def test_real_minhook_relocates_all_51_prefixes_and_decodes_full_restore_spans(self):
         verify_minhook()
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -85,7 +86,7 @@ typedef uint32_t* PUINT32;typedef int BOOL;
 #include <stdio.h>
 BOOL IsExecutableAddress(LPVOID p){(void)p;return TRUE;}
 int main(void){
- assert(NATIVE_SITE_COUNT==43);
+ assert(NATIVE_SITE_COUNT==51);
  for(unsigned i=0;i<NATIVE_SITE_COUNT;i++){
   unsigned char target[80]={0},buf[80]={0},boundaries[16]={0};
   memcpy(target,native_sites[i].expected,native_sites[i].length);
@@ -95,7 +96,7 @@ int main(void){
    hde64s instruction;unsigned n=hde64_disasm(target+total,&instruction);
    assert(n&&!(instruction.flags&F_ERROR));
    assert(total+n<=native_sites[i].length); /* complete restore span */
-   assert(!(instruction.flags&F_RELATIVE));
+   assert(!(instruction.flags&F_RELATIVE)||(i==NS_HEAD_BOB_FLAG_CMP&&total==3));
    assert((instruction.modrm&0xC7)!=0x05); /* no RIP-relative fixture */
    if(total<5){boundaries[count++]=(unsigned char)total;prefix=total+n;}
    total+=n;
@@ -106,17 +107,30 @@ int main(void){
   for(unsigned j=0;j<count;j++){
    assert(ct.oldIPs[j]==boundaries[j]);assert(ct.newIPs[j]==boundaries[j]);
   }
-  assert(ct.oldIPs[count]==prefix&&ct.newIPs[count]==prefix);
-  assert(!memcmp(buf,target,prefix));
-  assert(buf[prefix]==0xFF&&buf[prefix+1]==0x25);
-  uintptr_t resume;memcpy(&resume,buf+prefix+6,8);
+  unsigned relocated=prefix;
+  if(i==NS_HEAD_BOB_FLAG_CMP){
+   /* CMP + inverse short JNE over absolute JMP to original JE target. */
+   assert(prefix==9&&count==2&&native_handled_rva(i)==0x17AE319u);
+   assert(!memcmp(buf,target,3)&&buf[3]==0x75&&buf[4]==14);
+   assert(buf[5]==0xff&&buf[6]==0x25);
+   uintptr_t branch;memcpy(&branch,buf+11,8);
+   assert(branch==(uintptr_t)target+9+0x2b1);
+   assert(native_sites[i].rva+9+0x2b1==native_handled_rva(i));
+   relocated=19;
+  }else{
+   assert(!memcmp(buf,target,prefix));
+   assert(native_handled_rva(i)==native_sites[i].rva+native_sites[i].length);
+  }
+  assert(ct.oldIPs[count]==prefix&&ct.newIPs[count]==relocated);
+  assert(buf[relocated]==0xFF&&buf[relocated+1]==0x25);
+  uintptr_t resume;memcpy(&resume,buf+relocated+6,8);
   assert(resume==(uintptr_t)(target+prefix));
-  assert(ct.pRelay==buf+prefix+14);
+  assert(ct.pRelay==buf+relocated+14);
   assert(((unsigned char*)ct.pRelay)[0]==0xFF&&((unsigned char*)ct.pRelay)[1]==0x25);
   uintptr_t detour;memcpy(&detour,(unsigned char*)ct.pRelay+6,8);
   assert(detour==(uintptr_t)ct.pDetour);
  }
- puts("native sites: 43 complete spans and real MinHook relocations PASS");return 0;
+ puts("native sites: 51 complete spans and real MinHook relocations PASS");return 0;
 }
 ''')
             mh = ROOT/'build/minhook/src'
@@ -125,7 +139,7 @@ int main(void){
                             str(mh/'trampoline.c'), str(mh/'hde/hde64.c'),
                             '-o', str(tmp/'check')], check=True)
             result = subprocess.run([str(tmp/'check')], check=True, capture_output=True, text=True)
-            self.assertIn('43 complete spans and real MinHook relocations PASS', result.stdout)
+            self.assertIn('51 complete spans and real MinHook relocations PASS', result.stdout)
 
     def test_pinned_dependency_rejects_tampered_cache(self):
         fetch = verify_minhook()

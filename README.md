@@ -4,8 +4,8 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.4 device build](diagnostics/native/README_KO.md) connects
-43 original instruction sites for actual camera, focus, firing, inspection,
+The [Native OTS 0.1.5 device build](diagnostics/native/README_KO.md) connects
+51 original instruction sites for actual camera, focus, firing, inspection,
 collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
@@ -15,6 +15,10 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.5 adds the original default flashlight position/brightness/beam/steady
+corrections, player-focused environmental audio, third-person head-bob suppression,
+cutscene blur suppression and targeted VHS filters. Original first-person, menu
+and transition exceptions are preserved. Steam Deck visual/audio checks remain pending.
 Version 0.1.4 adds **Limit Light Source Contrast in Third Person**, default ON, from
 original v7.17/RT 8.02. It caps the original light-contrast read at 0.735 in third
 person, with a saved ON/OFF comparison option and sample/application diagnostics.
