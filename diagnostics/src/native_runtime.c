@@ -325,7 +325,8 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
   native_screen_tick(r);
   if(r->inputs.valid&RE7_INPUT_PLAYER)r->inputs.state.lockboxflag=re7_original_interaction_lockbox(r->inputs.state.loadarea,r->inputs.state.player.x,r->inputs.state.player.y,r->inputs.state.player.z);
   re7_original_interaction_loadscreen(&r->interaction,r->inputs.state.loadscreenflag);
-  if(r->inputs.state.loadscreenflag)native_av_reset(r);break;
+  if(r->inputs.state.loadscreenflag){native_av_reset(r);}
+  break;
  case NS_TRUE_FOV_READ:
   break;
  case NS_AFTER_ADAPTIVE_DIFF:
