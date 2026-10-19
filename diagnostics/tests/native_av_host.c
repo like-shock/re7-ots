@@ -74,7 +74,8 @@ static void position(void){
  r.inputs.failed=0;r.inputs.valid=RE7_INPUT_REQUIRED|RE7_INPUT_CHARACTER|RE7_INPUT_FLASHLIGHT;
  r.inputs.state.player_available=1;f=light;save();CHECK(!call(s));unchanged();
  r.state.gbunzoomingprocessflag=1;CHECK(call(s));r.state.gbunzoomingprocessflag=0;
- for(int i=0;i<8;i++)native_av_tick(&r);CHECK(r.av.transition_frames==5);
+ for(int i=0;i<8;i++){native_av_tick(&r);}
+ CHECK(r.av.transition_frames==5);
  r.state.readjustxyzfp=0;native_av_tick(&r);CHECK(r.av.transition_frames==0);
  r.view.firstpersonflag=0;
  bad_write=1;save();CHECK(!call(s));unchanged();bad_write=0;
