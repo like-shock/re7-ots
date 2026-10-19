@@ -45,6 +45,8 @@ static void sync_input(NativeRuntime*r){
 void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeWrite write,void*ctx){
  memset(r,0,sizeof *r);r->base=base;r->read=read;r->write=write;r->context=ctx;
  r->camera_enabled=1;r->hide_head=1;r->limit_light_contrast=1;
+ r->fov=(NativeFovState){.tprunfov=1,.custom_fov=110,.runningfovmax=20,
+  .fovrunincbaserate=7,.fovrundecbaserate=.7f,.reframeworkfovframes=100};
  re7_original_defaults(&r->params);re7_original_state_defaults(&r->config);
  re7_original_inputs_init(&r->inputs);re7_original_collision_defaults(&r->collision_config,&r->collision);
  r->interaction_input.tpinteractables=r->interaction_input.fixpaperscan=r->interaction_input.fixwormbox=1;
@@ -61,6 +63,7 @@ void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}
  native_screen_reset(r);
  native_hud_reset(r);
+ native_fov_reset(r);
  native_head_clear(&r->head);
 }
 void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
@@ -72,7 +75,7 @@ void native_runtime_set_light_contrast(NativeRuntime*r,int enabled){
  if(enabled==0||enabled==1)r->limit_light_contrast=(uint8_t)enabled;
 }
 void native_runtime_snapshot(const NativeRuntime*r,NativeSnapshot*s){
- *s=r->stats;s->camera_base=r->camera_base;s->input_valid=r->inputs.valid;s->input_failed=r->inputs.failed;s->input_observed=r->inputs.observed;
+ *s=r->stats;s->camera_base=r->camera_base;s->input_valid=r->inputs.valid;s->input_failed=r->inputs.failed;s->input_observed=r->inputs.observed;s->input_observed_high=r->inputs.observed_high;
  s->frame=r->inputs.frametrack;s->loadarea=r->inputs.state.loadarea;s->ready=r->inputs.ready;
  s->firstperson=r->view.firstpersonflag;s->stopflag=r->state.stopflag;s->internalfp=r->state.internalfpflag;
  s->aim=r->inputs.state.aim;s->blockedgun=r->state.blockedgun;s->framerate=r->inputs.state.framerate;
@@ -244,7 +247,7 @@ static int head_write(NativeRuntime*r,NativeFrame*f,void*fp){
 }
 int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  if(!r||!f||!fp||site>=NATIVE_SITE_COUNT)return 0;
- if(!r->camera_enabled&&!((NATIVE_HEAD_ONLY_MASK>>site)&1))return 0;
+ if(!r->camera_enabled&&!(site<64&&((NATIVE_HEAD_ONLY_MASK>>site)&1)))return 0;
  r->stats.calls[site]++;
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
@@ -255,7 +258,8 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  }
  if(r->head.characters!=r->inputs.state.characters)native_head_clear(&r->head);
  r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);
- int handled=native_hud_dispatch(r,site,f,fp);
+ int handled=native_fov_dispatch(r,site,f,fp);
+ if(!handled)handled=native_hud_dispatch(r,site,f,fp);
  if(handled){r->stats.applied[site]++;return 1;}
  switch(site){
  case NS_CAM_AFTER_1000_READ:
@@ -310,7 +314,6 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
   re7_original_interaction_loadscreen(&r->interaction,r->inputs.state.loadscreenflag);
   if(r->inputs.state.loadscreenflag){r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}break;
  case NS_TRUE_FOV_READ:
-  if(r->inputs.ready)re7_original_state_frame(&r->config,&r->inputs.state,&r->state,&r->params,&r->rates);
   break;
  case NS_AFTER_ADAPTIVE_DIFF:
   if(r->inputs.ready)re7_original_state_policy(&r->config,&r->inputs.state,&r->state);

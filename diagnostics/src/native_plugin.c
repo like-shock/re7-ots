@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.8"
+#define NATIVE_VERSION "0.1.9"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -210,10 +210,15 @@ static int save_options(int value) {
     if(!ok)DeleteFileW(temp);
     return ok;
 }
-/* Runtime lock is held by the caller. F6 resets must retain the UI preference. */
+/* Runtime lock is held by the caller. F6 reinitializes transient pointers,
+ * retaining UI preferences, the copied menu scalar and recent RF write age. */
 static void reset_runtime(void) {
     int value=NATIVE_OPTIONS_DEFAULT,status=0;native_options_get(&options,&value,&status);
+    int32_t menu_index=runtime.fov.menu_index;
+    /* Static runtime.base is zero only before its first initialization. */
+    uint32_t rf_age=runtime.base?runtime.fov.reframeworkfovframes:100;
     native_runtime_init(&runtime,base,read_memory,write_memory,NULL);
+    runtime.fov.menu_index=menu_index;runtime.fov.reframeworkfovframes=rf_age;
     native_runtime_set_melee_auto_disable(&runtime,(value&NATIVE_OPTION_MELEE)!=0);
     native_runtime_set_hide_head(&runtime,(value&NATIVE_OPTION_HIDE_HEAD)!=0);
     native_runtime_set_light_contrast(&runtime,(value&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
@@ -424,7 +429,7 @@ static void snapshot(uint64_t now) {
          "\"presented_frames\":%llu,\"present_fps\":%s,\"present_window_ms\":%llu,"
          "\"frame\":%u,\"area\":%u,\"fps\":%s,"
          "\"camera_target\":\"0x%llx\",\"ready\":%s,\"input_valid\":\"0x%llx\","
-         "\"input_failed\":\"0x%llx\",\"input_observed\":\"0x%llx\","
+         "\"input_failed\":\"0x%llx\",\"input_observed\":\"0x%llx\",\"input_observed_high\":\"0x%llx\","
          "\"firstperson\":%u,\"stopflag\":%u,\"internalfp\":%u,\"aim\":%u,\"blockedgun\":%u,"
          "\"view_changes\":%llu,\"camera_matches\":%llu,\"read_failures\":%llu,\"write_failures\":%llu,"
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
@@ -443,6 +448,7 @@ static void snapshot(uint64_t now) {
          state.frame, state.loadarea, fps, (unsigned long long)state.camera_base,
          state.ready ? "true" : "false", (unsigned long long)state.input_valid,
          (unsigned long long)state.input_failed, (unsigned long long)state.input_observed,
+         (unsigned long long)state.input_observed_high,
          state.firstperson, state.stopflag, state.internalfp, state.aim, state.blockedgun,
          (unsigned long long)state.view_changes, (unsigned long long)state.camera_matches,
          (unsigned long long)state.reads_failed, (unsigned long long)state.writes_failed,

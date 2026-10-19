@@ -1,6 +1,6 @@
 #ifndef RE7_NATIVE_BRIDGE_H
 #define RE7_NATIVE_BRIDGE_H
-#define NATIVE_MAX_SITES 61
+#define NATIVE_MAX_SITES 67
 /* Completed bridge only: NativeFrame128 + immutable XMM160 + GPR64 +
  * machine-frame RSP24. The machine frame stores the pre-detour game RSP. */
 #define NATIVE_FRAME_GAME_RSP_OFFSET 376

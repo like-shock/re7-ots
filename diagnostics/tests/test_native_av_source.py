@@ -103,12 +103,12 @@ for(int j=0;j<2000;j++){
 '''+'\n'.join(checks)+'''\n}puts("2000 source-extracted flashlight XYZ cases passed");return 0;}'''
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp);(tmp/'oracle.S').write_text('\n'.join(assembly)+'\n');(tmp/'check.c').write_text(c)
-            names = ['native_runtime','native_hud','native_screen','native_av','native_head','native_bridge','original_scalar',
+            names = ['native_runtime','native_fov','native_hud','native_screen','native_av','native_head','native_bridge','original_scalar',
                      'original_state','original_inputs','original_collision','original_interaction','original_model']
             bridge = ROOT/'src/native_bridge.S'
             if darwin:
                 bridge = tmp/'link_only.c'
-                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(64)))
+                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(67)))
             command = ['cc', *(['-arch','x86_64'] if darwin else []), '-O2', '-Wall','-Wextra','-Werror',
                        '-ffp-contract=off','-fno-fast-math','-I'+str(ROOT/'src'),'-I'+str(ROOT/'tests'),
                        str(tmp/'check.c'),str(tmp/'oracle.S'),str(bridge),

@@ -4,8 +4,8 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.8 device build](diagnostics/native/README_KO.md) connects
-61 original instruction sites for actual camera, focus, firing, inspection,
+The [Native OTS 0.1.9 device build](diagnostics/native/README_KO.md) connects
+67 original instruction sites for actual camera, focus, firing, inspection,
 collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
 backs up Explore/Probe and preserves installed model assets. Automatic bounded
@@ -15,6 +15,13 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.9 adds original menu FOV and running FOV defaults: third-person
+run widening uses 20%, 7-second increase and 0.7-second decay; first-person run
+widening and custom FOV stay OFF. Aim/cutscene ratios follow source policy.
+REFramework FOV writes immediately return control, with a three-frame grace
+before replacement resumes. Engine stores are suppressed only after a live,
+validated replacement; F6, loading and pointer changes release that control.
+Steam Deck FOV visuals remain pending.
 Version 0.1.8 ports the Not A Hero HUD: third-person hiding preserves oxygen,
 contamination indicators, filter/night-vision/RAMROD notices and original story
 transmissions. Ammo-only transitions retain the original one-frame hide. HUD

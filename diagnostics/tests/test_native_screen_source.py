@@ -90,8 +90,8 @@ int main(void){
             bridge = ROOT/'src/native_bridge.S'
             if darwin:
                 bridge = tmp/'unexecuted_detours.c'
-                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(64)))
-            names = ['native_runtime','native_hud', 'native_screen', 'native_av', 'native_head', 'native_bridge',
+                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(67)))
+            names = ['native_runtime','native_fov','native_hud', 'native_screen', 'native_av', 'native_head', 'native_bridge',
                      'original_scalar', 'original_state', 'original_inputs',
                      'original_collision', 'original_interaction', 'original_model']
             result = subprocess.run(['cc', *(['-arch','x86_64'] if darwin else []), '-std=c11',
@@ -151,8 +151,8 @@ int main(void){
             bridge = ROOT/'src/native_bridge.S'
             if darwin:
                 bridge = tmp/'unexecuted_detours.c'
-                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(64)))
-            names = ['native_runtime','native_hud', 'native_screen', 'native_av', 'native_head', 'native_bridge',
+                bridge.write_text('\n'.join(f'void native_detour_{n}(void){{}}' for n in range(67)))
+            names = ['native_runtime','native_fov','native_hud', 'native_screen', 'native_av', 'native_head', 'native_bridge',
                      'original_scalar', 'original_state', 'original_inputs',
                      'original_collision', 'original_interaction', 'original_model']
             result = subprocess.run(['cc', *(['-arch', 'x86_64'] if darwin else []), '-std=c11',

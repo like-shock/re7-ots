@@ -43,7 +43,7 @@ typedef struct {
  uint64_t head_address, grab_address, oldaim_address, flashlight_address;
  uint64_t weapon_address, character_address, crouch_address, telescope_address;
  uint64_t nogun_address, guard_address, guard_r9;
- uint64_t valid, failed, observed, frame;
+ uint64_t valid, failed, observed, observed_high, frame;
  uint64_t producer_calls[NATIVE_MAX_SITES], read_failures; /* all supplied site invocations */
  uint32_t heldweaponid, weapon_raw, pcharcflag, frametrack, gbaimcheck;
  uint32_t extendedgrabframes, igtupcheck, updateigt;

@@ -64,7 +64,13 @@ typedef enum {
  NS_NAH_OXYGEN_REF=58,
  NS_NAH_HUD_WRITE=59,
  NS_NAH_OXYGEN_HUD_SWITCH=60,
- NATIVE_SITE_COUNT=61
+ NS_MENU_FOV_BYTE=61,
+ NS_REFRAMEWORK_FOV_WRITE_POINT=62,
+ NS_TRUE_FOV_REFERENCE=63,
+ NS_FOV_WRITE_MAIN=64,
+ NS_FOV_WRITE_NAH=65,
+ NS_FOV_WRITE_EOZ=66,
+ NATIVE_SITE_COUNT=67
 } NativeSite;
 typedef struct {const char*name;uint32_t rva;uint8_t length,expected[48];} NativeSiteDefinition;
 static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
@@ -129,6 +135,12 @@ static const NativeSiteDefinition native_sites[NATIVE_SITE_COUNT]={
 {"NAH_OXYGEN_REF",0xA903E5u,5,{0xF3,0x0F,0x10,0x53,0x18}},
 {"NAH_HUD_WRITE",0x281DB8Bu,9,{0x44,0x88,0x67,0x20,0x4C,0x8B,0x64,0x24,0x38}},
 {"NAH_OXYGEN_HUD_SWITCH",0xA90BC3u,7,{0x44,0x89,0xB3,0x70,0x01,0x00,0x00}},
+{"MENU_FOV_BYTE",0x17546F5u,5,{0x66,0x0F,0x6E,0x40,0x18}},
+{"REFRAMEWORK_FOV_WRITE_POINT",0x176569u,5,{0xF3,0x0F,0x11,0x52,0x38}},
+{"TRUE_FOV_REFERENCE",0x17B40AEu,8,{0xF3,0x0F,0x11,0xB3,0xA8,0x02,0x00,0x00}},
+{"FOV_WRITE_MAIN",0x1769C48u,5,{0xF3,0x0F,0x11,0x40,0x38}},
+{"FOV_WRITE_NAH",0xEC07D9u,5,{0xF3,0x0F,0x11,0x40,0x38}},
+{"FOV_WRITE_EOZ",0x16588B6u,5,{0xF3,0x0F,0x11,0x42,0x38}},
 };
 /* HEAD_BOB handled path emulates CMP AX,AX followed by the taken JE. */
 static inline uint32_t native_handled_rva(unsigned site){

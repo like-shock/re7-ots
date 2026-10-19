@@ -10,12 +10,13 @@
 #include "native_av.h"
 #include "native_screen.h"
 #include "native_hud.h"
+#include "native_fov.h"
 typedef int (*NativeMemory)(void *,uint64_t,void *,size_t);
 typedef int (*NativeWrite)(void *,uint64_t,const void *,size_t);
 typedef struct {
  uint64_t calls[NATIVE_MAX_SITES],applied[NATIVE_MAX_SITES];
  uint64_t reads_failed,writes_failed,camera_matches,view_changes;
- uint64_t camera_base,input_valid,input_failed,input_observed;
+ uint64_t camera_base,input_valid,input_failed,input_observed,input_observed_high;
  uint64_t head_applied[3],head_target;
  uint64_t light_contrast_samples;
  uint32_t light_contrast_input_bits,light_contrast_output_bits;
@@ -43,6 +44,7 @@ typedef struct NativeRuntime {
  NativeAvState av;
  NativeScreenState screen;
  NativeHudState hud;
+ NativeFovState fov;
  uint8_t camera_enabled,hide_head,limit_light_contrast;
  Re7OriginalVec camera_attempt;
  float yawx,yawz,pitch;

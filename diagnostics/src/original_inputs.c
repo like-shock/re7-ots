@@ -250,7 +250,9 @@ void re7_original_inputs_capture(Re7OriginalInputs *i,unsigned site,
  const NativeFrame *f,const void *fp,uint64_t base,
  Re7OriginalInputsRead read,void *ctx,const Re7OriginalStateConfig *config) {
  if(!i||site>=NATIVE_SITE_COUNT)return;
- i->observed|=UINT64_C(1)<<site;i->producer_calls[site]++;
+ if(site<64)i->observed|=UINT64_C(1)<<site;
+ else i->observed_high|=UINT64_C(1)<<(site-64);
+ i->producer_calls[site]++;
  if(!f||!read){i->ready=0;return;}
  Access a={i,read,ctx};uint32_t u;uint64_t address;float value;int ok;
  switch(site){
