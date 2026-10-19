@@ -27,11 +27,13 @@ class AudiovisualTests(unittest.TestCase):
             stub = pathlib.Path(cls.tmp.name)/'unexecuted_detours.c'
             stub.write_text('\n'.join(f'void native_detour_{i}(void){{}}' for i in range(64)))
             extra = [str(stub)]
-        subprocess.run(['cc', *flags, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
+        result = subprocess.run(['cc', *flags, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
                         '-ffp-contract=off', '-fno-fast-math', '-I'+str(ROOT/'src'),
                         str(ROOT/'tests/native_av_host.c'),
                         *[str(ROOT/'src'/f'{name}.c') for name in names], *extra,
-                        '-lm', '-o', str(cls.exe)], check=True, capture_output=True)
+                        '-lm', '-o', str(cls.exe)], capture_output=True, text=True)
+        if result.returncode:
+            raise AssertionError(result.stderr)
 
     def check_case(self, name):
         result = subprocess.run([str(self.exe), name], capture_output=True, text=True)
