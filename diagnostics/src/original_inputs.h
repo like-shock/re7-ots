@@ -51,6 +51,11 @@ typedef struct {
  uint8_t ready, igtpaused;
 } Re7OriginalInputs;
 
+/* Resolve the source aim chain again and require the current leaf to match
+ * the observed producer address. A cached scalar alone never authorizes a
+ * screen effect; failure leaves the caller's output untouched. */
+int re7_original_inputs_live_aim(Re7OriginalInputs *,uint64_t module_base,
+ Re7OriginalInputsRead,void *context,uint8_t *value);
 void re7_original_inputs_init(Re7OriginalInputs *inputs);
 void re7_original_inputs_capture(Re7OriginalInputs *inputs, unsigned site,
  const NativeFrame *frame, const void *fp, uint64_t module_base,

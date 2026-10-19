@@ -11,7 +11,7 @@ class FlashlightTests(unittest.TestCase):
     def test_original_shadow_target_mode_and_write_contract(self):
         with tempfile.TemporaryDirectory() as directory:
             exe = pathlib.Path(directory) / 'flashlight'
-            names = ['native_runtime','native_av','native_head', 'native_bridge', 'original_scalar',
+            names = ['native_runtime','native_screen','native_av','native_head', 'native_bridge', 'original_scalar',
                      'original_state', 'original_inputs', 'original_collision',
                      'original_interaction', 'original_model']
             result = subprocess.run([

@@ -22,7 +22,7 @@ class OriginalAudiovisualTests(unittest.TestCase):
             raise ValueError('Original RT 8.02 hash mismatch')
         cls.text = raw.decode('utf-8-sig')
 
-    def test_all_eight_rvas_and_spans_match_original_disassembly(self):
+    def test_all_default_av_and_screen_rvas_match_original_disassembly(self):
         from test_native_sites import site_rows
         instructions = {int(a, 16): bytes.fromhex(b) for a, b in
                         re.findall(r're7.exe\+([A-F0-9]+): ([0-9A-F ]+?)\s+- ', self.text)}
@@ -103,7 +103,7 @@ for(int j=0;j<2000;j++){
 '''+'\n'.join(checks)+'''\n}puts("2000 source-extracted flashlight XYZ cases passed");return 0;}'''
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp);(tmp/'oracle.S').write_text('\n'.join(assembly)+'\n');(tmp/'check.c').write_text(c)
-            names = ['native_runtime','native_av','native_head','native_bridge','original_scalar',
+            names = ['native_runtime','native_screen','native_av','native_head','native_bridge','original_scalar',
                      'original_state','original_inputs','original_collision','original_interaction','original_model']
             bridge = ROOT/'src/native_bridge.S'
             if darwin:

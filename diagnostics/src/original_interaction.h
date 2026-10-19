@@ -67,6 +67,10 @@ int re7_original_interaction_secondary(uint64_t rax,
     Re7OriginalInteractionRead read, void *context, uint64_t *address);
 int re7_original_interaction_inventory(uint64_t module_base,
     Re7OriginalInteractionRead read, void *context, uint64_t *address);
+/* Both transient flags reset on every observation. A failed read or changed
+ * item owner cannot preserve either previous match. CT4034-4060. */
+void re7_original_interaction_items(uint64_t rbx,
+    Re7OriginalInteractionRead read, void *context, uint8_t *scrap, uint8_t *critter);
 uint8_t re7_original_interaction_scrap(uint64_t rbx,
     Re7OriginalInteractionRead read, void *context);
 uint8_t re7_original_interaction_lockbox(uint32_t loadarea,
@@ -93,7 +97,8 @@ uint8_t re7_original_interaction_lockbox(uint32_t loadarea,
  * CUTSCENE_AUTOLOOK +1, 8: C6 42 1C 01 48 8B 41 50
  *   inventory(...) resolves invflagadd, source 1202-1210; no register input.
  * INVENTORY_HIGHLIGHTED_ITEM_ID +0, 7: 48 8B 53 70 48 85 D2
- *   scrap(rbx): [rbx+0x78] UTF-16 words +0x14='N', +0x26='0', +0x28='9'.
+ *   items(rbx): UTF-16 words [rbx+0x78]+0x14='N', +0x26/28='09' or '22'.
+ *   Scrap and Critter are transient producer state, never stored settings.
  * LOADED_AREA +0, 6: 8B 48 54 83 F9 03
  *   loadarea=uint32 [rax+0x54], before original MOV ECX/CMP.
  * TIMESCALE_MULTIPLIER +0, 8: F3 0F 59 83 48 03 00 00

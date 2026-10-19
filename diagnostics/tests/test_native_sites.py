@@ -1,7 +1,7 @@
 """Validate native hook metadata and execute the pinned MinHook decoder/relocator.
 
 These checks validate source spans and relocation, not live game RVA identity.
-The earlier 43 RVAs came from the device diagnostic. Eight audiovisual RVAs
+The earlier 43 RVAs came from the device diagnostic. Thirteen audiovisual/screen RVAs
 come from the supplied CT disassembly, with the same full byte/hash gate.
 """
 import importlib.util
@@ -34,9 +34,9 @@ def verify_minhook():
 class NativeSiteTests(unittest.TestCase):
     def test_all_sites_have_complete_original_spans_and_distinct_metadata(self):
         rows = site_rows()
-        self.assertEqual(len(rows), 51)
-        self.assertEqual(len({name for name, _, _, _ in rows}), 51)
-        self.assertEqual(len({rva for _, rva, _, _ in rows}), 51)
+        self.assertEqual(len(rows), 56)
+        self.assertEqual(len({name for name, _, _, _ in rows}), 56)
+        self.assertEqual(len({rva for _, rva, _, _ in rows}), 56)
         enum = dict(re.findall(r'\bNS_([A-Z0-9_]+)=(\d+)',
                                (ROOT/'src/native_sites.h').read_text()))
         self.assertEqual(set(enum), {name for name, _, _, _ in rows})
@@ -62,7 +62,7 @@ class NativeSiteTests(unittest.TestCase):
         for name, rva in probe:
             self.assertEqual(by_name[name], int(rva, 16))
 
-    def test_real_minhook_relocates_all_51_prefixes_and_decodes_full_restore_spans(self):
+    def test_real_minhook_relocates_all_56_prefixes_and_decodes_full_restore_spans(self):
         verify_minhook()
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -86,7 +86,7 @@ typedef uint32_t* PUINT32;typedef int BOOL;
 #include <stdio.h>
 BOOL IsExecutableAddress(LPVOID p){(void)p;return TRUE;}
 int main(void){
- assert(NATIVE_SITE_COUNT==51);
+ assert(NATIVE_SITE_COUNT==56);
  for(unsigned i=0;i<NATIVE_SITE_COUNT;i++){
   unsigned char target[80]={0},buf[80]={0},boundaries[16]={0};
   memcpy(target,native_sites[i].expected,native_sites[i].length);
@@ -130,7 +130,7 @@ int main(void){
   uintptr_t detour;memcpy(&detour,(unsigned char*)ct.pRelay+6,8);
   assert(detour==(uintptr_t)ct.pDetour);
  }
- puts("native sites: 51 complete spans and real MinHook relocations PASS");return 0;
+ puts("native sites: 56 complete spans and real MinHook relocations PASS");return 0;
 }
 ''')
             mh = ROOT/'build/minhook/src'
@@ -139,7 +139,7 @@ int main(void){
                             str(mh/'trampoline.c'), str(mh/'hde/hde64.c'),
                             '-o', str(tmp/'check')], check=True)
             result = subprocess.run([str(tmp/'check')], check=True, capture_output=True, text=True)
-            self.assertIn('51 complete spans and real MinHook relocations PASS', result.stdout)
+            self.assertIn('56 complete spans and real MinHook relocations PASS', result.stdout)
 
     def test_pinned_dependency_rejects_tampered_cache(self):
         fetch = verify_minhook()

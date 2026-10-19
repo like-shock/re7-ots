@@ -175,14 +175,26 @@ int re7_original_interaction_inventory(uint64_t module, Re7OriginalInteractionRe
     return chain(module, INVENTORY_RVA, offsets, 5, 0x10, read, context, address);
 }
 
+void re7_original_interaction_items(uint64_t rbx, Re7OriginalInteractionRead read,
+    void *context, uint8_t *scrap, uint8_t *critter) {
+    uint64_t name, current;
+    uint16_t n, tens, ones;
+    *scrap = *critter = 0;
+    if (!read_at(read, context, rbx, 0x78, &name, sizeof(name)) ||
+        !read_at(read, context, name, 0x14, &n, sizeof(n)) || n != 'N' ||
+        !read_at(read, context, name, 0x26, &tens, sizeof(tens)) ||
+        !read_at(read, context, name, 0x28, &ones, sizeof(ones)) ||
+        !read_at(read, context, rbx, 0x78, &current, sizeof(current)) || current != name)
+        return;
+    *scrap = tens == '0' && ones == '9';
+    *critter = tens == '2' && ones == '2';
+}
+
 uint8_t re7_original_interaction_scrap(uint64_t rbx, Re7OriginalInteractionRead read,
     void *context) {
-    uint64_t name;
-    uint16_t n, zero, nine;
-    return read_at(read, context, rbx, 0x78, &name, sizeof(name)) &&
-        read_at(read, context, name, 0x14, &n, sizeof(n)) && n == 'N' &&
-        read_at(read, context, name, 0x26, &zero, sizeof(zero)) && zero == '0' &&
-        read_at(read, context, name, 0x28, &nine, sizeof(nine)) && nine == '9';
+    uint8_t scrap, critter;
+    re7_original_interaction_items(rbx, read, context, &scrap, &critter);
+    return scrap;
 }
 
 uint8_t re7_original_interaction_lockbox(uint32_t area, float px, float py, float pz) {

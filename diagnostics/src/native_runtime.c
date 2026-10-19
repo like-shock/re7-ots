@@ -59,6 +59,7 @@ void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  if(enabled!=0&&enabled!=1)return;
  r->camera_enabled=(uint8_t)enabled;r->config.thirdpersonflag=(uint8_t)enabled;
  if(!enabled){r->view.firstpersonflag=1;r->camera_valid=0;r->camera_base=0;r->av=(NativeAvState){0};}
+ native_screen_reset(r);
  native_head_clear(&r->head);
 }
 void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
@@ -246,6 +247,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
  re7_original_inputs_capture(&r->inputs,site,f,fp,r->base,read_cb,r,&r->config);
+ if(!r->inputs.ready)native_screen_reset(r);
  r->view.recentfpflag=r->inputs.state.recentfpflag;sync_input(r);int handled=0;
  switch(site){
  case NS_CAM_AFTER_1000_READ:
@@ -288,7 +290,11 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_INTERACTABLE_FLAG_OFF:r->inputs.state.interactableflag=0;break;
  case NS_GET_SECONDARY_INTERACTABLE_R13_ADDRESS:{uint64_t a;if(re7_original_interaction_secondary(f->rax,read_cb,r,&a))r->interaction_input.secintadd=a;break;}
  case NS_FPROMPT_CMP:re7_original_interaction_prompt_seen(&r->interaction,r->inputs.state.interactableflag);break;
- case NS_INVENTORY_HIGHLIGHTED_ITEM_ID:r->interaction_input.scrapexamine=re7_original_interaction_scrap(f->rbx,read_cb,r);break;
+ case NS_INVENTORY_HIGHLIGHTED_ITEM_ID:
+  r->interaction_input.scrapexamine=r->config.critterexamine=0;
+  if(r->inputs.ready)re7_original_interaction_items(f->rbx,read_cb,r,
+    &r->interaction_input.scrapexamine,&r->config.critterexamine);
+  break;
  case NS_TIMESCALE_MULTIPLIER:
   native_av_tick(r);
   if(r->inputs.valid&RE7_INPUT_PLAYER)r->inputs.state.lockboxflag=re7_original_interaction_lockbox(r->inputs.state.loadarea,r->inputs.state.player.x,r->inputs.state.player.y,r->inputs.state.player.z);
@@ -300,7 +306,10 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  case NS_AFTER_ADAPTIVE_DIFF:
   if(r->inputs.ready)re7_original_state_policy(&r->config,&r->inputs.state,&r->state);
   break;
- default:handled=native_av_dispatch(r,site,f,fp);break;
+ default:
+  handled=native_screen_dispatch(r,site,f,fp);
+  if(!handled)handled=native_av_dispatch(r,site,f,fp);
+  break;
  }
  if(handled)r->stats.applied[site]++;
  return handled;
