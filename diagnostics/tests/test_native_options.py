@@ -23,6 +23,7 @@ class NativeOptionsTests(unittest.TestCase):
             cmd=['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-I'+str(ROOT/'src'),'-I'+str(ROOT/'build/lua-5.4.3/src'),str(ROOT/'tests'/f'{name}.c')]
             cmd += [str(ROOT/'src'/f'{source}.c') for source in names]
             if pinned:
+                cmd += ['-DLUA_USE_APICHECK']
                 cmd += [str(p) for p in (ROOT/'build/lua-5.4.3/src').glob('*.c') if p.stem not in ('lua','luac')] + ['-lm']
             elif ui:cmd+=['-Wl,-l:liblua5.4.so.0']
             subprocess.run(cmd+['-o',str(exe)],check=True)

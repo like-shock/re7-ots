@@ -4,6 +4,8 @@ An experimental native port of the original Third-Person OTS Script RT 8.02 for 
 
 Version 0.1.16 adds Fullbright transition diagnostics. It retains the 0.1.15 camera/FOV settings and existing lighting behavior. The camera starts OFF on every launch: **F6** toggles third person; **F7** swaps shoulders. No separate Lua installation or Probe run is required.
 
+This version also fixes the Lua stack reservation for the expanded 0.1.15 settings menu. Use 0.1.16 for the camera/FOV controls.
+
 ## Requirements
 
 - RE7 **Steam RT** with a working REFramework installation.

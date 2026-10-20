@@ -78,6 +78,8 @@ static const char menu[]=
  " end\n"
  "end)\n";
 static int get(lua_State*L){
+ /* Lua guarantees only 20 free slots on entry to a C callback. */
+ if(!lua_checkstack(L,23)){lua_pushboolean(L,0);return 1;}
  NativeSettings s=native_settings_defaults();int status=0,ready=native_options_ui_get_settings(&s,&status);
  lua_pushboolean(L,ready);lua_pushboolean(L,s.flags&NATIVE_OPTION_MELEE);lua_pushboolean(L,s.flags&NATIVE_OPTION_HIDE_HEAD);lua_pushboolean(L,s.flags&NATIVE_OPTION_LIGHT_CONTRAST);lua_pushinteger(L,status);
  lua_pushboolean(L,s.hide_mia_hair);lua_pushboolean(L,s.custom_filter);lua_pushinteger(L,s.shader);lua_pushboolean(L,s.fullbright);lua_pushinteger(L,s.rgb);lua_pushnumber(L,s.brightness);lua_pushinteger(L,s.camera_button);lua_pushinteger(L,s.shoulder_button);
