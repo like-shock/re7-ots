@@ -23,6 +23,23 @@ void native_fov_reset(NativeRuntime*r){
  s->runningfovadd=s->ratiorunfovmax=0;
  s->runfovcalcflag=s->active=s->have_area=0;
 }
+int native_runtime_set_fov_preferences(NativeRuntime*r,int custom,float degrees,
+ int first_person_run,int third_person_run,float amount,float rise,float fall){
+ if((custom!=0&&custom!=1)||(first_person_run!=0&&first_person_run!=1)||
+    (third_person_run!=0&&third_person_run!=1)||!finite_value(degrees)||
+    !finite_value(amount)||!finite_value(rise)||!finite_value(fall)||
+    degrees<60||degrees>120||amount<0||amount>40||rise<.1f||rise>10||fall<.1f||fall>5)return 0;
+ NativeFovState*s=&r->fov;
+ if(s->customfovflag!=custom||s->custom_fov!=degrees||s->fprunfov!=first_person_run||
+    s->tprunfov!=third_person_run||s->runningfovmax!=amount||
+    s->fovrunincbaserate!=rise||s->fovrundecbaserate!=fall){
+  native_fov_reset(r); /* A new policy must acquire fresh engine operands. */
+  s->customfovflag=(uint8_t)custom;s->custom_fov=degrees;
+  s->fprunfov=(uint8_t)first_person_run;s->tprunfov=(uint8_t)third_person_run;
+  s->runningfovmax=amount;s->fovrunincbaserate=rise;s->fovrundecbaserate=fall;
+ }
+ return 1;
+}
 static int reference_live(NativeRuntime*r){
  uint32_t first,second;NativeFovState*s=&r->fov;
  return s->reference&&read_at(r,s->reference,&first)&&first==s->reference_bits&&

@@ -92,7 +92,14 @@ int main(void){
  CHECK(native_settings_request(&options,NATIVE_SETTING_FILTER,1));CHECK(native_settings_request(&options,NATIVE_SETTING_SHADER,15));
  CHECK(native_settings_request(&options,NATIVE_SETTING_FULLBRIGHT,1));CHECK(native_settings_request(&options,NATIVE_SETTING_RGB,0x804020));CHECK(native_settings_request(&options,NATIVE_SETTING_BRIGHTNESS,2.5));
  CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_BUTTON,0));CHECK(native_settings_request(&options,NATIVE_SETTING_SHOULDER_BUTTON,23));
- reset_runtime();CHECK(!r.hide_mia_hair&&r.custom_filter&&r.custom_shader==15&&r.fullbright.enabled&&r.fullbright.rgb==0x804020&&r.fullbright.brightness==2.5f&&r.controller.camera_button==0&&r.controller.shoulder_button==23);
+ CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_DISTANCE,1.5));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_SHOULDER,.5));CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_HEIGHT,.25));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_CUSTOM_FOV_ENABLED,1));CHECK(native_settings_request(&options,NATIVE_SETTING_CUSTOM_FOV,95));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_FP_RUN_FOV,1));CHECK(native_settings_request(&options,NATIVE_SETTING_TP_RUN_FOV,0));
+ CHECK(native_settings_request(&options,NATIVE_SETTING_RUN_FOV_AMOUNT,30));CHECK(native_settings_request(&options,NATIVE_SETTING_RUN_FOV_RISE,4));CHECK(native_settings_request(&options,NATIVE_SETTING_RUN_FOV_FALL,1));
+ reset_runtime();CHECK(r.params.behinddis==1.5f&&r.params.sidedis==.5f&&r.params.yadd==.25f);
+ CHECK(r.fov.customfovflag&&r.fov.custom_fov==95&&r.fov.fprunfov&&!r.fov.tprunfov&&r.fov.runningfovmax==30&&r.fov.fovrunincbaserate==4&&r.fov.fovrundecbaserate==1);
+ CHECK(!r.hide_mia_hair&&r.custom_filter&&r.custom_shader==15&&r.fullbright.enabled&&r.fullbright.rgb==0x804020&&r.fullbright.brightness==2.5f&&r.controller.camera_button==0&&r.controller.shoulder_button==23);
  publish_dispatch(0);CHECK(atomic_load(&native_enabled)==12);
  native_runtime_set_hide_head(&r,0);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==11);
  publish_dispatch(1);CHECK(atomic_load(&native_enabled)==1);

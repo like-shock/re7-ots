@@ -1,8 +1,8 @@
-# RE7 OTS Native 0.1.14
+# RE7 OTS Native 0.1.15
 
 An experimental native port of the original Third-Person OTS Script RT 8.02 for **Resident Evil 7 Steam RT**, using REFramework on Steam Deck / Proton.
 
-Version 0.1.14 updates release automation and the English/Korean installation guides. Gameplay remains based on 0.1.12. The camera starts OFF on every launch: **F6** toggles third person; **F7** swaps shoulders. No separate Lua installation or Probe run is required.
+Version 0.1.15 adds camera-position and FOV controls to REFramework while preserving the original defaults. The camera starts OFF on every launch: **F6** toggles third person; **F7** swaps shoulders. No separate Lua installation or Probe run is required.
 
 ## Requirements
 
@@ -55,7 +55,23 @@ Open **REFramework → Script Generated UI → RE7 OTS Native**. Changes are sav
 
 Release and press the controller button again after binding, loading or reconnecting. Binding both actions to the same input performs both. Keyboard F6/F7 remain available.
 
-FOV currently follows the game menu; third-person running FOV is ON and first-person running FOV is OFF. This version has no separate FOV or camera-distance controls. Default flashlight, environmental audio, head-bob, blur, VHS, blood and HUD corrections follow the original policies automatically.
+### Camera and FOV controls (0.1.15)
+
+Existing preferences are retained; new controls start with the defaults below. Changes survive F6 transitions and restart. Distance and shoulder are multipliers of the original camera; height adds a third-person-only offset.
+
+| Option | Default / range |
+| --- | --- |
+| Camera Distance Scale | 1 / 0.5–2 |
+| Shoulder Offset Scale | 1 / 0–2. F7 swaps direction |
+| Camera Height Offset | 0 / -0.5–0.5. Positive moves upward |
+| Use Custom FOV / Custom FOV | OFF / 110. Custom range 60–120 degrees |
+| First-Person Running FOV / Third-Person Running FOV | OFF / ON |
+| Running FOV Increase (%) | 20 / 0–40 |
+| Running FOV Rise (seconds) / Fall (seconds) | 7 / 0.7. Rise 0.1–10 seconds; fall 0.1–5 seconds |
+
+FOV controls apply **while F6 is ON**. First-person running FOV refers to automatic first-person transitions; F6 OFF returns control to the game / REFramework. Custom FOV OFF follows the game menu. Existing handoff when REFramework writes FOV is preserved.
+
+Default flashlight, environmental audio, head-bob, blur, VHS, blood and HUD corrections still follow the original policies automatically.
 
 ## Known issues
 

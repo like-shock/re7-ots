@@ -1,8 +1,8 @@
-# RE7 OTS Native 0.1.14
+# RE7 OTS Native 0.1.15
 
 RE7 Steam RT용 3인칭 어깨너머 시점 모드입니다. 원본 Third-Person OTS RT 8.02를 REFramework 네이티브 플러그인으로 이식한 실험 버전이며, Steam Deck / Proton을 기준으로 개발합니다.
 
-0.1.14는 배포 자동화와 한·영 설치 안내를 정리한 버전입니다. 게임 동작은 0.1.12 기준입니다. 게임을 시작하면 카메라는 OFF이며 **F6**으로 켜고, **F7**로 어깨 방향을 바꿉니다. 별도 Lua 파일 설치나 Probe 실행은 필요하지 않습니다.
+0.1.15는 REFramework에서 카메라 위치와 FOV를 조절할 수 있도록 설정을 추가합니다. 기존 기본값은 유지합니다. 게임을 시작하면 카메라는 OFF이며 **F6**으로 켜고, **F7**로 어깨 방향을 바꿉니다. 별도 Lua 파일 설치나 Probe 실행은 필요하지 않습니다.
 
 ## 준비
 
@@ -55,7 +55,23 @@ bash install.sh "/path/to/game-folder"
 
 컨트롤러 버튼은 지정·로드·재연결 후 놓았다가 다시 눌러야 합니다. 같은 버튼에 두 동작을 지정하면 둘 다 실행됩니다. F6/F7은 계속 사용할 수 있습니다.
 
-현재 FOV는 게임 메뉴를 기준으로 하며 3인칭 달리기 보정은 기본 ON, 1인칭은 OFF입니다. 이 버전에는 별도 FOV·카메라 거리 조절 메뉴가 없습니다. 손전등·환경음·화면 흔들림·블러·VHS·혈액·HUD 등 기본 보정은 원본 정책에 따라 자동 적용됩니다.
+### 카메라·FOV 조절 (0.1.15)
+
+기존 설정 파일은 유지하고 새 항목만 아래 기본값으로 시작합니다. 변경값은 F6 전환과 재시작 후에도 유지됩니다. 카메라 거리·어깨 값은 원본 기준 배율이며 높이는 3인칭에만 더하는 오프셋입니다.
+
+| 메뉴 | 기본값 / 범위 |
+| --- | --- |
+| Camera Distance Scale | 1 / 0.5~2 |
+| Shoulder Offset Scale | 1 / 0~2. F7로 방향 전환 |
+| Camera Height Offset | 0 / -0.5~0.5. 양수는 위로 이동 |
+| Use Custom FOV / Custom FOV | OFF / 110. 사용자 지정 범위 60~120도 |
+| First-Person Running FOV / Third-Person Running FOV | OFF / ON |
+| Running FOV Increase (%) | 20 / 0~40 |
+| Running FOV Rise (seconds) / Fall (seconds) | 7 / 0.7. 증가 0.1~10초, 복귀 0.1~5초 |
+
+FOV 설정은 **F6 ON 동안** 적용합니다. 1인칭 달리기 항목도 자동 1인칭 전환 상태에 대한 설정이며, F6 OFF에서는 게임·REFramework가 FOV를 제어합니다. 사용자 지정 FOV가 OFF면 게임 메뉴 값을 사용합니다. REFramework가 FOV를 쓰면 양보하는 기존 처리는 유지됩니다.
+
+손전등·환경음·화면 흔들림·블러·VHS·혈액·HUD 등 기본 보정은 원본 정책에 따라 자동 적용됩니다.
 
 ## 알려진 문제
 

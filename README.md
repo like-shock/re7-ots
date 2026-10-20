@@ -4,9 +4,9 @@ Experimental native over-the-shoulder camera for **Resident Evil 7 — Steam RT*
 
 **RE7 Steam RT용 3인칭 어깨너머 시점 모드**입니다. 원본 RT 8.02 스크립트를 REFramework 네이티브 플러그인으로 이식하며, Steam Deck / Proton을 기준으로 개발합니다.
 
-**Current release / 현재 배포 버전: [0.1.14](https://github.com/like-shock/re7-ots/releases/tag/v0.1.14)**
+**Current release / 현재 배포 버전: [0.1.15](https://github.com/like-shock/re7-ots/releases/tag/v0.1.15)**
 
-[Download ZIP / 설치 파일 받기](https://github.com/like-shock/re7-ots/releases/download/v0.1.14/RE7_OTS_Native_v0.1.14_SteamDeck.zip) · [All releases / 전체 릴리스](https://github.com/like-shock/re7-ots/releases) · [한국어](#한국어) · [English](#english) · [Development](#development)
+[Download ZIP / 설치 파일 받기](https://github.com/like-shock/re7-ots/releases/download/v0.1.15/RE7_OTS_Native_v0.1.15_SteamDeck.zip) · [All releases / 전체 릴리스](https://github.com/like-shock/re7-ots/releases) · [한국어](#한국어) · [English](#english) · [Development](#development)
 
 ## 한국어
 
@@ -47,7 +47,7 @@ bash install.sh "/path/to/game-folder"
 | **Fullbright** | 주변을 밝히는 선택 기능. 기본 OFF이며 3인칭과 F6 OFF 상태의 1인칭에서 사용 가능 |
 | **컨트롤러 단축키** | 카메라·어깨 전환 버튼 지정. 기본 미할당 |
 
-FOV와 사용자 지정 필터 등 나머지 옵션은 [Native 사용 안내](diagnostics/native/README_KO.md)에 설명되어 있습니다. 별도의 Lua 파일 설치나 Probe 실행은 필요하지 않습니다.
+0.1.15부터 카메라 거리·어깨 간격·높이와 FOV·달리기 FOV를 같은 메뉴에서 조절합니다. 세부 범위와 사용자 지정 필터 등은 [Native 사용 안내](diagnostics/native/README_KO.md)에 설명되어 있습니다. 별도의 Lua 파일 설치나 Probe 실행은 필요하지 않습니다.
 
 ### 현재 상태·알려진 문제
 
@@ -95,7 +95,7 @@ Open **REFramework → Script Generated UI → RE7 OTS Native**. Option changes 
 | **Fullbright** | Optional scene lighting. Default OFF; supports third person and first person with F6 OFF |
 | **Controller shortcuts** | Assign camera-toggle and shoulder-swap buttons. Unassigned by default |
 
-The [Native guide (Korean)](diagnostics/native/README_KO.md) covers FOV, custom filters and other options. No separate Lua installation or Probe run is required.
+Since 0.1.15, the same menu includes camera distance, shoulder offset, height, custom FOV and running FOV controls. The [Native guide (Korean)](diagnostics/native/README_KO.md) covers FOV, custom filters and other options. No separate Lua installation or Probe run is required.
 
 ### Current status and known issues
 
@@ -110,7 +110,7 @@ The [Native guide (Korean)](diagnostics/native/README_KO.md) covers FOV, custom 
 
 | Branch | Purpose / 용도 |
 | --- | --- |
-| [`main`](https://github.com/like-shock/re7-ots/tree/main) | Current development baseline, based on Native 0.1.12 / 현재 작업 기준 |
+| [`main`](https://github.com/like-shock/re7-ots/tree/main) | Current Native development / 최신 Native 작업 기준 |
 | [`version/0.1.12`](https://github.com/like-shock/re7-ots/tree/version/0.1.12) | Preserved 0.1.12 source at `81c1ddc` / 0.1.12 원본 기준 보존 |
 | [`version/0.1.13`](https://github.com/like-shock/re7-ots/tree/version/0.1.13) | Problematic 0.1.13 source at `0297db6`, for comparison / 문제 버전 보존·비교 |
 

@@ -62,6 +62,7 @@ typedef struct NativeRuntime {
 void native_runtime_init(NativeRuntime *,uint64_t,NativeMemory,NativeWrite,void*);
 int native_runtime_dispatch(NativeRuntime *,unsigned,NativeFrame *,void *);
 void native_runtime_shoulder(NativeRuntime *);
+int native_runtime_set_camera_preferences(NativeRuntime *,float distance,float shoulder,float height);
 void native_runtime_set_melee_auto_disable(NativeRuntime *,int enabled);
 void native_runtime_set_camera_enabled(NativeRuntime *,int enabled);
 void native_runtime_set_hide_head(NativeRuntime *,int enabled);

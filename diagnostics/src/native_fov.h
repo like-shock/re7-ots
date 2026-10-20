@@ -16,5 +16,7 @@ typedef struct {
 /* Drop transient ownership, preserving copied menu/settings and RF write age.
  * Only initial runtime construction starts RF age100; RF writes start age0. */
 void native_fov_reset(struct NativeRuntime *);
+int native_runtime_set_fov_preferences(struct NativeRuntime *,int custom,float degrees,
+ int first_person_run,int third_person_run,float amount,float rise,float fall);
 int native_fov_dispatch(struct NativeRuntime *,unsigned,NativeFrame *,void *);
 #endif

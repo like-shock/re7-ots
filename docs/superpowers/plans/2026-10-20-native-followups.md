@@ -28,10 +28,10 @@
 **Files:** `.github/workflows/offline-build.yml`, `diagnostics/tools/prepare_native_release.py`, `diagnostics/tools/package_native.py`, `diagnostics/native/README_{KO,EN}.md`, `diagnostics/tests/test_native_release.py`, `diagnostics/tests/test_native_package.py`, version markers, `README.md`, `docs/release-notes/0.1.14.md`.
 **Interfaces:** `prepare(project, artifacts, tag, commit) -> dict` produces validated version, ZIP, checksum and notes paths for the release job. Later tasks supply matching versions/notes to this same interface.
 
-- [ ] Add failing tests for valid release preparation, wrong tag/version/commit, dirty builds, duplicate/missing ZIP entries and corrupt payload hashes. Extend package test to require both language guides.
-- [ ] Run `python3 -m unittest discover -s diagnostics/tests -p 'test_native_release.py' -v`; expect missing implementation failure.
-- [ ] Implement preparation and a tag-only release job with read-only build permissions, separate write permission, main-ancestry check and no asset overwrite. Refresh both guides and release notes.
-- [ ] Run release/package tests and `git diff --check`; expect success. Commit, push and await complete Actions success, then tag and verify published title/body/assets.
+- [x] Add failing tests for valid release preparation, wrong tag/version/commit, dirty builds, duplicate/missing ZIP entries and corrupt payload hashes. Extend package test to require both language guides.
+- [x] Run `python3 -m unittest discover -s diagnostics/tests -p 'test_native_release.py' -v`; expect missing implementation failure.
+- [x] Implement preparation and a tag-only release job with read-only build permissions, separate write permission, main-ancestry check and no asset overwrite. Refresh both guides and release notes.
+- [x] Run release/package tests and `git diff --check`; expect success. Commit, push and await complete Actions success, then tag and verify published title/body/assets.
 
 ### Task 2: Camera and FOV settings (0.1.15)
 

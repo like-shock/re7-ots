@@ -57,7 +57,18 @@ void native_runtime_init(NativeRuntime*r,uint64_t base,NativeMemory read,NativeW
  r->interaction_input.fixfprompt=r->interaction_input.fixmain=1;
  re7_original_state_rates(&r->config,&r->params,60,&r->rates);
 }
-void native_runtime_shoulder(NativeRuntime*r){r->params.sidedis=r->params.sidedis<0?1:-1;}
+void native_runtime_shoulder(NativeRuntime*r){r->params.sidedis=-r->params.sidedis;}
+int native_runtime_set_camera_preferences(NativeRuntime*r,float distance,float shoulder,float height){
+ if(!finite_value(distance)||!finite_value(shoulder)||!finite_value(height)||
+    distance<.5f||distance>2||shoulder<0||shoulder>2||height<-.5f||height>.5f)return 0;
+ /* Retain the current shoulder, including its sign at a centered zero offset. */
+ float side=(bits(r->params.sidedis)&0x80000000u)?-shoulder:shoulder;
+ if(r->params.behinddis!=distance||bits(r->params.sidedis)!=bits(side)||r->params.yadd!=height){
+  r->params.behinddis=distance;r->params.sidedis=side;r->params.yadd=height;
+  r->camera_valid=0;
+ }
+ return 1;
+}
 void native_runtime_set_melee_auto_disable(NativeRuntime*r,int enabled){
  if(enabled==0||enabled==1)r->config.fpmeleeflag=(uint8_t)enabled;
 }

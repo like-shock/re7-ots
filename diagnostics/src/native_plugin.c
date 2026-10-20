@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.14"
+#define NATIVE_VERSION "0.1.15"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -229,6 +229,9 @@ static void apply_runtime_settings(const NativeSettings*s){
     native_runtime_set_custom_filter(&runtime,s->custom_filter,s->shader);
     native_runtime_set_fullbright(&runtime,s->fullbright,s->rgb,s->brightness);
     native_runtime_set_controller_bindings(&runtime,s->camera_button,s->shoulder_button);
+    native_runtime_set_camera_preferences(&runtime,s->camera_distance,s->camera_shoulder,s->camera_height);
+    native_runtime_set_fov_preferences(&runtime,s->use_custom_fov,s->custom_fov,s->fp_run_fov,s->tp_run_fov,
+                                       s->run_fov_amount,s->run_fov_rise,s->run_fov_fall);
 }
 static void reset_runtime(void) {
     NativeSettings value=native_settings_defaults();int status=0;native_settings_get(&options,&value,&status);
@@ -575,6 +578,10 @@ static DWORD WINAPI worker(void *unused) {
             line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"limit_light_source_contrast_in_third_person\":%s,\"hide_mia_hair\":%d,\"custom_filter\":%d,\"shader\":%d,\"fullbright\":%d,\"rgb\":%u,\"brightness\":%.9g,\"camera_button\":%d,\"shoulder_button\":%d,\"saved\":%s}\n",
                  (option_value.flags&NATIVE_OPTION_MELEE)?"true":"false",(option_value.flags&NATIVE_OPTION_HIDE_HEAD)?"true":"false",
                  (option_value.flags&NATIVE_OPTION_LIGHT_CONTRAST)?"true":"false",option_value.hide_mia_hair,option_value.custom_filter,option_value.shader,option_value.fullbright,option_value.rgb,(double)option_value.brightness,option_value.camera_button,option_value.shoulder_button,saved?"true":"false");
+            line("{\"type\":\"camera_settings\",\"distance_scale\":%.9g,\"shoulder_scale\":%.9g,\"height_offset\":%.9g,\"custom_fov_enabled\":%d,\"custom_fov\":%.9g,\"first_person_running_fov\":%d,\"third_person_running_fov\":%d,\"running_fov_percent\":%.9g,\"rise_seconds\":%.9g,\"fall_seconds\":%.9g}\n",
+                 (double)option_value.camera_distance,(double)option_value.camera_shoulder,(double)option_value.camera_height,
+                 option_value.use_custom_fov,(double)option_value.custom_fov,option_value.fp_run_fov,option_value.tp_run_fov,
+                 (double)option_value.run_fov_amount,(double)option_value.run_fov_rise,(double)option_value.run_fov_fall);
             if(!saved)message("Could not save native preferences; session settings are applied.");
         }
         unsigned controller_camera,controller_shoulder;
