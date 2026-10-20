@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.15"
+#define NATIVE_VERSION "0.1.16"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -409,12 +409,64 @@ static void float_text(char out[32], float value) {
     if (isfinite(value)) snprintf(out, 32, "%.9g", (double)value);
     else memcpy(out, "null", 5);
 }
+/* Worker-only formatting. The dispatcher stores bounded POD records only. */
+static int fullbright_state_text(char out[1536],const NativeFullbrightEvent*e){
+    char timer[32];float_text(timer,e->game_time);
+    int n=snprintf(out,1536,
+        "{\"sequence\":%llu,\"frame\":%u,\"site\":%u,\"area\":%u,\"game_time\":%s,"
+        "\"enabled\":%u,\"camera_enabled\":%u,\"firstperson\":%u,\"stopflag\":%u,\"internalfp\":%u,"
+        "\"gate\":\"%s\",\"last_failure\":\"%s\",\"light\":\"0x%llx\",\"shadow_override\":%u,"
+        "\"player\":\"0x%llx\",\"aim\":\"0x%llx\",\"input_valid\":\"0x%llx\","
+        "\"input_failed\":\"0x%llx\",\"observed\":\"0x%llx\"}",
+        (unsigned long long)e->sequence,e->frame,e->site,e->area,timer,
+        e->enabled,e->camera_enabled,e->firstperson,e->stopflag,e->internalfp,
+        native_fullbright_gate_name(e->gate),native_fullbright_failure_name(e->last_failure),
+        (unsigned long long)e->light,e->shadow_override,(unsigned long long)e->player,
+        (unsigned long long)e->aim,(unsigned long long)e->input_valid,
+        (unsigned long long)e->input_failed,(unsigned long long)e->observed);
+    if(n<0||n>=1536){log_failed=1;return 0;}return 1;
+}
+static void fullbright_event_log(uint64_t elapsed,const NativeFullbrightEvent*event){
+    char state[1536];if(!fullbright_state_text(state,event))return;
+    line("{\"type\":\"fullbright_event\",\"elapsed_ms\":%llu,\"generation\":%llu,\"state\":%s}\n",
+         (unsigned long long)elapsed,(unsigned long long)generation,state);
+}
+static void fullbright_log(uint64_t elapsed,const NativeSnapshot*s){
+    static const unsigned sites[]={NS_LIGHT_SOURCE_DIAMETER_READ,NS_LIGHT_RADIUS_MULSS_READ,
+        NS_LIGHT_RADIUS_MOVSS_READ,NS_EXAMINE_LIGHT_CMP_1,NS_EXAMINE_LIGHT_CMP_2,
+        NS_GLOBAL_BRIGHTNESS,NS_G_BRIGHTNESS_2,NS_OLD_HOUSE_BRIGHTNESS_READ};
+    static const char*names[]={"diameter","radius_multiply","radius_load","examine_1","examine_2",
+        "global","global_2","shadow"};
+    char state[1536],consumers[1024],failures[1024];size_t used=0;
+    if(!fullbright_state_text(state,&s->fullbright_state))return;
+    consumers[0]=failures[0]=0;
+    for(unsigned j=0;j<sizeof sites/sizeof sites[0];j++){
+        int n=snprintf(consumers+used,sizeof consumers-used,
+            "%s\"%s\":{\"calls\":%llu,\"applied\":%llu}",j?",":"",names[j],
+            (unsigned long long)s->calls[sites[j]],(unsigned long long)s->applied[sites[j]]);
+        if(n<0||(size_t)n>=sizeof consumers-used){log_failed=1;return;}used+=(size_t)n;
+    }
+    used=0;
+    for(unsigned j=1;j<NFB_FAILURE_COUNT;j++){
+        int n=snprintf(failures+used,sizeof failures-used,"%s\"%s\":%llu",j>1?",":"",
+            native_fullbright_failure_name(j),(unsigned long long)s->fullbright_failures[j]);
+        if(n<0||(size_t)n>=sizeof failures-used){log_failed=1;return;}used+=(size_t)n;
+    }
+    line("{\"type\":\"fullbright_snapshot\",\"elapsed_ms\":%llu,\"generation\":%llu,\"state\":%s,"
+        "\"consumers\":{%s},\"failures\":{%s},\"failure_frame\":%u,\"failure_site\":%u,\"events_dropped\":%llu}\n",
+        (unsigned long long)elapsed,(unsigned long long)generation,state,consumers,failures,
+        s->fullbright_failure_frame,s->fullbright_failure_site,(unsigned long long)s->fullbright_events_dropped);
+}
 static void snapshot(uint64_t now) {
     NativeSnapshot state;
+    NativeFullbrightEvent events[NATIVE_FULLBRIGHT_TRACE_CAPACITY];
     AcquireSRWLockExclusive(&runtime_lock);
     native_runtime_snapshot(&runtime, &state);
+    unsigned count=native_fullbright_take_events(&runtime,events,NATIVE_FULLBRIGHT_TRACE_CAPACITY);
     ReleaseSRWLockExclusive(&runtime_lock);
     /* Format and write only after releasing the runtime lock. */
+    if(state.fullbright_state.enabled||count)fullbright_log(now-started,&state);
+    for(unsigned j=0;j<count;j++)fullbright_event_log(now-started,&events[j]);
     char calls[NATIVE_MAX_SITES * 24], applied[NATIVE_MAX_SITES * 24];
     size_t call_length = 0, applied_length = 0;
     calls[0] = applied[0] = 0;

@@ -27,6 +27,9 @@ typedef struct {
  float model_marker;
  uint8_t ready,firstperson,stopflag,internalfp,aim,blockedgun,melee_auto_disable,limit_light_contrast;
  float camera[3],clip[3],framerate;
+ NativeFullbrightEvent fullbright_state;
+ uint64_t fullbright_failures[NFB_FAILURE_COUNT],fullbright_events_dropped;
+ uint32_t fullbright_failure_frame,fullbright_failure_site;
 } NativeSnapshot;
 typedef struct NativeRuntime {
  uint64_t base,camera_base;

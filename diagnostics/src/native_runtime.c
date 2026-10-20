@@ -81,6 +81,7 @@ void native_runtime_set_camera_enabled(NativeRuntime*r,int enabled){
  native_hud_reset(r);
  native_fov_reset(r);
  native_head_clear(&r->head);
+ native_fullbright_record(r,UINT32_MAX);
 }
 void native_runtime_set_hide_head(NativeRuntime*r,int enabled){
  if(enabled!=0&&enabled!=1)return;
@@ -103,6 +104,11 @@ void native_runtime_snapshot(const NativeRuntime*r,NativeSnapshot*s){
  s->model_marker_available=r->inputs.state.model_marker_available;
  s->model_marker=r->inputs.state.model_marker;s->assumeheadless=r->state.assumeheadless;
  s->clip[0]=r->params.camclipbehinddis;s->clip[1]=r->params.camclipsidedis;s->clip[2]=r->params.camclipheightdis;
+ native_fullbright_snapshot(r,&s->fullbright_state);
+ memcpy(s->fullbright_failures,r->fullbright.trace.failures,sizeof s->fullbright_failures);
+ s->fullbright_events_dropped=r->fullbright.trace.dropped;
+ s->fullbright_failure_frame=r->fullbright.trace.failure_frame;
+ s->fullbright_failure_site=r->fullbright.trace.failure_site;
 }
 static int camera_write(NativeRuntime*r,NativeFrame*f,void*fp){
  if(f->rbx!=r->camera_base||!r->inputs.ready)return 0;
@@ -282,7 +288,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
  int handled=native_fullbright_dispatch(r,site,f,fp);
  if(!handled)handled=native_fov_dispatch(r,site,f,fp);
  if(!handled)handled=native_hud_dispatch(r,site,f,fp);
- if(handled){r->stats.applied[site]++;return 1;}
+ if(handled){r->stats.applied[site]++;native_fullbright_record(r,site);return 1;}
  switch(site){
  case NS_CAM_AFTER_1000_READ:
   if(!r->inputs.ready)break;
@@ -349,6 +355,7 @@ int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp)
   break;
  }
  if(handled)r->stats.applied[site]++;
+ native_fullbright_record(r,site);
  return handled;
 }
 void native_runtime_set_hide_mia_hair(NativeRuntime*r,int e){if(e==0||e==1)r->hide_mia_hair=(uint8_t)e;}

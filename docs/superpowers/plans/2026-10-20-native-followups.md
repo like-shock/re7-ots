@@ -38,17 +38,17 @@
 **Files:** `diagnostics/src/native_options.{h,c}`, `native_options_ui.c`, `native_plugin.c`, runtime/FOV interfaces as needed; host settings/UI/FOV tests; both guides and release notes.
 **Interfaces:** append named settings to the existing atomic requested/completed fields; use the worker's `apply_runtime_settings` for runtime updates. Keep old settings formats readable and original defaults unchanged.
 
-- [ ] Add failing host tests for round-trip/migration/range checks, save races, actual UI callbacks, runtime application and F6 persistence.
-- [ ] Run targeted settings/FOV host tests; expect missing settings behavior.
-- [ ] Expose camera distance/shoulder/height and custom/running FOV settings with finite bounded values. Reset temporary FOV authority when settings change, preserving REFramework grace.
-- [ ] Run affected tests, bump to 0.1.15, document defaults/ranges and commit. Require Actions success before tagging/release.
+- [x] Add failing host tests for round-trip/migration/range checks, save races, actual UI callbacks, runtime application and F6 persistence.
+- [x] Run targeted settings/FOV host tests; expect missing settings behavior.
+- [x] Expose camera distance/shoulder/height and custom/running FOV settings with finite bounded values. Reset temporary FOV authority when settings change, preserving REFramework grace.
+- [x] Run affected tests, bump to 0.1.15, document defaults/ranges and commit. Require Actions success before tagging/release.
 
 ### Task 3: Fullbright diagnostic evidence (0.1.16)
 
 **Files:** `diagnostics/src/native_fullbright.{h,c}`, `native_runtime.{h,c}`, `native_plugin.c`, Fullbright host tests, package guides and release notes.
 **Interfaces:** hook-owned state/counters copied under the existing lock into `NativeSnapshot`; worker formats bounded transition records, never hook-side I/O.
 
-- [ ] Add failing tests for readiness-loss reasons, light invalidation/recovery, mode/view transition evidence and unchanged register/memory effects.
-- [ ] Implement diagnostics only; retain the 0.1.12 authorization and lighting calculations.
+- [x] Add failing tests for readiness-loss reasons, light invalidation/recovery, mode/view transition evidence and unchanged register/memory effects.
+- [x] Implement diagnostics only; retain the 0.1.12 authorization and lighting calculations.
 - [ ] Run focused Fullbright/lifecycle tests and complete Actions suite; bump/document 0.1.16 and collect fresh final review before final publication.
 - [ ] Verify all three releases, preserved branches and clean checkout. Report the Steam Deck healing-log capture step.

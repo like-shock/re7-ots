@@ -1,8 +1,8 @@
-# RE7 OTS Native 0.1.15
+# RE7 OTS Native 0.1.16
 
 An experimental native port of the original Third-Person OTS Script RT 8.02 for **Resident Evil 7 Steam RT**, using REFramework on Steam Deck / Proton.
 
-Version 0.1.15 adds camera-position and FOV controls to REFramework while preserving the original defaults. The camera starts OFF on every launch: **F6** toggles third person; **F7** swaps shoulders. No separate Lua installation or Probe run is required.
+Version 0.1.16 adds Fullbright transition diagnostics. It retains the 0.1.15 camera/FOV settings and existing lighting behavior. The camera starts OFF on every launch: **F6** toggles third person; **F7** swaps shoulders. No separate Lua installation or Probe run is required.
 
 ## Requirements
 
@@ -80,6 +80,18 @@ Default flashlight, environmental audio, head-bob, blur, VHS, blood and HUD corr
 - RELit's camera-attached light can make the character look dark or color-inverted. Disabling that light resolved the reported setup.
 - Not every area, DLC or Steam Deck performance scenario is verified. NAH oxygen/transmission HUD, aiming/running FOV, other characters and controller reconnection need further device checks.
 - 0.1.13 is retained on a comparison branch following a third-person regression and is not the current gameplay baseline.
+
+## Fullbright healing diagnostics (0.1.16)
+
+These records help identify the healing-related darkening; this release does not fix it.
+
+1. Start a fresh game session, enable Fullbright and third person, then wait 5 seconds.
+2. Use one healing item, return to third person, then wait another 5 seconds.
+3. Exit the game and keep both logs listed below from that session. Note when the screen darkened.
+
+`fullbright_event` records changes in view, eligibility and light target. `fullbright_snapshot` is written about every 250ms while Fullbright is enabled or transitions are pending. It separates blocking conditions, target-release reasons and consumer call/application counts. Diagnostics add no game-memory reads or lighting-value changes.
+
+Hooks retain at most 8 pending events; the worker writes them after releasing the runtime lock. Excess events increment `events_dropped`. The existing 8MiB total log limit stops further logging. `elapsed_ms` is the output time, while `state.frame` is the observation frame. Frame numbers wrap as in the source, so also use `sequence` within the same `generation`. Starting a new camera generation with F6 resets counters and sequences. `site: 4294967295` denotes a settings transition or periodic snapshot, not a hook. `last_failure` retains the latest reason; use `gate` for current eligibility. The `shadow` consumer also counts the existing light-contrast handler and is not exclusive to Fullbright.
 
 ## Reporting problems and uninstalling
 
