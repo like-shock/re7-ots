@@ -4,9 +4,9 @@ Experimental native over-the-shoulder camera for **Resident Evil 7 — Steam RT*
 
 **RE7 Steam RT용 3인칭 어깨너머 시점 모드**입니다. 원본 RT 8.02 스크립트를 REFramework 네이티브 플러그인으로 이식하며, Steam Deck / Proton을 기준으로 개발합니다.
 
-**Current release / 현재 배포 버전: [0.1.12](https://github.com/like-shock/re7-ots/releases/tag/v0.1.12)**
+**Current release / 현재 배포 버전: [0.1.14](https://github.com/like-shock/re7-ots/releases/tag/v0.1.14)**
 
-[Download ZIP / 설치 파일 받기](https://github.com/like-shock/re7-ots/releases/download/v0.1.12/RE7_OTS_Native_v0.1.12_SteamDeck.zip) · [All releases / 전체 릴리스](https://github.com/like-shock/re7-ots/releases) · [한국어](#한국어) · [English](#english) · [Development](#development)
+[Download ZIP / 설치 파일 받기](https://github.com/like-shock/re7-ots/releases/download/v0.1.14/RE7_OTS_Native_v0.1.14_SteamDeck.zip) · [All releases / 전체 릴리스](https://github.com/like-shock/re7-ots/releases) · [한국어](#한국어) · [English](#english) · [Development](#development)
 
 ## 한국어
 
@@ -115,6 +115,8 @@ The [Native guide (Korean)](diagnostics/native/README_KO.md) covers FOV, custom 
 | [`version/0.1.13`](https://github.com/like-shock/re7-ots/tree/version/0.1.13) | Problematic 0.1.13 source at `0297db6`, for comparison / 문제 버전 보존·비교 |
 
 ### Build and package
+
+Pushing a stable version tag such as `v0.1.14` builds and publishes the Native ZIP and `SHA256SUMS.txt` with bilingual notes from `docs/release-notes/<version>.md`. Publication requires a commit integrated into `main`, matching source/build versions and intact package hashes. Existing releases are not overwritten; inspect any failed draft before retrying.
 
 [GitHub Actions](https://github.com/like-shock/re7-ots/actions/workflows/offline-build.yml) builds, runs the offline suite and creates packages on `main` pushes and pull requests. Run artifacts are retained for 14 days; use [Releases](https://github.com/like-shock/re7-ots/releases) for published downloads.
 

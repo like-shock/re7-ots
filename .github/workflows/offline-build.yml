@@ -2,9 +2,10 @@ name: Offline build and package
 
 on:
   push:
-    branches: [work, main]
+    branches: [main]
+    tags: ['v*']
   pull_request:
-    branches: [work, main]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +13,7 @@ permissions:
 
 concurrency:
   group: offline-build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   verify:
@@ -64,3 +65,43 @@ jobs:
           path: diagnostics/build/ci-tests.txt
           if-no-files-found: warn
           retention-days: 14
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require a commit integrated into main
+        run: git merge-base --is-ancestor HEAD origin/main
+
+      - name: Download this run's tested artifacts
+        run: gh run download "$GITHUB_RUN_ID" --name "re7-ots-$GITHUB_SHA" --dir dist
+
+      - name: Validate Native package and release notes
+        id: prepare
+        run: python3 diagnostics/tools/prepare_native_release.py --tag "$RELEASE_TAG" --commit "$GITHUB_SHA" --github-output "$GITHUB_OUTPUT"
+
+      - name: Publish Native release
+        env:
+          RELEASE_VERSION: ${{ steps.prepare.outputs.version }}
+          RELEASE_ZIP: ${{ steps.prepare.outputs.zip }}
+          RELEASE_CHECKSUMS: ${{ steps.prepare.outputs.checksums }}
+          RELEASE_NOTES: ${{ steps.prepare.outputs.notes }}
+        run: |
+          gh release create "$RELEASE_TAG" "$RELEASE_ZIP" "$RELEASE_CHECKSUMS" \
+            --verify-tag --draft --title "$RELEASE_VERSION" --notes-file "$RELEASE_NOTES"
+          gh release edit "$RELEASE_TAG" --draft=false --latest
