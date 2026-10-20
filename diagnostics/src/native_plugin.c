@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.10"
+#define NATIVE_VERSION "0.1.11"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -242,6 +242,7 @@ static void reset_runtime(void) {
 /* Worker owns preference/camera transitions; faults always gate dispatch off. */
 static void publish_dispatch(int active) {
     unsigned mode=active?1:native_controller_configured(&runtime)?(runtime.hide_head?4:3):runtime.hide_head?2:0;
+    if(!active&&runtime.fullbright.enabled)mode|=NATIVE_FULLBRIGHT_MODE;
     if(atomic_load_explicit(&dispatch_fault,memory_order_acquire))mode=0;
     atomic_store_explicit(&native_enabled,mode,memory_order_release);
 }
@@ -596,7 +597,7 @@ static DWORD WINAPI worker(void *unused) {
             line("{\"type\":\"toggle\",\"elapsed_ms\":%llu,\"generation\":%llu,\"enabled\":%s}\n",
                  (unsigned long long)(now - started), (unsigned long long)generation,
                  active ? "true" : "false");
-            message(active ? "Original native OTS enabled." : "Native OTS camera OFF; first-person head hiding follows its checkbox.");
+            message(active ? "Original native OTS enabled." : "Native OTS camera OFF; head hiding and Fullbright follow their checkboxes.");
         }
         requested = atomic_exchange_explicit(&shoulder_requests, 0, memory_order_acq_rel)+controller_shoulder;
         if (requested & 1u) {

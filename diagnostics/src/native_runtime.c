@@ -212,8 +212,7 @@ static int light_contrast_read(NativeRuntime*r,NativeFrame*f){
   * CMP/JBE compares unsigned DWORD bits, including negative/NaN encodings.
   * Substitute only MOV eax,[r14+228]'s result; never edit the light's field.
   * Native input readiness additionally prevents changes during loading/failure. */
- if(!r->inputs.ready)return 0;
- if(r->fullbright.enabled&&r->fullbright.shadow_override){f->rax=0;return 1;}
+ if(!r->camera_enabled||!r->inputs.ready)return 0;
  if(!r->limit_light_contrast||r->view.firstpersonflag==1)return 0;
  uint32_t value;const uint32_t cap=0x3f3c28f6u; /* float 0.735 */
  if(!load(r,f->r14,0x228,&value,sizeof value))return 0;
@@ -253,14 +252,15 @@ static int head_write(NativeRuntime*r,NativeFrame*f,void*fp){
 int native_runtime_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
  if(!r||!f||!fp||site>=NATIVE_SITE_COUNT)return 0;
  if(!r->camera_enabled&&!((r->hide_head&&native_head_only_site(site))||
-    (native_controller_configured(r)&&native_input_only_site(site))))return 0;
+    (native_controller_configured(r)&&native_input_only_site(site))||
+    (r->fullbright.enabled&&native_fullbright_only_site(site))))return 0;
  r->stats.calls[site]++;
  if(site==NS_CAM_WRITES&&f->rbx!=r->camera_base)return 0;
  sync_input(r);
  re7_original_inputs_capture(&r->inputs,site,f,fp,r->base,read_cb,r,&r->config);
  if(!r->inputs.ready){
   native_av_reset(r);
-  native_screen_reset(r);native_fullbright_reset(r);
+  native_screen_reset(r); /* Fullbright owns its independent readiness below. */
   if(r->camera_enabled)native_head_clear(&r->head);
  }else if(r->camera_enabled&&site==NS_FLASHLIGHT_WRITE&&(r->inputs.valid&RE7_INPUT_FLASHLIGHT)){
   r->av.flashlight_address=r->inputs.flashlight_address;

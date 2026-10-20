@@ -11,12 +11,18 @@
  * Mode 3=input only, 4=head plus input. No effect sites in either allowlist. */
 #define NATIVE_INPUT_ONLY_MASK 0x2804080
 #define NATIVE_INPUT_ONLY_HIGH_MASK 0x60
+/* Bit 8 adds independent Fullbright to modes 0/2/3/4 (8/10/11/12).
+ * Observers: AUTOLOOK, TIMER, AREA, BETTER_TIMER. Effects: shadow + 71..77. */
+#define NATIVE_FULLBRIGHT_MODE 8
+#define NATIVE_FULLBRIGHT_ONLY_MASK 0x40002804080
+#define NATIVE_FULLBRIGHT_ONLY_HIGH_MASK 0x3f80
 #ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <stdatomic.h>
 #include <stddef.h>
 static inline int native_head_only_site(unsigned site){return site<64&&((NATIVE_HEAD_ONLY_MASK>>site)&1);}
 static inline int native_input_only_site(unsigned site){return site<64?((NATIVE_INPUT_ONLY_MASK>>site)&1):site<128&&((NATIVE_INPUT_ONLY_HIGH_MASK>>(site-64))&1);}
+static inline int native_fullbright_only_site(unsigned site){return site<64?((NATIVE_FULLBRIGHT_ONLY_MASK>>site)&1):site<128&&((NATIVE_FULLBRIGHT_ONLY_HIGH_MASK>>(site-64))&1);}
 typedef struct {
  uint64_t r15,r14,r13,r12,r11,r10,r9,r8,rbp,rdi,rsi,rdx,rcx,rbx,rax,flags;
 } NativeFrame;

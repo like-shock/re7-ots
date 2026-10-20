@@ -7,9 +7,26 @@ static int read_at(NativeRuntime*r,uint64_t b,uint64_t o,void*out,size_t n){
  const uint64_t max=UINT64_C(0x7fffffffffff);
  if(b<0x10000||b>max||o>max-b||n-1>max-b-o||!r->read||!r->read(r->context,b+o,out,n)){r->stats.reads_failed++;return 0;}return 1;
 }
-void native_fullbright_reset(NativeRuntime*r){r->fullbright.light=0;r->fullbright.shadow_override=0;}
+static void invalidate(NativeRuntime*r){
+ r->fullbright.light=r->fullbright.player=r->fullbright.aim=0;
+ r->fullbright.area=0;r->fullbright.shadow_override=0;
+}
+void native_fullbright_reset(NativeRuntime*r){invalidate(r);r->fullbright.observed=0;}
+/* F6 OFF has no camera/FOV producers. Require the independent player, area
+ * and loading observations instead; never borrow an old OTS-ready snapshot. */
+static int first_person_ready(const NativeRuntime*r){
+ const Re7OriginalInputs*i=&r->inputs;
+ const uint64_t needed=RE7_INPUT_PLAYER|RE7_INPUT_AIM|RE7_INPUT_AREA|RE7_INPUT_TIMER;
+ const uint64_t observed=(1ULL<<NS_CUTSCENE_AUTOLOOK)|(1ULL<<NS_LOADED_AREA)|(1ULL<<NS_TIMER_AOB);
+ return (r->fullbright.observed&observed)==observed&&
+  (i->state.loadarea==35||(r->fullbright.observed&(1ULL<<NS_BETTER_TIMER)))&&
+  (i->valid&needed)==needed&&!(i->failed&needed)&&i->state.player_available&&
+  i->player_base&&i->aim_address&&i->oldaim_address==i->aim_address&&
+  i->state.loadscreenflag!=1&&isfinite(i->state.igtimer)&&i->state.igtimer>=1;
+}
 int native_runtime_set_fullbright(NativeRuntime*r,int e,uint32_t rgb,float b){
  if((e!=0&&e!=1)||rgb>0xffffff||!isfinite(b)||b<0||b>10)return 0;
+ if(e!=r->fullbright.enabled)native_fullbright_reset(r);
  r->fullbright.enabled=(uint8_t)e;r->fullbright.rgb=rgb;r->fullbright.brightness=b;
  if(!e)native_fullbright_reset(r);
  return 1;
@@ -42,8 +59,19 @@ static int flag_identity(NativeRuntime*r,uint64_t candidate){
  return 1;
 }
 int native_fullbright_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*fp){
- if(!r->camera_enabled||!r->inputs.ready||!r->fullbright.enabled){native_fullbright_reset(r);return 0;}
+ if(!r->fullbright.enabled){native_fullbright_reset(r);return 0;}
+ if(site==NS_CUTSCENE_AUTOLOOK||site==NS_LOADED_AREA||site==NS_TIMER_AOB||site==NS_BETTER_TIMER)
+  r->fullbright.observed|=UINT64_C(1)<<site;
+ if(r->camera_enabled?!r->inputs.ready:!first_person_ready(r)){invalidate(r);return 0;}
+ if(!r->camera_enabled&&(r->fullbright.player!=r->inputs.player_base||
+    r->fullbright.aim!=r->inputs.aim_address||r->fullbright.area!=r->inputs.state.loadarea)){
+  invalidate(r);r->fullbright.player=r->inputs.player_base;
+  r->fullbright.aim=r->inputs.aim_address;r->fullbright.area=r->inputs.state.loadarea;
+ }
  switch(site){
+ case NS_OLD_HOUSE_BRIGHTNESS_READ:
+  if(r->fullbright.shadow_override){f->rax=0;return 1;}
+  return 0;
  case NS_LIGHT_SOURCE_DIAMETER_READ:return diameter(r,f,fp);
  case NS_LIGHT_RADIUS_MULSS_READ:case NS_LIGHT_RADIUS_MOVSS_READ:
   if(!r->fullbright.light||f->rbx<0x80||f->rbx-0x80!=r->fullbright.light)return 0;

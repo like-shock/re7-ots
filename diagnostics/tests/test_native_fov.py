@@ -93,11 +93,15 @@ int main(void){
  CHECK(native_settings_request(&options,NATIVE_SETTING_FULLBRIGHT,1));CHECK(native_settings_request(&options,NATIVE_SETTING_RGB,0x804020));CHECK(native_settings_request(&options,NATIVE_SETTING_BRIGHTNESS,2.5));
  CHECK(native_settings_request(&options,NATIVE_SETTING_CAMERA_BUTTON,0));CHECK(native_settings_request(&options,NATIVE_SETTING_SHOULDER_BUTTON,23));
  reset_runtime();CHECK(!r.hide_mia_hair&&r.custom_filter&&r.custom_shader==15&&r.fullbright.enabled&&r.fullbright.rgb==0x804020&&r.fullbright.brightness==2.5f&&r.controller.camera_button==0&&r.controller.shoulder_button==23);
- publish_dispatch(0);CHECK(atomic_load(&native_enabled)==4);
- native_runtime_set_hide_head(&r,0);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==3);
+ publish_dispatch(0);CHECK(atomic_load(&native_enabled)==12);
+ native_runtime_set_hide_head(&r,0);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==11);
  publish_dispatch(1);CHECK(atomic_load(&native_enabled)==1);
- native_runtime_set_controller_bindings(&r,-1,-1);publish_dispatch(0);CHECK(!atomic_load(&native_enabled));
- native_runtime_set_hide_head(&r,1);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==2);
+ native_runtime_set_controller_bindings(&r,-1,-1);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==8);
+ native_runtime_set_hide_head(&r,1);publish_dispatch(0);CHECK(atomic_load(&native_enabled)==10);
+ CHECK(native_runtime_set_fullbright(&r,0,0xffffff,1));publish_dispatch(0);CHECK(atomic_load(&native_enabled)==2);
+ native_runtime_set_hide_head(&r,0);publish_dispatch(0);CHECK(!atomic_load(&native_enabled));
+ CHECK(native_runtime_set_fullbright(&r,1,0xffffff,1));
+ atomic_store(&dispatch_fault,1);publish_dispatch(0);CHECK(!atomic_load(&native_enabled));
  atomic_store(&dispatch_fault,1);publish_dispatch(1);CHECK(!atomic_load(&native_enabled));
  puts("actual plugin F6 reinitialization: PASS");return 0;
 }

@@ -184,21 +184,44 @@ native_body_\n:
  .if (NATIVE_HEAD_ONLY_MASK & (1 << \n)) != 0
  cmpl $2,native_enabled(%rip)
  je .Ldispatch\n
+ cmpl $10,native_enabled(%rip)
+ je .Ldispatch\n
  cmpl $4,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
  je .Ldispatch\n
  .endif
  .if (NATIVE_INPUT_ONLY_MASK & (1 << \n)) != 0
  cmpl $3,native_enabled(%rip)
  je .Ldispatch\n
+ cmpl $11,native_enabled(%rip)
+ je .Ldispatch\n
  cmpl $4,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
  je .Ldispatch\n
  .endif
  .else
  .if (NATIVE_INPUT_ONLY_HIGH_MASK & (1 << (\n-64))) != 0
  cmpl $3,native_enabled(%rip)
  je .Ldispatch\n
+ cmpl $11,native_enabled(%rip)
+ je .Ldispatch\n
  cmpl $4,native_enabled(%rip)
  je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
+ je .Ldispatch\n
+ .endif
+ .endif
+ .if \n < 64
+ .if (NATIVE_FULLBRIGHT_ONLY_MASK & (1 << \n)) != 0
+ testl $NATIVE_FULLBRIGHT_MODE,native_enabled(%rip)
+ jnz .Ldispatch\n
+ .endif
+ .else
+ .if (NATIVE_FULLBRIGHT_ONLY_HIGH_MASK & (1 << (\n-64))) != 0
+ testl $NATIVE_FULLBRIGHT_MODE,native_enabled(%rip)
+ jnz .Ldispatch\n
  .endif
  .endif
  jmp native_prepare_original_\n

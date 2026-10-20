@@ -1,10 +1,13 @@
-# RE7 OTS Native 0.1.10 — 원본 네이티브 이식 실험 빌드
+# RE7 OTS Native 0.1.11 — 원본 네이티브 이식 실험 빌드
 
 원본 RE7 Third-Person OTS RT 8.02 CT의 카메라와 조사 대상 처리를 네이티브 코드로
 옮긴 **실제 3인칭 플레이 시험용 빌드**입니다. 실행 직후에는 3인칭 카메라가 꺼져 있으며,
 **F6으로 3인칭을 켜고 끄고, F7로 어깨 방향을 바꿉니다.** 진단 로그는 자동 기록됩니다.
 
 설치된 모델 파일은 그대로 사용합니다. 0.1.10은 Mia 머리카락·강제 화면 필터·Fullbright·컨트롤러 단축키 설정을 추가합니다.
+0.1.11부터 Fullbright를 켜면 F6을 끈 일반 1인칭에서도 유지됩니다.
+머리 숨김·컨트롤러 단축키를 꺼도 독립적으로 작동하며, 게임을 다시 시작해도 설정이 유지됩니다.
+Fullbright 체크를 해제하면 원래 조명으로 돌아갑니다. 로딩 중에는 일시 중지합니다.
 기존 1인칭 얼굴 숨김은 사용자 확인이 완료됐으며 그대로 유지합니다.
 얼굴 숨김은 기본 ON이며, F6으로 3인칭을 꺼도 별도 설정에 따라 적용됩니다.
 다른 제작자의 모델 파일과 원본 CT는 이 ZIP에 포함하지 않습니다.
@@ -12,7 +15,7 @@
 전 구간 화면, 충돌 상황, FPS는 아직 확인할 항목입니다. 사용자는 0.1.0에서 손 문제,
 반복 시점 전환과 상호작용 버튼 위치가 해결됐고 가운데 시점도 개선된 것으로 보고했습니다.
 
-## 선택 기능 설정 (0.1.10)
+## 선택 기능 설정 (0.1.11)
 
 **Script Generated UI → RE7 OTS Native**에서 변경하면 자동 저장됩니다.
 예전 1·2·3줄 설정 파일의 근접무기·머리 숨김·광원 대비 선택은 그대로 유지합니다.
@@ -22,7 +25,7 @@
 | --- | --- |
 | Hide Mia Hair in First Person | ON. 부모 설정 Hide Head in First Person이 켜져 있을 때만 적용. 이 항목만 끄면 머리 숨김은 유지하고 Mia 머리카락은 표시 |
 | Force Custom Screen Shader / Custom Screen Shader | OFF / Main Menu(1). 원본 0~15 필터를 이름으로 선택. 빈사 효과가 우선하며 F6 ON에서 적용 |
-| Fullbright | OFF. 검사 대상 조명의 범위·색상과 전역 밝기를 원본 값으로 보정. F6 ON에서 적용 |
+| Fullbright | OFF. 검사 대상 조명의 범위·색상과 전역 밝기를 원본 값으로 보정. F6 ON/OFF 모두 적용 |
 | Fullbright Red / Green / Blue / Brightness | RGB 255·255·255, 밝기 1. RGB 각 0~255, 밝기 0~10. 끄면 기존 광원 대비 설정으로 복귀 |
 | Controller Camera Toggle / Controller Shoulder Switch | 둘 다 Unassigned. 원본 24개 버튼·스틱 방향 중 선택. Camera Toggle은 F6와 같고 Shoulder Switch는 F7과 같음 |
 

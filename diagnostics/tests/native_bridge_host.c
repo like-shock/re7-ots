@@ -35,11 +35,12 @@ int main(void){
  for(unsigned padding=0;padding<=8;padding+=8){game_stack_padding=padding;
  for(unsigned site=0;site<NATIVE_MAX_SITES;site++){
   want_site=site;test_hook=native_detours[site];native_trampolines[site]=(void*)test_original;native_returns[site]=(void*)test_handled;native_original_ips[site]=(void*)(uintptr_t)(UINT64_C(0x140000000)+site*0x1000);
-  for(unsigned path=0;path<6;path++){
-   native_enabled=path>=3?path-1:path!=0;handled=path==2;calls=0;exit_path=0;exercise();
+  for(unsigned path=0;path<10;path++){
+   native_enabled=path>=6?(unsigned[]){8,10,11,12}[path-6]:path>=3?path-1:path!=0;handled=path==2;calls=0;exit_path=0;exercise();
    unsigned head=site==6||site==7||site==15||site==23||site==32;
    unsigned input=site==7||site==14||site==23||site==25||site==69||site==70;
-   assert(calls==(path==5?(head||input):path==4?input:path==3?head:(path!=0)));assert(exit_path==(path==2?2:1));
+   unsigned light=site==7||site==14||site==23||site==25||site==42||(site>=71&&site<=77);
+   assert(calls==(path>=6?(light||((path==7||path==9)&&head)||((path==8||path==9)&&input)):path==5?(head||input):path==4?input:path==3?head:(path!=0)));assert(exit_path==(path==2?2:1));
    for(unsigned i=0;i<15;i++)assert(after_regs[i]==0x120000+i);
    assert((after_flags&0xcd5)==(0x646&0xcd5));assert(before_rsp==after_rsp);
    assert(!memcmp(before_fp,after_fp,512));

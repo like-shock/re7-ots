@@ -63,7 +63,7 @@ sources={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in s
 before=json.loads((root/'build/native-inputs-before.json').read_text())
 changed=[name for name,digest in sources.items() if before.get(name)!=digest]
 assert not changed, 'Sources changed during native build: '+', '.join(changed)
-info={'schema':1,'version':'0.1.10','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL',
+info={'schema':1,'version':'0.1.11','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL',
       'commit':commit,'source_commit':commit,
       'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=normal'],text=True)),
       'game_data_writes':True,'game_writes':True,'code_patches':True,'face_hiding':True,

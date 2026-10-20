@@ -9,13 +9,16 @@ static unsigned char mem[0x10000],fp[1024],saved_fp[1024];
 static union{NativeFrame frame;unsigned char full[392];} frame;
 #define f frame.frame
 static NativeFrame saved;static NativeRuntime r;static uint64_t bad,change_at,root;
-static unsigned writes,fail_write;static int changed;
+static unsigned writes,fail_write;static int changed,live_roots;
 static void put(uint64_t a,const void*v,size_t n){CHECK(a>=M&&a-M+n<=sizeof mem);memcpy(mem+a-M,v,n);}
 static void u32(uint64_t a,uint32_t v){put(a,&v,4);}static void u64(uint64_t a,uint64_t v){put(a,&v,8);}
 static uint32_t bits(float v){uint32_t u;memcpy(&u,&v,4);return u;}
 static uint32_t get(uint64_t a){uint32_t v;memcpy(&v,mem+a-M,4);return v;}
 static int rd(void*c,uint64_t a,void*out,size_t n){
  (void)c;if(a==bad)return 0;
+ if(live_roots&&n==8&&(a==BASE+0x8fb8018||a==BASE+0x8fbb610)){
+  uint64_t value=a==BASE+0x8fb8018?M+0xc000:M+0xd000;memcpy(out,&value,8);return 1;
+ }
  if(a==BASE+0x8ff2848&&n==8){memcpy(out,&root,8);return 1;}
  if(a<M||a-M>=sizeof mem||n>sizeof mem-(a-M))return 0;
  memcpy(out,mem+a-M,n);if(a==change_at&&!changed){u32(M+0x1068,0);changed=1;}return 1;
@@ -30,7 +33,7 @@ static void ready(void){r.inputs.valid=RE7_INPUT_REQUIRED|RE7_INPUT_TIMER;
 static void setup(void){
  memset(mem,0,sizeof mem);memset(fp,0x53,sizeof fp);memset(&frame,0x72,sizeof frame);
  native_runtime_init(&r,BASE,rd,wr,0);native_controller_connections(&r,1,1);ready();native_use_xsave=1;fp[512]&=~2;
- bad=change_at=UINT64_MAX;writes=fail_write=changed=0;f.flags=0xed7;
+ bad=change_at=UINT64_MAX;writes=fail_write=changed=live_roots=0;f.flags=0xed7;
  f.rax=M+0x1000;f.rbx=M+0x1080;f.rcx=M+0x3000;f.rdi=M+0x2000;f.r14=M+0x4000;
  uint64_t rsp=M+0x8000;memcpy(frame.full+NATIVE_FRAME_GAME_RSP_OFFSET,&rsp,8);
  u32(M+0x1068,bits(150000));float data[16];for(unsigned j=0;j<16;j++){data[j]=(float)(j+1);}put(M+0x1080,data,sizeof data);u32(M+0x10d0,0xabcdef01);
@@ -73,6 +76,97 @@ static void consumers(void){
  r.view.firstpersonflag=1;native_runtime_set_light_contrast(&r,0);CHECK(call(NS_OLD_HOUSE_BRIGHTNESS_READ));CHECK(f.rax==0);
  CHECK(native_runtime_set_fullbright(&r,0,0xffffff,1));save();CHECK(!call(NS_OLD_HOUSE_BRIGHTNESS_READ));same();CHECK(!r.limit_light_contrast);
  native_runtime_set_light_contrast(&r,1);r.view.firstpersonflag=0;u32(f.r14+0x228,bits(1));CHECK(call(NS_OLD_HOUSE_BRIGHTNESS_READ));CHECK(f.rax==0x3f3c28f6);
+}
+/* Camera-off lighting must bootstrap from actual producers, even with head
+ * hiding and controller bindings OFF and no FOV/camera input ever observed. */
+static void fp_setup(void){
+ setup();re7_original_inputs_init(&r.inputs);native_runtime_set_camera_enabled(&r,0);
+ native_runtime_set_hide_head(&r,0);CHECK(native_runtime_set_fullbright(&r,1,0xffffff,1));
+ live_roots=1;u64(M+0xc0d8,M+0xc200);u64(M+0xc218,M+0xc400);
+ u64(M+0xd020,M+0xd200);u64(M+0xd288,M+0xd400);
+ u64(M+0xd410,M+0xd600);u64(M+0xd6a8,M+0xd800);
+ u32(M+0xe054,1);u32(M+0xe150,bits(2));
+}
+static void fp_producers(void){
+ save();CHECK(!call(NS_CUTSCENE_AUTOLOOK));same();CHECK(!writes);
+ f.rax=M+0xe000;save();CHECK(!call(NS_LOADED_AREA));same();
+ save();CHECK(!call(NS_TIMER_AOB));same();
+ f.rdi=M+0xe100;save();CHECK(!call(NS_BETTER_TIMER));same();
+ save();CHECK(!call(NS_TIMER_AOB));same();CHECK(!writes);
+ f.rax=M+0x1000;f.rbx=M+0x1080;
+}
+static void fullbright_fp(void){
+ fp_setup();save();CHECK(!call(NS_G_BRIGHTNESS_2));same();
+ fp_producers();CHECK(!r.inputs.ready&&r.view.firstpersonflag==1);
+ CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(native_get_xmm_scalar(fp,11)==150000.015625f);
+ CHECK(call(NS_LIGHT_RADIUS_MOVSS_READ));CHECK(native_get_xmm_scalar(fp,0)==1000);
+ CHECK(call(NS_GLOBAL_BRIGHTNESS));CHECK(native_get_xmm_scalar(fp,0)==.125f);
+ CHECK(call(NS_G_BRIGHTNESS_2));CHECK(native_get_xmm_scalar(fp,10)==.27f);
+ CHECK(call(NS_OLD_HOUSE_BRIGHTNESS_READ));CHECK(f.rax==0);
+ f.rsi=f.rbx=M+0x7f80;CHECK(call(NS_EXAMINE_LIGHT_CMP_1));CHECK(call(NS_EXAMINE_LIGHT_CMP_2));
+ CHECK(native_runtime_set_fullbright(&r,0,0xffffff,1));
+ save();for(unsigned site=71;site<78;site++){CHECK(!call(site));same();}
+ CHECK(!call(NS_OLD_HOUSE_BRIGHTNESS_READ));same();
+ CHECK(native_runtime_set_fullbright(&r,1,0x804020,2));fp_producers();f.rax=M+0x1000;
+ CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(native_get_xmm_scalar(fp,11)==150588.25f);
+ /* F6 ON then OFF retains the setting and still applies with no TP state. */
+ native_runtime_set_camera_enabled(&r,1);native_runtime_set_camera_enabled(&r,0);
+ CHECK(r.fullbright.enabled&&r.fullbright.rgb==0x804020&&r.fullbright.brightness==2);
+ save();CHECK(!call(NS_G_BRIGHTNESS_2));same();fp_producers();
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));
+ /* Nothing outside the independent lighting/observer sites may run. */
+ save();for(unsigned site=0;site<71;site++){
+  if(site==7||site==14||site==23||site==25||site==42)continue;
+  uint64_t before=r.stats.calls[site];CHECK(!call(site));same();CHECK(r.stats.calls[site]==before);
+ }CHECK(!writes);
+}
+static void fullbright_fp_loading(void){
+ fp_setup();fp_producers();CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(call(NS_GLOBAL_BRIGHTNESS));
+ /* A replaced aim owner invalidates light/shadow before the next timer. */
+ u64(M+0xd6a8,M+0xda00);CHECK(!call(NS_CUTSCENE_AUTOLOOK));
+ CHECK(!r.fullbright.light&&!r.fullbright.shadow_override);
+ f.rbx=M+0x1080;save();CHECK(!call(NS_LIGHT_RADIUS_MOVSS_READ));CHECK(!call(NS_OLD_HOUSE_BRIGHTNESS_READ));same();
+ fp_producers();CHECK(!call(NS_LIGHT_RADIUS_MOVSS_READ));
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(call(NS_GLOBAL_BRIGHTNESS));
+ /* A changed area also revokes cached consumers, despite a readable marker. */
+ u32(M+0xe054,2);f.rax=M+0xe000;CHECK(!call(NS_LOADED_AREA));
+ CHECK(!r.fullbright.light&&!r.fullbright.shadow_override);
+ CHECK(!call(NS_LIGHT_RADIUS_MOVSS_READ));CHECK(!call(NS_OLD_HOUSE_BRIGHTNESS_READ));
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));
+ bad=M+0xc430;CHECK(!call(NS_CUTSCENE_AUTOLOOK));CHECK(!r.fullbright.light);
+ save();CHECK(!call(NS_G_BRIGHTNESS_2));same();
+ bad=UINT64_MAX;fp_producers();CHECK(!call(NS_LIGHT_RADIUS_MOVSS_READ));
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));
+ /* Game timer below the original load-complete threshold cannot light menus. */
+ u32(M+0xe150,bits(0));f.rdi=M+0xe100;CHECK(!call(NS_BETTER_TIMER));
+ CHECK(!r.fullbright.light&&!r.fullbright.shadow_override);save();CHECK(!call(NS_GLOBAL_BRIGHTNESS));same();
+}
+static void fullbright_fp_nah(void){
+ fp_setup();u32(M+0xe054,35);u32(M+0xe4d4,bits(2));
+ CHECK(!call(NS_CUTSCENE_AUTOLOOK));f.rax=M+0xe000;CHECK(!call(NS_LOADED_AREA));
+ f.rbx=M+0xe200;CHECK(!call(NS_TIMER_AOB));save();CHECK(!call(NS_G_BRIGHTNESS_2));same();
+ CHECK(!call(NS_TIMER_AOB));CHECK(!(r.inputs.observed&(1ULL<<NS_BETTER_TIMER)));
+ CHECK(call(NS_G_BRIGHTNESS_2));CHECK(native_get_xmm_scalar(fp,10)==.27f);
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(call(NS_GLOBAL_BRIGHTNESS));
+ bad=M+0xe4d4;CHECK(!call(NS_TIMER_AOB));CHECK(!r.fullbright.light&&!r.fullbright.shadow_override);
+ save();CHECK(!call(NS_G_BRIGHTNESS_2));CHECK(!call(NS_OLD_HOUSE_BRIGHTNESS_READ));same();
+ bad=UINT64_MAX;CHECK(!call(NS_TIMER_AOB));CHECK(call(NS_G_BRIGHTNESS_2));
+ /* Player replacement, even with unchanged aim/area, releases cached light. */
+ f.rax=M+0x1000;CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));CHECK(call(NS_GLOBAL_BRIGHTNESS));
+ u64(M+0xc218,M+0xc600);CHECK(!call(NS_CUTSCENE_AUTOLOOK));
+ CHECK(!r.fullbright.light&&!r.fullbright.shadow_override);
+ f.rbx=M+0x1080;save();CHECK(!call(NS_LIGHT_RADIUS_MOVSS_READ));same();
+}
+static void fullbright_fp_reenable(void){
+ fp_setup();fp_producers();CHECK(call(NS_G_BRIGHTNESS_2));
+ CHECK(native_runtime_set_fullbright(&r,0,0xffffff,1));
+ /* All independent observers can stop with F6/head/controller OFF. */
+ live_roots=0;CHECK(!call(NS_CUTSCENE_AUTOLOOK));
+ CHECK(native_runtime_set_fullbright(&r,1,0xffffff,1));
+ save();CHECK(!call(NS_G_BRIGHTNESS_2));CHECK(!call(NS_GLOBAL_BRIGHTNESS));same();
+ live_roots=1;fp_producers();CHECK(call(NS_G_BRIGHTNESS_2));
+ /* Changing only RGB/brightness must not clear a live activation. */
+ CHECK(native_runtime_set_fullbright(&r,1,0x804020,2));CHECK(call(NS_G_BRIGHTNESS_2));
 }
 static void press_owner(unsigned button,int down,uint64_t owner){
  f.rax=f.rbx=owner;
@@ -117,4 +211,4 @@ static void off(void){
  native_runtime_set_camera_enabled(&r,0);native_runtime_set_hide_head(&r,0);CHECK(native_runtime_set_controller_bindings(&r,0,-1));ready();press(0,0);press(0,1);actions(1,0);
  CHECK(r.inputs.observed_high&(1ULL<<(NS_XINPUT_FLOATS-64)));save();CHECK(!call(NS_G_BRIGHTNESS_2));same();CHECK(!r.stats.calls[NS_G_BRIGHTNESS_2]);
 }
-int main(int argc,char**argv){CHECK(argc==2);if(!strcmp(argv[1],"shader"))shader();else if(!strcmp(argv[1],"light"))light();else if(!strcmp(argv[1],"identity"))identity();else if(!strcmp(argv[1],"consumers"))consumers();else if(!strcmp(argv[1],"buttons"))buttons();else if(!strcmp(argv[1],"controller_reset"))controller_reset();else if(!strcmp(argv[1],"off"))off();else if(!strcmp(argv[1],"reconnect"))reconnect();else if(!strcmp(argv[1],"owner_floats"))producer_owner(0);else if(!strcmp(argv[1],"owner_write"))producer_owner(16);else CHECK(0);return 0;}
+int main(int argc,char**argv){CHECK(argc==2);if(!strcmp(argv[1],"shader"))shader();else if(!strcmp(argv[1],"light"))light();else if(!strcmp(argv[1],"identity"))identity();else if(!strcmp(argv[1],"consumers"))consumers();else if(!strcmp(argv[1],"fullbright_fp"))fullbright_fp();else if(!strcmp(argv[1],"fullbright_fp_loading"))fullbright_fp_loading();else if(!strcmp(argv[1],"fullbright_fp_nah"))fullbright_fp_nah();else if(!strcmp(argv[1],"fullbright_fp_reenable"))fullbright_fp_reenable();else if(!strcmp(argv[1],"buttons"))buttons();else if(!strcmp(argv[1],"controller_reset"))controller_reset();else if(!strcmp(argv[1],"off"))off();else if(!strcmp(argv[1],"reconnect"))reconnect();else if(!strcmp(argv[1],"owner_floats"))producer_owner(0);else if(!strcmp(argv[1],"owner_write"))producer_owner(16);else CHECK(0);return 0;}
