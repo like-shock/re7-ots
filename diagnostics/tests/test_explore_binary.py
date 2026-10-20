@@ -21,7 +21,7 @@ class ExploreBinaryTests(unittest.TestCase):
    while struct.unpack_from('<Q',b,q)[0]:
     t=struct.unpack_from('<Q',b,q)[0];self.assertFalse(t>>63);imports.append(cstr(raw(t)+2));q+=8
    p+=20
-  self.assertEqual(set(deps),{'KERNEL32.dll','USER32.dll'})
+  self.assertEqual(set(deps),{'KERNEL32.dll','USER32.dll','msvcrt.dll'})
   self.assertFalse(set(imports)&{'WriteProcessMemory','VirtualProtect','VirtualProtectEx','CreateRemoteThread','LoadLibraryA','LoadLibraryW','GetProcAddress','WinHttpOpen','WSAStartup'})
   self.assertIn('ReadProcessMemory',imports);self.assertIn('Sleep',imports);self.assertIn('MoveFileExW',imports)
   p=raw(u32(op+112));q=raw(u32(p+32));names=[cstr(raw(u32(q+4*i))) for i in range(u32(p+24))]

@@ -14,12 +14,19 @@ function M.distance(a,b)
     return math.sqrt(x*x+y*y+z*z)
 end
 function M.settings(input)
-    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15}
+    local c={schema=1,distance=0.9,shoulder=0.25,height=0.15,ethan_head=false,full_model_pack=false,
+        collision=false,collision_clearance=0.12,aim_release_delay=0.5,entry_blend=0.15,early_camera=false,prompt_correction=true}
     if type(input)~='table' or input.schema~=1 then return c end
-    for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6}}) do
+    for _,v in ipairs({{'distance',0.2,2},{'shoulder',-0.6,0.6},{'height',-0.3,0.6},
+        {'collision_clearance',0.03,0.3},{'aim_release_delay',0,1.5},{'entry_blend',0.05,0.8}}) do
         local x=input[v[1]]
         if M.finite(x,1000000) then c[v[1]]=math.max(v[2],math.min(v[3],x)) end
     end
+    c.ethan_head=input.ethan_head==true
+    c.full_model_pack=input.full_model_pack==true
+    c.collision=input.collision==true
+    c.early_camera=input.early_camera==true
+    c.prompt_correction=input.prompt_correction~=false
     return c
 end
 function M.offset(p,q,c,blend)
@@ -64,17 +71,20 @@ local function health(s)
 end
 function M.new()
     local self={reason='WAIT_NATIVE',native=nil}
-    function self:suspend(reason)
+    function self:suspend(reason,evidence)
         self.stable_at=nil;self.stable_tick=nil;self.reason=reason
+        self.reset_evidence=evidence or {cause=reason}
     end
     function self:ingest(s,t)
         if not M.finite(t,9007199254740991) or not envelope(s) then
-            self.native=nil;self.fresh=false;self:suspend('WAIT_NATIVE_INVALID');return
+            self.native=nil;self.fresh=false;self.player_step=nil
+            self:suspend('WAIT_NATIVE_INVALID',{cause='INVALID_SNAPSHOT'});return
         end
         local why=health(s)
         if self.session~=s.session then
             self.session=s.session;self.seq=s.seq;self.tick=s.tick_ms;self.changed_at=t
             self.native=s;self.fresh=false;self.generations=nil;self.previous_player=nil
+            self.last_aim_at=why=='FIRST_PERSON_AIM' and t or nil
             self:suspend(why or 'WAIT_HEARTBEAT');return
         end
         -- Validation/terminal snapshots have no new gameplay sample number.
@@ -88,25 +98,45 @@ function M.new()
             if why then self.native=s;self:suspend(why) end
             return
         end
-        local gap=not self.fresh or t-self.changed_at>0.35 or s.tick_ms-self.tick>350 or t+1e-9<self.changed_at
+        local was_fresh=self.fresh
+        local poll_gap,native_gap=t-self.changed_at,s.tick_ms-self.tick
+        local clock_rollback=t+1e-9<self.changed_at
+        local gap=not was_fresh or poll_gap>0.35 or native_gap>350 or clock_rollback
         self.seq=s.seq;self.tick=s.tick_ms;self.changed_at=t;self.fresh=true;self.native=s
-        if why then self.previous_player=nil;self:suspend(why);return end
+        if why=='FIRST_PERSON_AIM' then self.last_aim_at=t end
+        if why then self.previous_player=nil;self.player_step=nil;self:suspend(why);return end
         local generations=s.player.generation..':'..s.aim.generation..':'..s.inventory.generation
-        local jump=self.previous_player and M.distance(self.previous_player,s.player.xyz)>5
+        self.player_step=self.previous_player and M.distance(self.previous_player,s.player.xyz) or nil
+        local jump=self.player_step and self.player_step>5
         self.previous_player={s.player.xyz[1],s.player.xyz[2],s.player.xyz[3]}
-        if gap or generations~=self.generations or jump then self:suspend(jump and 'WAIT_PLAYER_JUMP' or 'WARMUP') end
+        if gap or generations~=self.generations or jump then
+            local cause=jump and 'PLAYER_JUMP' or clock_rollback and 'CLOCK_ROLLBACK'
+                or native_gap>350 and 'NATIVE_GAP' or poll_gap>0.35 and 'POLL_GAP'
+                or generations~=self.generations and 'GENERATION_CHANGED' or 'RESUME'
+            -- Keep the original failure across normal recovery polling.
+            local evidence=not was_fresh and not jump and self.reset_evidence
+                or {cause=cause,native_gap_ms=native_gap,poll_gap_s=poll_gap,
+                    generation_changed=generations~=self.generations,player_jump=jump==true}
+            self:suspend(jump and 'WAIT_PLAYER_JUMP' or 'WARMUP',evidence)
+        end
         self.generations=generations
         if not self.stable_at then self.stable_at=t;self.stable_tick=s.tick_ms end
         self.reason=jump and 'WAIT_PLAYER_JUMP' or 'WARMUP'
     end
-    function self:ready(t)
+    function self:ready(t,settings)
         if not self.fresh or not self.native then return false,self.reason end
         if t+1e-9<self.changed_at or t-self.changed_at>0.35 then
-            self.fresh=false;self:suspend('WAIT_NATIVE_STALE');return false,self.reason
+            local evidence={cause=t+1e-9<self.changed_at and 'CLOCK_ROLLBACK' or 'STALE_HEARTBEAT',poll_gap_s=t-self.changed_at}
+            self.fresh=false;self:suspend('WAIT_NATIVE_STALE',evidence);return false,self.reason
         end
         if not self.stable_at then return false,self.reason end
         if t-self.stable_at<0.5-1e-9 or self.tick-self.stable_tick<500 then return false,self.reason end
-        return true,'READY'
+        local delay=M.settings(settings).aim_release_delay
+        if self.last_aim_at and t-self.last_aim_at<delay-1e-9 then
+            self.reason='WAIT_AIM_RELEASE';return false,self.reason
+        end
+        self.reason='READY'
+        return true,self.reason
     end
     return self
 end

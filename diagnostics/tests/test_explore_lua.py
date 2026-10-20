@@ -4,7 +4,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 FIXTURE="""
 local function snapshot(n)
- return {schema=1,version='0.3.0',session='re7_explore_2026_10_13_1000_42',phase='MONITORING',build='KNOWN_EXE_HASH_AND_PE',seq=n,tick_ms=1000+n*100,foreground=true,
+ return {schema=1,version='0.3.0',monitor_version='0.3.1',publication={failures=0,last_error=0},session='re7_explore_2026_10_13_1000_42',phase='MONITORING',build='KNOWN_EXE_HASH_AND_PE',seq=n,tick_ms=1000+n*100,foreground=true,
  player={status='READABLE_CANDIDATE',generation=1,xyz={1,2,3}},
  aim={status='READABLE_CANDIDATE',generation=1,raw=0},
  inventory={status='READABLE_CANDIDATE',generation=1,raw=0},
@@ -71,11 +71,30 @@ local j=Journal.new(io_mock,json_mock,'test/',{kind='header'},1024)
 class ExploreAdapterTests(unittest.TestCase):
  def adapter(self,tail,before=''):
   parts=[]
-  for name in ['core','journal','adapter']:
-   p=ROOT/f'lua/explore/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
-   s=p.read_text();parts.append(s if name=='adapter' else 'local '+('Core' if name=='core' else 'Journal')+'=(function()\n'+s+'\nend)()')
+  for name,symbol in [('explore/transport','Transport'),('explore/core','Core'),('explore/journal','Journal'),('explore/trace','Trace'),
+                      ('model/visibility','Visibility'),('model/ethan','Ethan'),('model/session','HeadSession'),
+                      ('model/group','ModelGroup'),
+                      ('explore/physics','Physics'),('explore/obstacle','Obstacle'),
+                      ('explore/probe','Probe'),('explore/prompt','Prompt'),
+                      ('explore/adapter',None)]:
+   p=ROOT/f'lua/{name}.lua';self.assertTrue(p.exists(),name+' not implemented')
+   s=p.read_text();parts.append(s if symbol is None else 'local '+symbol+'=(function()\n'+s+'\nend)()')
   harness=(ROOT/'tests/explore_lua_harness.lua').read_text()
   run_lua(FIXTURE+harness.replace('-- INSERT ADAPTER HERE',before+'\n'+'\n'.join(parts))+tail)
+ def test_f6_off_is_honored_during_invalid_stale_menu_and_focus_loss(self):
+  for change in ["fail_json=true", "menu_open=true", "tick=tick+1", "fixture.foreground=false"]:
+   with self.subTest(change=change):
+    self.adapter("start();tick=tick+0.1;"+change+""";key=true;phase='frame';callbacks.frame()
+phase='update';callbacks.UpdateBehavior();phase='lock';callbacks.LockScene();phase='frame'
+key=false;fail_json=false;menu_open=false
+for i=1,12 do step() end
+assert(near(position[3],3),'OFF must survive recovery')
+""")
+ def test_repeated_lockscene_preserves_native_fallback_reason(self):
+  self.adapter("""start();tick=tick+0.1;seq=seq+1;fixture=snapshot(seq);fixture.aim.raw=1
+phase='frame';callbacks.frame();phase='lock';callbacks.LockScene();phase='frame'
+assert(near(position[3],3));assert(ui():find('State: FIRST_PERSON_AIM',1,true))
+""")
  def test_default_off_enable_follow_and_restore_without_drift(self):
   self.adapter("""for i=1,20 do step() end;assert(set_calls==0,'OFF despite enabled in saved config')
 key=true;step();key=false;for i=1,10 do step() end
@@ -117,6 +136,17 @@ assert(ui():find('FAULT',1,true),'ownership conflict must stay visible')
   self.adapter("""start();fail_json=true;step();assert(near(position[3],3));fail_json=false;for i=1,12 do step() end;assert(near(position[3],4))
 nil_camera=true;step();nil_camera=false;position={1,3,3};for i=1,12 do step() end;assert(near(position[3],4));fail_io=true;for i=1,6 do step() end;assert(near(position[3],4),'log failure must not corrupt camera');assert(ui():find('ERROR',1,true))
 tick=tick+1;phase='frame';callbacks.frame();phase='update';callbacks.UpdateBehavior();phase='lock';callbacks.LockScene();assert(near(position[3],3))
+""")
+ def test_malformed_player_cannot_block_fallback_or_reset(self):
+  for value in ['17','true','"bad"','nil','{generation={}}']:
+   for reset in [False,True]:
+    with self.subTest(value=value,reset=reset):
+     action=("tick=tick+0.1;seq=seq+1;fixture=snapshot(seq);fixture.player="+value+
+             ";phase='frame';callbacks.frame();phase='reset';callbacks.reset()" if reset else
+             "step(function(s) s.player="+value+" end)")
+     self.adapter("start();assert(near(position[3],4));"+action+"""
+assert(near(position[3],3),'invalid player must restore camera with head mode disabled')
+assert(not ui():find('FAULT_CALLBACK_EXCEPTION',1,true))
 """)
  def test_missing_update_callback_never_applies(self):
   self.adapter("""for i=1,10 do step(nil,true) end;key=true;step(nil,true);key=false;for i=1,15 do step(nil,true) end;assert(set_calls==0);assert(ui():find('CALLBACK',1,true))""")

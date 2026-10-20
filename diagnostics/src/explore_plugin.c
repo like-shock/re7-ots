@@ -2,6 +2,8 @@
 #include "win_min.h"
 #include "ref_min.h"
 #include "observer.h"
+#include "native_lua.h"
+#include <stdatomic.h>
 #ifdef DIAG_HOST_TEST
 #define EXPORT
 #else
@@ -15,10 +17,17 @@ WIN_IMPORT u32 WINAPI GetCurrentProcessId(void);
 WIN_IMPORT BOOL WINAPI MoveFileExW(const WCHAR*,const WCHAR*,u32);
 #define PATH_CAP 32768u
 #define BUF_CAP 8192u
-#define EXP_VERSION "0.3.0"
+#define EXP_VERSION "0.4.0"
+#define EXP_PROTOCOL "0.3.0"
 #define EXP_MAX_MS 43200000ULL
 static const REFFunctions*ref;
 static int initialized;
+static _Atomic u32 publish_failures,last_publish_error;
+/* Release/acquire publishes immutable metadata. Each consumer owns its ObsState. */
+static _Atomic int native_phase; /* 0 validating, 1 monitoring, 2 unsupported, 3 limit */
+static u64 validated_base,validated_start;
+static const char *validation_error;
+static atomic_flag direct_lock=ATOMIC_FLAG_INIT;
 static char marker,session[96];
 static WCHAR exe_path[PATH_CAP],folder[PATH_CAP],status_path[PATH_CAP],temp_path[PATH_CAP];
 static u8 hash_buffer[1024*1024],pe_header[65536];
@@ -69,41 +78,82 @@ static int setup_paths(void){
 }
 static int publish(const Buffer*b){
  HANDLE f=CreateFileW(temp_path,GENERIC_WRITE,7,0,2,FILE_ATTRIBUTE_NORMAL,0);
- if(f==INVALID_HANDLE)return 0;
- int ok=write_all(f,b);if(!CloseHandle(f))ok=0;
+ if(f==INVALID_HANDLE){last_publish_error=GetLastError();publish_failures++;return 0;}
+ int ok=write_all(f,b);u32 error=ok?0:GetLastError();
+ if(!CloseHandle(f)){if(ok)error=GetLastError();ok=0;}
  /* Readers see either complete snapshot. Failure leaves the previous heartbeat stale. */
- return ok&&MoveFileExW(temp_path,status_path,1);
+ if(ok&&!MoveFileExW(temp_path,status_path,1)){error=GetLastError();ok=0;}
+ if(!ok){publish_failures++;last_publish_error=error;}
+ return ok;
 }
 static int foreground(void){u32 pid=0;void*w=GetForegroundWindow();if(w)GetWindowThreadProcessId(w,&pid);return pid==GetCurrentProcessId();}
 static void common(Buffer*b,const char*phase,u32 seq,u64 tick){
- diag_zero(b,sizeof *b);add(b,"{\"schema\":1,\"version\":\"" EXP_VERSION "\",\"session\":");quote(b,session);
+ diag_zero(b,sizeof *b);add(b,"{\"schema\":1,\"version\":\"" EXP_PROTOCOL "\",\"monitor_version\":\"" EXP_VERSION "\",\"session\":");quote(b,session);
  add(b,",\"phase\":");quote(b,phase);add(b,",\"seq\":");number(b,seq);add(b,",\"tick_ms\":");number(b,tick);
  add(b,",\"foreground\":");add(b,foreground()?"true":"false");
+ /* Completed attempts only: this snapshot's own publication is not known yet. */
+ add(b,",\"publication\":{\"failures\":");number(b,publish_failures);
+ add(b,",\"last_error\":");number(b,last_publish_error);add(b,"}");
+}
+static void sample_json(Buffer*b,const ObsSample*s,u32 seq,u64 tick){
+  common(b,"MONITORING",seq,tick);add(b,",\"build\":\"KNOWN_EXE_HASH_AND_PE\"");
+  value(b,"player",&s->player,1);value(b,"aim",&s->aim,0);value(b,"inventory",&s->inventory,0);
+  add(b,",\"interact\":{\"status\":");quote(b,obs_status_name(s->interact.status));add(b,",\"slot_hex\":");if(s->interact.status==OBS_OK)hex(b,s->interact.raw);else add(b,"null");
+  add(b,",\"ct_low16_nonzero\":");add(b,s->interact.status!=OBS_OK?"null":(s->interact.raw&0xFFFF)?"true":"false");
+  add(b,",\"ct_low32_nonzero\":");add(b,s->interact.status!=OBS_OK?"null":(s->interact.raw&0xFFFFFFFF)?"true":"false");add(b,"}}\n");
+}
+double native_clock(void){return (double)GetTickCount64()/1000.0;}
+size_t native_read_snapshot(char *out,size_t cap){
+ if(!out||cap<BUF_CAP||atomic_flag_test_and_set_explicit(&direct_lock,memory_order_acquire))return 0;
+ static ObsState state;static Buffer cached;static u64 previous_tick;static u32 seq;
+ static int previous_phase=-1;
+ u64 tick=GetTickCount64();int phase=atomic_load_explicit(&native_phase,memory_order_acquire);
+ if(phase==1&&tick-validated_start>=EXP_MAX_MS)phase=3;
+ if(phase!=previous_phase||tick!=previous_tick){
+  if(phase==1){ObsSample sample;obs_sample(read_memory,0,validated_base,1,&state,&sample);sample_json(&cached,&sample,++seq,tick);}
+  else {common(&cached,phase==0?"VALIDATING":phase==2?"UNSUPPORTED":"LIMIT",seq,tick);
+   if(phase==2){add(&cached,",\"reason\":");quote(&cached,validation_error);}
+   if(phase==3)add(&cached,",\"reason\":\"TWELVE_HOUR_MONITOR_LIMIT\"");
+   add(&cached,"}\n");}
+  previous_tick=tick;previous_phase=phase;
+ }
+ size_t n=cached.failed?0:cached.n;if(n)diag_copy(out,cached.data,n);
+ atomic_flag_clear_explicit(&direct_lock,memory_order_release);return n;
+}
+static void lua_created(void *state){
+ /* Follow the official example's Lua lock; no sampling lock spans any Lua API. */
+ int locked=ref->lock_lua&&ref->unlock_lua;if(locked)ref->lock_lua();
+ int ok=native_lua_register(state);
+ if(locked)ref->unlock_lua();
+ if(!ok)message(1,"Native Lua API unavailable; requires compatible Lua 5.4");
+}
+static int setup_session(void){
+ Buffer b;SYSTEMTIME t;GetLocalTime(&t);diag_zero(&b,sizeof b);add(&b,"re7_explore_");
+ number(&b,t.year);add(&b,"_");number(&b,t.month);add(&b,"_");number(&b,t.day);add(&b,"_");number(&b,GetTickCount64());add(&b,"_");number(&b,GetCurrentProcessId());
+ if(b.failed||b.n>=sizeof session)return 0;
+ diag_copy(session,b.data,b.n);session[b.n]=0;return 1;
 }
 static u32 WINAPI monitor(void*unused){
  (void)unused;SetThreadPriority(GetCurrentThread(),-1);
- static Buffer b;SYSTEMTIME t;GetLocalTime(&t);diag_zero(&b,sizeof b);add(&b,"re7_explore_");
- number(&b,t.year);add(&b,"_");number(&b,t.month);add(&b,"_");number(&b,t.day);add(&b,"_");number(&b,GetTickCount64());add(&b,"_");number(&b,GetCurrentProcessId());
- if(b.failed||b.n>=sizeof session){message(1,"Session identifier overflow");return 0;}
- diag_copy(session,b.data,b.n);session[b.n]=0;
+ static Buffer b;
  common(&b,"VALIDATING",0,GetTickCount64());add(&b,"}\n");int publication_failed=!publish(&b);
  if(publication_failed)message(1,"Initial status publication failed; monitor will retry");
  char digest[65]={0};u64 base=(u64)(usize)GetModuleHandleW(0);const char*error=validate_build(base,digest);
- if(error){common(&b,"UNSUPPORTED",0,GetTickCount64());add(&b,",\"reason\":");quote(&b,error);add(&b,"}\n");if(!publish(&b))message(1,"Unsupported-build status publication failed");return 0;}
+ if(error){validation_error=error;atomic_store_explicit(&native_phase,2,memory_order_release);common(&b,"UNSUPPORTED",0,GetTickCount64());add(&b,",\"reason\":");quote(&b,error);add(&b,"}\n");if(!publish(&b))message(1,"Unsupported-build status publication failed");return 0;}
  ObsState state;diag_zero(&state,sizeof state);u64 start=GetTickCount64();u32 seq=0;
+ validated_base=base;validated_start=start;atomic_store_explicit(&native_phase,1,memory_order_release);
  while(GetTickCount64()-start<EXP_MAX_MS){
   ObsSample s;obs_sample(read_memory,0,base,1,&state,&s);
-  common(&b,"MONITORING",++seq,GetTickCount64());add(&b,",\"build\":\"KNOWN_EXE_HASH_AND_PE\"");
-  value(&b,"player",&s.player,1);value(&b,"aim",&s.aim,0);value(&b,"inventory",&s.inventory,0);
-  add(&b,",\"interact\":{\"status\":");quote(&b,obs_status_name(s.interact.status));add(&b,",\"slot_hex\":");if(s.interact.status==OBS_OK)hex(&b,s.interact.raw);else add(&b,"null");
-  add(&b,",\"ct_low16_nonzero\":");add(&b,s.interact.status!=OBS_OK?"null":(s.interact.raw&0xFFFF)?"true":"false");
-  add(&b,",\"ct_low32_nonzero\":");add(&b,s.interact.status!=OBS_OK?"null":(s.interact.raw&0xFFFFFFFF)?"true":"false");add(&b,"}}\n");
+  sample_json(&b,&s,++seq,GetTickCount64());
   int published=publish(&b);
   if(!published&&!publication_failed)message(1,"Status publication failed; retrying while camera heartbeat expires");
   if(published&&publication_failed)message(0,"Status publication recovered");
   publication_failed=!published;
-  Sleep(published?50:250);
+  /* A failed atomic replace must not slow the next fresh sample. Two 250ms
+     backoffs exceeded Lua's 350ms heartbeat limit even for brief contention. */
+  Sleep(50);
  }
+ atomic_store_explicit(&native_phase,3,memory_order_release);
  common(&b,"LIMIT",seq,GetTickCount64());add(&b,",\"reason\":\"TWELVE_HOUR_MONITOR_LIMIT\"}\n");if(!publish(&b))message(1,"Limit status publication failed");return 0;
 }
 EXPORT void reframework_plugin_required_version(REFVersion*v){v->major=1;v->minor=0;v->patch=0;v->game_name="RE7";}
@@ -111,9 +161,10 @@ EXPORT _Bool reframework_plugin_initialize(const REFInit*p){
  if(initialized)return 1;
  if(!p||!p->functions)return 0;
  ref=p->functions;
- if(!setup_paths()){message(1,"Wrong executable or cannot create Explore folder");return 0;}
+ if(!setup_paths()||!setup_session()){message(1,"Wrong executable or cannot create Explore folder");return 0;}
  HMODULE self;if(!GetModuleHandleExW(5,(const WCHAR*)&marker,&self))return 0;
  initialized=1;HANDLE thread=CreateThread(0,0,monitor,0,0,0);
  if(!thread){initialized=0;message(1,"Monitor thread creation failed");return 0;}CloseHandle(thread);
+ if(!ref->on_lua_created||!ref->on_lua_created(lua_created))message(1,"Lua callback unavailable; legacy file transport only");
  message(0,"v" EXP_VERSION " monitor started automatically. Lua camera starts OFF; F6 toggles.");return 1;
 }

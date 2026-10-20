@@ -2,17 +2,167 @@
 
 Experimental over-the-shoulder camera for Resident Evil 7, built with REFramework for Steam Deck.
 
-## Current version: Explore v0.3.0
+**Current priority: native port of the original RT 8.02 control paths.**
+First-person face hiding is optional and is not a prerequisite for that port.
+The [Native OTS 0.1.12 device build](diagnostics/native/README_KO.md) connects
+78 original instruction sites for actual camera, focus, firing, inspection,
+collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
+It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
+backs up Explore/Probe and preserves installed model assets. Automatic bounded
+diagnostics accompany the gameplay test; a separate Probe run is not required.
+The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
+**Auto-Disable with Melee Weapons**. It defaults to the original ON behavior;
+changes are saved automatically and retained across game restart/F6 resets.
+OFF removes only the melee-weapon transition condition. Other automatic transitions
+and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.12 preserves Fullbright radius correction when unrelated scene
+lights are processed between its light and radius hooks. Invalid/unreadable
+targets and loading still suspend that correction. This fixes a reproduced
+source-port discrepancy; the reported distant block-shaped lighting during
+camera rotation still needs confirmation in the game.
+Version 0.1.11 lets Fullbright remain enabled in first person with F6 OFF,
+including a fresh game start with head hiding and controller shortcuts disabled.
+Its existing checkbox controls both camera modes; loading and missing required
+player/timer inputs suspend lighting until valid observations return.
+Version 0.1.10 adds independently configurable Mia hair hiding (ON under the
+parent head option), forced custom shader (OFF, shader1), Fullbright (OFF,
+white RGB/brightness1), and two unassigned controller shortcuts with 24 named
+source inputs. Fullbright temporarily overrides shadow darkening without
+rewriting the saved contrast preference. The worker checks XInput connection
+changes before consuming button edges; reconnect/load/rebind requires release
+then press. Controller camera toggle also works with F6/head hiding OFF.
+Version 0.1.9 adds original menu FOV and running FOV defaults: third-person
+run widening uses 20%, 7-second increase and 0.7-second decay; first-person run
+widening and custom FOV stay OFF. Aim/cutscene ratios follow source policy.
+REFramework FOV writes immediately return control, with a three-frame grace
+before replacement resumes. Engine stores are suppressed only after a live,
+validated replacement; F6, loading and pointer changes release that control.
+Steam Deck FOV visuals remain pending.
+Version 0.1.8 ports the Not A Hero HUD: third-person hiding preserves oxygen,
+contamination indicators, filter/night-vision/RAMROD notices and original story
+transmissions. Ammo-only transitions retain the original one-frame hide. HUD
+owners are revalidated, loading preserves story entry rules, and F6 or area
+changes require fresh observations. Steam Deck HUD visuals remain pending.
+Version 0.1.7 adds original blood coverage and hurt-filter defaults. Blood uses
+source x87 HP/10 rounding and unsigned threshold bits (FP100/TP0); puzzle blood
+cancellation takes priority. Hurt filters use FP0/TP2 and the original forced
+comparison flags. Head concealment remains for the source two-tick delay when
+leaving the stopped-blood interaction state. HP and head targets are revalidated;
+loading, missing inputs and F6 clear this temporary authority. Independent F6-off
+head hiding remains available. Steam Deck visuals remain pending.
+Version 0.1.6 connects Critter item detection to EOZ camera policy, suppresses
+third-person vignette and ordinary chromatic distortion, preserves psycho intensity
+at first-person 1x/third-person 2x, and restores the original NAH aiming crosshair
+and third-person critical-health effect policy. Loading, missing inputs and F6 reset
+transient item/psycho state. Steam Deck screen checks remain pending.
+Version 0.1.5 adds the original default flashlight position/brightness/beam/steady
+corrections, player-focused environmental audio, third-person head-bob suppression,
+cutscene blur suppression and targeted VHS filters. Original first-person, menu
+and transition exceptions are preserved. Steam Deck visual/audio checks remain pending.
+Version 0.1.4 adds **Limit Light Source Contrast in Third Person**, default ON, from
+original v7.17/RT 8.02. It caps the original light-contrast read at 0.735 in third
+person, with a saved ON/OFF comparison option and sample/application diagnostics.
+First person and F6 OFF retain the original read. Existing melee/head preferences
+migrate unchanged. This is separate from flashlight shadows and does not modify
+RELit, materials or RGB. Its effect on the reported dark character is unverified.
+Version 0.1.3 adds **Hide Head in First Person**, default ON and saved independently,
+including with F6 camera OFF. It uses the original neck/head/helmet transform writes,
+flashlight head-shadow and present-Mia hair targets, with live ownership checks.
+Third-person frames skip this concealment path. No broad SDK model scanning is added.
+Natural playable Mia/Clancy/Chris/Joe/Zoe support has regression coverage and character
+state logging; complete visible models require the external full RT model pack.
+See [character support and model requirements](docs/NATIVE_CHARACTERS_KO.md).
+**2026-10-19 field report:** the user confirms first-person face concealment works.
+Other playable characters have not yet been tested; this does not validate all scenes or performance.
+See [integration scope and limitations (Korean)](docs/NATIVE_INTEGRATION_KO.md).
+Version 0.1.1 adds only the original third-person flashlight-shadow suppression
+path to investigate dark character rendering. It keeps camera, material, light-color,
+brightness and light-position behavior unchanged. This path targets the game's original
+flashlight, not custom RELit lights.
+The 2026-10-19 review recommends retaining it for the original flashlight self-shadow
+problem. It suppresses that flashlight's shadows in third person, independently of
+first-person face concealment. No RELit material/color workaround was added to Native.
+**2026-10-18 Native 0.1.0 field report:** the user confirms the wall-hand problem,
+repeated first-/third-person switching and displaced interaction prompts are resolved
+in the tested gameplay. Center alignment also appears corrected. The character now
+looked mostly dark, with an apparently inverted-color appearance.
+**Follow-up:** the user reports that the dark appearance persists with RELit's
+camera-attached light and normal color returns when RELit is disabled. This identifies
+RELit use as the trigger in the tested setup. The user then clarified that
+**Enable Shadows was already OFF** while the problem occurred; disabling that
+option is not a working remedy. The precise rendering cause remains unresolved.
+The user clarified that F8 disabled only the added light. This narrows the trigger
+to that light's contribution; it does not distinguish light placement, material
+response, or the game's exposure response to the changed illumination.
+FPS, aiming and remaining wall-clipping cases have not been confirmed by this report.
+See [field results and rendering investigation (Korean)](docs/NATIVE_INTEGRATION_KO.md).
+Explore remains available as the prior build.
 
+**Previous Explore field report, 2026-10-17:** third person is faster but remains slower than first person;
+the other reported issues have not improved. v0.5.9 is not a validated resolution.
+The [architecture reassessment (Korean)](docs/ARCHITECTURE_REASSESSMENT_KO.md) documents
+per-frame model churn, 31-layer obstacle queries, a consumer-delay fallback loop, and
+the criteria for a limited integration prototype. The subsequent native foundation is described in [migration notes](docs/NATIVE_FOUNDATION_KO.md).
+
+## Development version: Explore Lua v0.6.0-dev (native state bridge and persistent model visibility)
+
+- Direct native state/monotonic clock API, with explicit legacy-file compatibility.
+- Healthy OTS frames preserve model visibility; actual fallback still hides owned heads.
+- A render guard checks the final camera pose and handles a missed camera callback.
 - F6 toggles the exploration camera; every script load starts OFF.
-- Adjustable camera distance, shoulder offset and height.
+- Adjustable camera distance, shoulder offset and height; F7 swaps shoulders.
+- Configurable aim-release hold and camera return blend.
 - First-person fallback when aim, inventory, interaction or uncertain runtime state is detected.
-- Automatic bounded play logs.
+- Opt-in RT head visibility for eight model families, including separate Mia face/hair ownership.
+- First-person head hiding also disables each verified head material and preserves its original enable value.
+- Independently hide up to four verified Ethan head instances; restore each copy’s original display values in third person.
+- Identify render targets by their live components, independently of temporary resource/joint getter objects.
+- Use a bounded, owner-checked component chain when an array result lacks the indexed SDK API.
+- Share group validation within each callback instead of scanning the entire tree for every material write.
+- Bounded automatic evidence distinguishes multiple head objects from multiple mesh components and repeated references.
+- Optional experimental center-ray obstacle avoidance with immediate contraction and gradual recovery.
+- Collision fallback uses separate entry/release distances and 0.4 seconds of stable space before recovery.
+- F6 OFF remains effective during native outages, focus loss or an open menu.
+- Bounded camera/model transition events, periodic logs and an offline log summary tool.
+- Bounded same-poll retry for an empty/failed status read; indexed REFramework component arrays.
+- Optional earlier HUD-camera timing experiment, with read-only phase and wall-hand diagnostics.
 - Native state monitoring is read-only. Lua deliberately changes the current camera position through REFramework.
 
-**User-observed status:** body visible in third person; head/face absent. Intermittent first-person fallback reported during walking/stairs. Its cause is still unknown; obstruction by a pillar is an unconfirmed hypothesis. Aiming has not been tested with a gun.
+**User-observed status:** Ethan model visible in third person and both shoulders work. Open issues:
+displaced interaction prompts/center, hands behind the neck at walls, repeated FP/OTS transitions.
+The supplied v0.5.0 logs record seven invalid-native transitions while obstacle avoidance was OFF,
+and the head controller remained at component discovery. v0.5.1 corrects the array API mismatch and
+retries transient read failures; whether these eliminate the observed symptoms needs game evidence.
+Aiming has not been tested with a gun. The user reports no benefit from the earlier HUD-camera
+experiment, partial benefit from obstacle avoidance, and continued stationary FP/OTS switching.
+v0.5.2 addresses a reproduced collision-jitter path; the latest switching cause is not confirmed
+without that run's logs. HUD alignment, model occlusion and wall-edge coverage remain open.
+Before v0.5.6 the user reported floating facial features in first person. The supplied v0.5.3 logs show
+model selection blocked by `WAIT_MODEL_AMBIGUOUS`; material hiding never acquired a target.
+v0.5.4 runtime diagnostics consistently identify two distinct verified Ethan head objects.
+v0.5.5 removes the single-Ethan-head assumption in group discovery and binds each verified copy
+by identity, with independent DrawSelf/material ownership. First person hides every acquired copy;
+third person restores each copy’s original display values after camera/clearance checks. Shared
+head/body objects and shared mesh components still block control. This fixes the reproduced
+selection failure. The user still reports floating facial features with v0.5.5: the new logs show
+two discovered heads, but every enabled sample is blocked before reading their display baseline.
+Most part records show `WAIT_MODEL_TARGET`, with intermittent `COMPONENT_ARRAY_ACCESS` failures.
+v0.5.6 removes resource-holder/joint getter addresses from render ownership identity while retaining
+the exact path, material and joint-owner checks. It also validates the complete component chain
+when indexed array access is unavailable. Fresh-wrapper and array-access failures are reproduced
+offline; the logs do not identify which old identity field changed. Object names and getter
+addresses now provide additional diagnostic evidence.
 
-This prototype has no wall collision, full model/head support, third-person ballistics or DLC validation. It is not a complete port of the original Cheat Engine script.
+The user confirms facial remnants disappear with `RT head model (experimental)` enabled, but
+reports severe third-person slowdown that clears in first person. v0.5.7 removes repeated group
+scans from each material write while preserving per-write target validation, value comparisons,
+readbacks and hiding before camera restoration. A final group scan rejects changes during showing.
+Release writes keep fresh checks; a failed channel invalidates authorization before further writes.
+In 100 simulated steady frames with two heads and 60 unrelated nodes, full scans fall from 37 to
+3 per frame and component enumerations from 2,393 to 275. These are code-path counts, not game FPS.
+Steam Deck speed improvement, shadow roles, obstacle coverage and DLC behavior remain unverified.
+Center rays do not cover the camera volume. Aiming uses first person; third-person ballistics are
+not implemented. It is not a complete port of the original Cheat Engine script.
 
 ## 설치 / 사용
 
@@ -22,7 +172,7 @@ This prototype has no wall collision, full model/head support, third-person ball
 
 ## Build and test
 
-Linux x86_64 dependencies: clang 18+, lld-link, host C compiler, Python 3, liblua5.4.
+Linux x86_64 dependencies: clang 18+, lld-link, host C compiler, Python 3, liblua5.4 and MinGW x64 GCC (posix). The Explore build fetches hash-pinned Lua 5.4.3 source.
 
 ```bash
 cd diagnostics
@@ -32,13 +182,28 @@ python3 tools/package_explore.py ../dist
 
 `test.sh` builds the DLLs and generated Lua, then runs the tests. The optional original-CT re-extraction test requires your own matching `re7.CT` via `RE7_CT_FILE=/absolute/path/to/re7.CT`; otherwise that one test is skipped. Generated reference metadata is already included for normal builds.
 
+Commit tested changes before packaging. Packages include the source commit/tree and full file
+hashes; uncommitted tracked changes and stale generated Lua are rejected. GitHub Actions runs the
+same build/tests and produces installer/source artifacts for `work`/`main` pushes and pull requests.
+Download them from [Actions](https://github.com/like-shock/re7-ots/actions/workflows/offline-build.yml)
+after a successful run; artifacts are kept for 14 days. See the [automation notes](diagnostics/EXPLORE_BUILD.md).
+
 Outputs: `diagnostics/build/RE7_OTS_Explore.dll` and `diagnostics/build/re7_ots_explore.lua`. See [build notes](diagnostics/EXPLORE_BUILD.md) and [design](diagnostics/docs/EXPLORE_DESIGN.md).
 
 The `diagnostics/` directory name is retained from the prototype's history. It now contains the active Explore source as well as earlier diagnostic/observer code and regression tests. Historical design/progress documents describe their respective versions; current repository instructions take precedence.
 
 ## Development
 
-`main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally; this initial import does not create a GitHub binary release.
+`work` includes standalone **Ethan with Head RT** and **Third Person Full Model Placeholders RT**
+bindings. Install the matching external model package separately; model control and obstacle
+avoidance default OFF. The full pack uses exact path/material signatures for Ethan, Chris, Joe,
+Mia, Clancy and Zoe variants. Parts are hidden before first-person fallback and shown only after
+camera readback and clearance checks. Native DLL is v0.4.0; snapshot protocol remains v0.3.0.
+See [gameplay feedback fixes and limits](docs/GAMEPLAY_FEEDBACK_KO.md),
+[v0.5.0 implementation and evidence](docs/RUNTIME_EXPANSION_KO.md),
+[prior offline work](docs/OFFLINE_PROGRESS_KO.md) and [Ethan asset analysis](docs/ETHAN_RT_MODEL_ANALYSIS_KO.md).
+
+`main` holds the verified source baseline. Ongoing development uses `work` or focused feature branches. Keep user runtime logs, game executables and third-party model archives out of Git. Build artifacts are generated locally or by CI; this workflow does not publish a GitHub Release.
 
 The first import preserves the shipped v0.3.0 runtime source. Development tests simulate the SDK/OS boundaries and do not prove in-game rendering. Further Steam Deck testing can wait until an integrated change is ready.
 
@@ -47,3 +212,17 @@ The first import preserves the shipped v0.3.0 runtime source. Development tests 
 Original Third-Person OTS Script: cheezeit / goldedtoad. REFramework: praydog and contributors. Model authors and original acknowledgements are preserved in [ORIGINAL_CREDITS.txt](diagnostics/ORIGINAL_CREDITS.txt). See [NOTICE](diagnostics/NOTICE.md).
 
 The project's original implementation is MIT licensed; original mod-derived reference data and external model assets retain their own terms. The game, REFramework binaries, original CT archive and model assets are not redistributed in this repository.
+
+### v0.5.8-dev
+
+- Reprojects the validated RE7 interaction cursor from its world anchor using the confirmed final camera pose. Defaults ON; unknown layouts keep their original prompt. GUI writes are scoped to draw and restored afterward.
+- Shares read-only head resolutions within one synchronous operation and removes duplicate reflected method searches. All writes still reacquire their target; scopes are discarded on setters, exceptions and reentry. Mock SDK calls per steady frame: 15,251 → 6,631 (two heads, 60 unrelated branches).
+- Adds scalar head callback timing and prompt source/destination evidence to automatic logs.
+- A-button rendering remains unverified on hardware. Native interaction selection and third-person firing-origin correction are still open; aiming continues to fall back to first person. SDK call reduction is not an FPS benchmark.
+
+### v0.5.9-dev
+
+- Keeps native state sampling at 50ms after failed atomic publication. The previous 250ms failure backoff amplified two brief replacement failures into a 550ms gap, exceeding the 350ms camera freshness limit. The same host scenario now has a 150ms publication gap.
+- Adds native publication error counters and precise gate-reset evidence for stationary/walking fallback investigation. No heartbeat or invalid-state checks are relaxed.
+- Includes native DLL v0.3.1, retaining protocol v0.3.0. Replace both installer files; the UI shows the native monitor version.
+- Reproduction injects file replacement failures; it does not prove that every reported in-game switch has this cause.
