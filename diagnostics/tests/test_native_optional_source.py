@@ -54,7 +54,7 @@ void color_oracle(float*);void shader_oracle_17(void*);void shader_oracle_18(voi
 int main(void){
  for(unsigned j=0;j<512;j++){
   setup();uint32_t rgb=(j*65497u)&0xffffff;float brightness=(float)(j%21)*.5f;
-  CHECK(native_runtime_set_fullbright(&r,1,rgb,brightness));light_fixture_observed();CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));
+  CHECK(native_runtime_set_fullbright(&r,1,rgb,brightness));CHECK(call(NS_LIGHT_SOURCE_DIAMETER_READ));
   for(unsigned k=0;k<3;k++){
    float v[4];uint32_t component=(rgb>>(16-8*k))&255;memcpy(v,&component,4);v[1]=UNIT;v[2]=brightness;v[3]=150000;color_oracle(v);
    CHECK(!memcmp(fp+160+11*16+k*4,v,4));
