@@ -178,10 +178,54 @@ native_body_\n:
 #endif
  cmpl $0,native_enabled(%rip)
  je native_prepare_original_\n
- .if (NATIVE_HEAD_ONLY_MASK & (1 << \n)) == 0
+ cmpl $1,native_enabled(%rip)
+ je .Ldispatch\n
+ .if \n < 64
+ .if (NATIVE_HEAD_ONLY_MASK & (1 << \n)) != 0
  cmpl $2,native_enabled(%rip)
- je native_prepare_original_\n
+ je .Ldispatch\n
+ cmpl $10,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $4,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
+ je .Ldispatch\n
  .endif
+ .if (NATIVE_INPUT_ONLY_MASK & (1 << \n)) != 0
+ cmpl $3,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $11,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $4,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
+ je .Ldispatch\n
+ .endif
+ .else
+ .if (NATIVE_INPUT_ONLY_HIGH_MASK & (1 << (\n-64))) != 0
+ cmpl $3,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $11,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $4,native_enabled(%rip)
+ je .Ldispatch\n
+ cmpl $12,native_enabled(%rip)
+ je .Ldispatch\n
+ .endif
+ .endif
+ .if \n < 64
+ .if (NATIVE_FULLBRIGHT_ONLY_MASK & (1 << \n)) != 0
+ testl $NATIVE_FULLBRIGHT_MODE,native_enabled(%rip)
+ jnz .Ldispatch\n
+ .endif
+ .else
+ .if (NATIVE_FULLBRIGHT_ONLY_HIGH_MASK & (1 << (\n-64))) != 0
+ testl $NATIVE_FULLBRIGHT_MODE,native_enabled(%rip)
+ jnz .Ldispatch\n
+ .endif
+ .endif
+ jmp native_prepare_original_\n
+.Ldispatch\n:
  mov native_xsave_bytes(%rip),%eax
  add $192,%eax
 .Lprobe\n:
@@ -258,7 +302,7 @@ native_prepare_original_\n:
 .globl native_end_\n
 native_end_\n:
 .endm
-.irp index,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47
+.irp index,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77
  DETOUR \index
 .endr
 #ifndef _WIN32

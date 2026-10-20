@@ -20,7 +20,7 @@
 #ifndef NATIVE_SOURCE_COMMIT
 #error "NATIVE_SOURCE_COMMIT must be supplied by native_build.sh"
 #endif
-#define NATIVE_VERSION "0.1.4"
+#define NATIVE_VERSION "0.1.11"
 #define NATIVE_MODE "ORIGINAL_NATIVE_OTS_EXPERIMENTAL"
 #define LOG_LIMIT_BYTES (8u * 1024u * 1024u)
 #define LOG_END_RESERVE 1024u
@@ -54,6 +54,15 @@ int native_options_ui_get(int*value,int*save_status) {
 int native_options_ui_set(unsigned flag,int value) {
     if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
     return native_options_request_field(&options,flag,value);
+}
+
+int native_options_ui_get_settings(NativeSettings*settings,int*save_status){
+    if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
+    return native_settings_get(&options,settings,save_status);
+}
+int native_options_ui_set_setting(unsigned field,double value){
+    if(atomic_load_explicit(&phase,memory_order_acquire)!=PHASE_READY)return 0;
+    return native_settings_request(&options,field,value);
 }
 
 static int fail(const char *why) {
@@ -186,21 +195,21 @@ static int setup_log(void) {
     return logfile != INVALID_HANDLE_VALUE ? 1 : fail("LOG_OPEN_FAILED");
 }
 static void load_options(void) {
-    WCHAR path[PATH_CAP];char data[128];DWORD count=0;int value=NATIVE_OPTIONS_DEFAULT;
-    if(!join(path,folder,L"\\settings.cfg")){native_options_load(&options,NATIVE_OPTIONS_DEFAULT);return;}
+    WCHAR path[PATH_CAP];char data[1024];DWORD count=0;NativeSettings value=native_settings_defaults();
+    if(!join(path,folder,L"\\settings.cfg")){native_settings_load(&options,&value);return;}
     HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
     if(file!=INVALID_HANDLE_VALUE){
-        int valid=ReadFile(file,data,sizeof data,&count,NULL)&&native_options_parse(data,count,&value);
+        int valid=ReadFile(file,data,sizeof data,&count,NULL)&&native_settings_parse(data,count,&value);
         CloseHandle(file);
-        if(!valid){value=NATIVE_OPTIONS_DEFAULT;message("Invalid/unreadable settings.cfg; using default native preferences.");}
+        if(!valid){value=native_settings_defaults();message("Invalid/unreadable settings.cfg; using default native preferences.");}
     }else if(GetLastError()!=ERROR_FILE_NOT_FOUND){
         message("Could not read settings.cfg; using default native preferences.");
     }
-    native_options_load(&options,value);
+    native_settings_load(&options,&value);
 }
-static int save_options(int value) {
-    WCHAR path[PATH_CAP],temp[PATH_CAP];char data[128];DWORD count=0;
-    size_t size=native_options_encode(value,data,sizeof data);
+static int save_options(const NativeSettings*value) {
+    WCHAR path[PATH_CAP],temp[PATH_CAP];char data[1024];DWORD count=0;
+    size_t size=native_settings_encode(value,data,sizeof data);
     if(!size||!join(path,folder,L"\\settings.cfg")||!join(temp,folder,L"\\settings.cfg.tmp"))return 0;
     HANDLE file=CreateFileW(temp,GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
     if(file==INVALID_HANDLE_VALUE)return 0;
@@ -210,18 +219,30 @@ static int save_options(int value) {
     if(!ok)DeleteFileW(temp);
     return ok;
 }
-/* Runtime lock is held by the caller. F6 resets must retain the UI preference. */
+/* Runtime lock is held by the caller. F6 reinitializes transient pointers,
+ * retaining UI preferences, the copied menu scalar and recent RF write age. */
+static void apply_runtime_settings(const NativeSettings*s){
+    native_runtime_set_melee_auto_disable(&runtime,(s->flags&NATIVE_OPTION_MELEE)!=0);
+    native_runtime_set_hide_head(&runtime,(s->flags&NATIVE_OPTION_HIDE_HEAD)!=0);
+    native_runtime_set_light_contrast(&runtime,(s->flags&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
+    native_runtime_set_hide_mia_hair(&runtime,s->hide_mia_hair);
+    native_runtime_set_custom_filter(&runtime,s->custom_filter,s->shader);
+    native_runtime_set_fullbright(&runtime,s->fullbright,s->rgb,s->brightness);
+    native_runtime_set_controller_bindings(&runtime,s->camera_button,s->shoulder_button);
+}
 static void reset_runtime(void) {
-    int value=NATIVE_OPTIONS_DEFAULT,status=0;native_options_get(&options,&value,&status);
+    NativeSettings value=native_settings_defaults();int status=0;native_settings_get(&options,&value,&status);
+    int32_t menu_index=runtime.fov.menu_index;
+    uint32_t rf_age=runtime.base?runtime.fov.reframeworkfovframes:100;
     native_runtime_init(&runtime,base,read_memory,write_memory,NULL);
-    native_runtime_set_melee_auto_disable(&runtime,(value&NATIVE_OPTION_MELEE)!=0);
-    native_runtime_set_hide_head(&runtime,(value&NATIVE_OPTION_HIDE_HEAD)!=0);
-    native_runtime_set_light_contrast(&runtime,(value&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
+    runtime.fov.menu_index=menu_index;runtime.fov.reframeworkfovframes=rf_age;
+    apply_runtime_settings(&value);
     native_runtime_set_camera_enabled(&runtime,0);
 }
 /* Worker owns preference/camera transitions; faults always gate dispatch off. */
 static void publish_dispatch(int active) {
-    unsigned mode=active?1:runtime.hide_head?2:0;
+    unsigned mode=active?1:native_controller_configured(&runtime)?(runtime.hide_head?4:3):runtime.hide_head?2:0;
+    if(!active&&runtime.fullbright.enabled)mode|=NATIVE_FULLBRIGHT_MODE;
     if(atomic_load_explicit(&dispatch_fault,memory_order_acquire))mode=0;
     atomic_store_explicit(&native_enabled,mode,memory_order_release);
 }
@@ -320,7 +341,7 @@ static int install_hooks(void) {
     /* All continuation pointers are published before ANY hook can run. */
     for (unsigned i = 0; i < NATIVE_SITE_COUNT; ++i) {
         native_original_ips[i] = (void *)(uintptr_t)(base + native_sites[i].rva);
-        native_returns[i] = (void *)(uintptr_t)(base + native_sites[i].rva + native_sites[i].length);
+        native_returns[i] = (void *)(uintptr_t)(base + native_handled_rva(i));
     }
     for (unsigned i = 0; i < NATIVE_SITE_COUNT; ++i) {
         status = MH_CreateHook((void *)(uintptr_t)(base + native_sites[i].rva),
@@ -424,7 +445,7 @@ static void snapshot(uint64_t now) {
          "\"presented_frames\":%llu,\"present_fps\":%s,\"present_window_ms\":%llu,"
          "\"frame\":%u,\"area\":%u,\"fps\":%s,"
          "\"camera_target\":\"0x%llx\",\"ready\":%s,\"input_valid\":\"0x%llx\","
-         "\"input_failed\":\"0x%llx\",\"input_observed\":\"0x%llx\","
+         "\"input_failed\":\"0x%llx\",\"input_observed\":\"0x%llx\",\"input_observed_high\":\"0x%llx\","
          "\"firstperson\":%u,\"stopflag\":%u,\"internalfp\":%u,\"aim\":%u,\"blockedgun\":%u,"
          "\"view_changes\":%llu,\"camera_matches\":%llu,\"read_failures\":%llu,\"write_failures\":%llu,"
          "\"toggles\":%llu,\"shoulder_changes\":%llu,\"camera\":[%s,%s,%s],\"clip\":[%s,%s,%s],"
@@ -443,6 +464,7 @@ static void snapshot(uint64_t now) {
          state.frame, state.loadarea, fps, (unsigned long long)state.camera_base,
          state.ready ? "true" : "false", (unsigned long long)state.input_valid,
          (unsigned long long)state.input_failed, (unsigned long long)state.input_observed,
+         (unsigned long long)state.input_observed_high,
          state.firstperson, state.stopflag, state.internalfp, state.aim, state.blockedgun,
          (unsigned long long)state.view_changes, (unsigned long long)state.camera_matches,
          (unsigned long long)state.reads_failed, (unsigned long long)state.writes_failed,
@@ -459,6 +481,53 @@ static void snapshot(uint64_t now) {
          (unsigned long long)state.head_target,
          (unsigned long long)state.head_applied[0],(unsigned long long)state.head_applied[1],(unsigned long long)state.head_applied[2],
          state.character_raw,state.characters,state.character_observed?"true":"false",marker,state.assumeheadless,calls,applied);
+}
+/* Worker-only connection observer. Source hooks have no slot/connectivity
+ * status; a changed slot mask disarms all bindings before queued actions can
+ * be consumed. Resolve loaded system XInput first, then an explicit system
+ * directory path. Retain the module for the pinned plugin's lifetime. */
+typedef DWORD (WINAPI *NativeXInputGetState)(DWORD,void*);
+static NativeXInputGetState xinput_get_state;
+static int xinput_attempted,controller_connection_warning;
+static void initialize_controller_connections(void){
+    static const WCHAR*names[]={L"xinput1_4.dll",L"xinput1_3.dll",L"xinput9_1_0.dll"};
+    static const WCHAR*suffixes[]={L"\\xinput1_4.dll",L"\\xinput1_3.dll",L"\\xinput9_1_0.dll"};
+    WCHAR system[PATH_CAP],path[PATH_CAP];UINT n=GetSystemDirectoryW(system,PATH_CAP);
+    xinput_attempted=1;
+    for(unsigned pass=0;pass<2&&!xinput_get_state;pass++)for(unsigned j=0;j<3&&!xinput_get_state;j++){
+        HMODULE module=pass==0?GetModuleHandleW(names[j]):NULL;
+        if(pass==1&&n&&n<PATH_CAP&&join(path,system,suffixes[j]))module=LoadLibraryExW(path,NULL,LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if(module){
+            FARPROC symbol=GetProcAddress(module,"XInputGetState");
+            _Static_assert(sizeof symbol==sizeof xinput_get_state,"XInput pointer ABI");
+            memcpy(&xinput_get_state,&symbol,sizeof symbol);
+        }
+    }
+}
+static int read_controller_connections(unsigned*mask){
+    *mask=0;
+    if(!xinput_attempted)initialize_controller_connections();
+    if(!xinput_get_state)return 0;
+    for(DWORD slot=0;slot<4;slot++){
+        /* XINPUT_STATE is DWORD packet + 12-byte XINPUT_GAMEPAD. */
+        uint32_t state[4]={0};DWORD status=xinput_get_state(slot,state);
+        if(status==ERROR_SUCCESS)*mask|=1u<<slot;
+        else if(status!=ERROR_DEVICE_NOT_CONNECTED){*mask=0;return 0;}
+    }
+    return 1;
+}
+static void controller_worker_sample(uint64_t now,unsigned*camera,unsigned*shoulder){
+    unsigned mask=0;int configured=native_controller_configured(&runtime);
+    int available=configured&&read_controller_connections(&mask);
+    AcquireSRWLockExclusive(&runtime_lock);
+    native_controller_connections(&runtime,available,mask);
+    native_controller_poll(&runtime,now);
+    native_controller_take(&runtime,camera,shoulder);
+    ReleaseSRWLockExclusive(&runtime_lock);
+    if(configured&&!available&&!controller_connection_warning){
+        message("Controller shortcuts unavailable: XInput connection status could not be read. F6/F7 keyboard controls remain available.");
+        controller_connection_warning=1;
+    }else if(available)controller_connection_warning=0;
 }
 static DWORD WINAPI worker(void *unused) {
     (void)unused;
@@ -495,22 +564,22 @@ static DWORD WINAPI worker(void *unused) {
         if (atomic_load_explicit(&dispatch_fault, memory_order_acquire)) {
             fail("DISPATCH_TLS_FAILED"); block(); break;
         }
-        int option_value;unsigned option_token;
-        if(native_options_pending(&options,&option_value,&option_token)){
+        NativeSettings option_value;NativeSettingsToken option_token;
+        if(native_settings_pending(&options,&option_value,&option_token)){
             AcquireSRWLockExclusive(&runtime_lock);
-            native_runtime_set_melee_auto_disable(&runtime,(option_value&NATIVE_OPTION_MELEE)!=0);
-            native_runtime_set_hide_head(&runtime,(option_value&NATIVE_OPTION_HIDE_HEAD)!=0);
-            native_runtime_set_light_contrast(&runtime,(option_value&NATIVE_OPTION_LIGHT_CONTRAST)!=0);
+            apply_runtime_settings(&option_value);
             ReleaseSRWLockExclusive(&runtime_lock);
             publish_dispatch(active);
-            int saved=save_options(option_value);
-            native_options_complete(&options,option_token,saved);
-            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"limit_light_source_contrast_in_third_person\":%s,\"saved\":%s}\n",
-                 (option_value&NATIVE_OPTION_MELEE)?"true":"false",(option_value&NATIVE_OPTION_HIDE_HEAD)?"true":"false",
-                 (option_value&NATIVE_OPTION_LIGHT_CONTRAST)?"true":"false",saved?"true":"false");
+            int saved=save_options(&option_value);
+            native_settings_complete(&options,&option_token,saved);
+            line("{\"type\":\"settings\",\"auto_disable_with_melee_weapons\":%s,\"hide_head_in_first_person\":%s,\"limit_light_source_contrast_in_third_person\":%s,\"hide_mia_hair\":%d,\"custom_filter\":%d,\"shader\":%d,\"fullbright\":%d,\"rgb\":%u,\"brightness\":%.9g,\"camera_button\":%d,\"shoulder_button\":%d,\"saved\":%s}\n",
+                 (option_value.flags&NATIVE_OPTION_MELEE)?"true":"false",(option_value.flags&NATIVE_OPTION_HIDE_HEAD)?"true":"false",
+                 (option_value.flags&NATIVE_OPTION_LIGHT_CONTRAST)?"true":"false",option_value.hide_mia_hair,option_value.custom_filter,option_value.shader,option_value.fullbright,option_value.rgb,(double)option_value.brightness,option_value.camera_button,option_value.shoulder_button,saved?"true":"false");
             if(!saved)message("Could not save native preferences; session settings are applied.");
         }
-        unsigned requested = atomic_exchange_explicit(&toggle_requests, 0, memory_order_acq_rel);
+        unsigned controller_camera,controller_shoulder;
+        controller_worker_sample(now,&controller_camera,&controller_shoulder);
+        unsigned requested = atomic_exchange_explicit(&toggle_requests, 0, memory_order_acq_rel)+controller_camera;
         if (requested & 1u) {
             ++toggles;
             atomic_store_explicit(&native_enabled, 0, memory_order_release);
@@ -528,9 +597,9 @@ static DWORD WINAPI worker(void *unused) {
             line("{\"type\":\"toggle\",\"elapsed_ms\":%llu,\"generation\":%llu,\"enabled\":%s}\n",
                  (unsigned long long)(now - started), (unsigned long long)generation,
                  active ? "true" : "false");
-            message(active ? "Original native OTS enabled." : "Native OTS camera OFF; first-person head hiding follows its checkbox.");
+            message(active ? "Original native OTS enabled." : "Native OTS camera OFF; head hiding and Fullbright follow their checkboxes.");
         }
-        requested = atomic_exchange_explicit(&shoulder_requests, 0, memory_order_acq_rel);
+        requested = atomic_exchange_explicit(&shoulder_requests, 0, memory_order_acq_rel)+controller_shoulder;
         if (requested & 1u) {
             AcquireSRWLockExclusive(&runtime_lock);
             native_runtime_shoulder(&runtime);
