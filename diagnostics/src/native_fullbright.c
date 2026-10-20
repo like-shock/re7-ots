@@ -12,9 +12,9 @@ static void invalidate(NativeRuntime*r){
  r->fullbright.area=0;r->fullbright.shadow_override=0;
 }
 void native_fullbright_reset(NativeRuntime*r){invalidate(r);r->fullbright.observed=0;}
-/* F6 OFF has no camera/FOV producers. Require the independent player, area
- * and loading observations instead; never borrow an old OTS-ready snapshot. */
-static int first_person_ready(const NativeRuntime*r){
+/* CT lighting is independent of camera readiness in both F6 modes. Require
+ * fresh player/area/loading observations, not unrelated weapon/FOV inputs. */
+static int lighting_ready(const NativeRuntime*r){
  const Re7OriginalInputs*i=&r->inputs;
  const uint64_t needed=RE7_INPUT_PLAYER|RE7_INPUT_AIM|RE7_INPUT_AREA|RE7_INPUT_TIMER;
  const uint64_t observed=(1ULL<<NS_CUTSCENE_AUTOLOOK)|(1ULL<<NS_LOADED_AREA)|(1ULL<<NS_TIMER_AOB);
@@ -70,9 +70,9 @@ int native_fullbright_dispatch(NativeRuntime*r,unsigned site,NativeFrame*f,void*
  if(!r->fullbright.enabled){native_fullbright_reset(r);return 0;}
  if(site==NS_CUTSCENE_AUTOLOOK||site==NS_LOADED_AREA||site==NS_TIMER_AOB||site==NS_BETTER_TIMER)
   r->fullbright.observed|=UINT64_C(1)<<site;
- if(r->camera_enabled?!r->inputs.ready:!first_person_ready(r)){invalidate(r);return 0;}
- if(!r->camera_enabled&&(r->fullbright.player!=r->inputs.player_base||
-    r->fullbright.aim!=r->inputs.aim_address||r->fullbright.area!=r->inputs.state.loadarea)){
+ if(!lighting_ready(r)){invalidate(r);return 0;}
+ if(r->fullbright.player!=r->inputs.player_base||
+    r->fullbright.aim!=r->inputs.aim_address||r->fullbright.area!=r->inputs.state.loadarea){
   invalidate(r);r->fullbright.player=r->inputs.player_base;
   r->fullbright.aim=r->inputs.aim_address;r->fullbright.area=r->inputs.state.loadarea;
  }
