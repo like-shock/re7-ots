@@ -37,11 +37,19 @@ static float color(unsigned byte,float brightness){
  __asm__ volatile("fildl %1; fmuls %2; fmuls %3; fmuls %4; fstps %0":"=m"(result):"m"(value),"m"(unit),"m"(brightness),"m"(scale):"st");return result;
 }
 static int diameter(NativeRuntime*r,NativeFrame*f,void*fp){
- float v[16];uint32_t ecx;uint64_t stack=native_frame_game_rsp(f);
+ float v[16];uint32_t ecx,identity;uint64_t stack=native_frame_game_rsp(f);
+ /* CT retains the examine light while this shared site visits other lights.
+  * Clearing it on every visit makes the radius consumers depend on ordering.
+  * Unknown reads and a recycled target still revoke the cached identity. */
+ if(!read_at(r,f->rax,0x68,&identity,4)){r->fullbright.light=0;return 0;}
+ if(identity!=0x48127c00u){
+  if(r->fullbright.light==f->rax)r->fullbright.light=0;
+  return 0;
+ }
  /* Stage every operand and recheck identity before the sole original store.
   * A failed store can safely replay: it writes the same original ECX value. */
  r->fullbright.light=0;
- if(!marker(r,f->rax)||!read_at(r,f->rax,0x80,v,sizeof v)||!read_at(r,f->rax,0xd0,&ecx,4)||!marker(r,f->rax))return 0;
+ if(!read_at(r,f->rax,0x80,v,sizeof v)||!read_at(r,f->rax,0xd0,&ecx,4)||!marker(r,f->rax))return 0;
  /* The original stack store precedes its last two vector loads. Reject
   * overlap instead of staging values that that store would have changed. */
  if(stack>UINT64_C(0x7fffffffff9f)||(stack+0x5c<f->rax+0xc0&&f->rax+0xa0<stack+0x60))return 0;

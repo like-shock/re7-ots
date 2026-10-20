@@ -112,12 +112,12 @@ class NativeArchiveTests(unittest.TestCase):
    subprocess.run(['git','-C',str(project),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture'],check=True)
    sha=subprocess.check_output(['git','-C',str(project),'rev-parse','HEAD'],text=True).strip()
    build=diag/'build';build.mkdir(exist_ok=True);(build/'RE7_OTS_Native.dll').write_bytes(b'fixture DLL')
-   info={'schema':1,'version':'0.1.11','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,'dll_sha256':hashlib.sha256(b'fixture DLL').hexdigest(),
+   info={'schema':1,'version':'0.1.12','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,'dll_sha256':hashlib.sha256(b'fixture DLL').hexdigest(),
          'sources':{name:hashlib.sha256((diag/name).read_bytes()).hexdigest() for name in ('native/install.sh','data/minhook.json')},
          'minhook_commit':pin['commit'],'minhook_sources':pin['files'],**lua}
    (build/'native-build.json').write_text(json.dumps(info))
    target=m.package(project,pathlib.Path(d)/'out')
-   self.assertEqual(target.name,'RE7_OTS_Native_v0.1.11_SteamDeck.zip')
+   self.assertEqual(target.name,'RE7_OTS_Native_v0.1.12_SteamDeck.zip')
    with zipfile.ZipFile(target) as z:
     self.assertFalse(any('Explore.dll' in p or p.endswith('.lua') for p in z.namelist()))
     self.assertEqual([p for p in z.namelist() if p.endswith('.dll')],['reframework/plugins/RE7_OTS_Native.dll'])
@@ -144,7 +144,7 @@ class NativeArchiveTests(unittest.TestCase):
    subprocess.run(['git','-C',str(project),'-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture'],check=True)
    sha=subprocess.check_output(['git','-C',str(project),'rev-parse','HEAD'],text=True).strip()
    build=diag/'build';build.mkdir(exist_ok=True);dll=build/'RE7_OTS_Native.dll';dll.write_bytes(b'fixture DLL')
-   good={'schema':1,'version':'0.1.11','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,
+   good={'schema':1,'version':'0.1.12','mode':'ORIGINAL_NATIVE_OTS_EXPERIMENTAL','commit':sha,'dirty':False,
          'dll_sha256':hashlib.sha256(dll.read_bytes()).hexdigest(),
          'sources':{name:hashlib.sha256((diag/name).read_bytes()).hexdigest() for name in ('native/install.sh','data/minhook.json')},
          'minhook_commit':pin['commit'],'minhook_sources':pin['files'],**lua}

@@ -4,7 +4,7 @@ Experimental over-the-shoulder camera for Resident Evil 7, built with REFramewor
 
 **Current priority: native port of the original RT 8.02 control paths.**
 First-person face hiding is optional and is not a prerequisite for that port.
-The [Native OTS 0.1.11 device build](diagnostics/native/README_KO.md) connects
+The [Native OTS 0.1.12 device build](diagnostics/native/README_KO.md) connects
 78 original instruction sites for actual camera, focus, firing, inspection,
 collision and model-transparency control. F6 toggles the camera; F7 swaps shoulders.
 It has no Lua/SDK model traversal and no face-hiding prerequisite. The installer
@@ -15,6 +15,11 @@ The embedded **Script Generated UI > RE7 OTS Native** menu now exposes
 changes are saved automatically and retained across game restart/F6 resets.
 OFF removes only the melee-weapon transition condition. Other automatic transitions
 and original per-weapon exceptions remain. No separate Lua script is installed.
+Version 0.1.12 preserves Fullbright radius correction when unrelated scene
+lights are processed between its light and radius hooks. Invalid/unreadable
+targets and loading still suspend that correction. This fixes a reproduced
+source-port discrepancy; the reported distant block-shaped lighting during
+camera rotation still needs confirmation in the game.
 Version 0.1.11 lets Fullbright remain enabled in first person with F6 OFF,
 including a fresh game start with head hiding and controller shortcuts disabled.
 Its existing checkbox controls both camera modes; loading and missing required
