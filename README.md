@@ -53,6 +53,7 @@ bash install.sh "/path/to/game-folder"
 
 ### 현재 상태·알려진 문제
 
+- **회전 시 외곽선 잔상:** 캐릭터 외곽선에 점·선 형태의 잔상이 따라오면 **게임 그래픽 설정의 모션 블러(Motion Blur)를 OFF**로 설정하세요. 보고된 Steam Deck 환경에서는 **FXAA+TAA를 유지해도 모션 블러를 끄면 잔상이 사라지는 것**을 확인했습니다. 모드의 기존 블러 보정은 피사계 심도(DOF)용이며, 게임의 모션 블러는 별도로 꺼야 합니다.
 - **0.1.12:** Fullbright를 켜고 카메라를 회전할 때 먼 어두운 영역에 각진 밝은 경계가 나타나던 문제를 수정했습니다. 보고된 장면에서 개선이 확인되었습니다.
 - **미해결:** Fullbright 사용 중 치료 아이템으로 자동 1인칭 전환되면 화면 전체가 어두워졌다가, 3인칭으로 돌아오면서 다시 밝아질 수 있습니다.
 - **호환성:** RELit의 카메라 부착 조명과 함께 사용할 때 캐릭터가 어둡거나 색이 뒤집혀 보이는 현상이 보고되었습니다. 보고된 환경에서는 해당 조명을 끄면 해소되었습니다.
@@ -103,6 +104,7 @@ Version 0.1.16 adds Fullbright transition diagnostics without changing lighting 
 
 ### Current status and known issues
 
+- **Character-outline trails during rotation:** If dots or lines trail the character's outline, **turn Motion Blur OFF in the game's graphics settings**. In the reported Steam Deck setup, this removed the trails **with FXAA+TAA still enabled**. The mod's existing blur correction affects depth of field (DOF); game Motion Blur must be disabled separately.
 - **0.1.12:** Fixes block-shaped bright patches in distant dark areas when rotating the camera with Fullbright enabled. Improvement was confirmed in the reported scene.
 - **Unresolved:** With Fullbright enabled, healing can darken the entire screen during the automatic first-person transition; brightness returns when third person resumes.
 - **Compatibility:** RELit's camera-attached light has been reported to make the character look dark or color-inverted. Disabling that light resolved the appearance in the reported setup.
